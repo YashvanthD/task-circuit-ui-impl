@@ -45,11 +45,11 @@ function AppRoutes() {
         <Route index element={<DashboardPage />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="tasks" element={<TasksPage />} />
-        <Route path="chat" element={<ChatPage />} />
         <Route path="pond" element={<PondPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="invoice" element={<InvoicePage />} />
         <Route path="sales-tax" element={<SalesTaxPage />} />
+        <Route path="chat" element={<ChatPage />} />
         <Route path="dataset" element={<DatasetPage />} />
         <Route path="manage-users" element={<ManageUsersPage />} />
         <Route path="settings" element={<SettingsPage />} />

@@ -212,4 +212,38 @@ The sidebar navigation is arranged in the following order:
 - Remove unused imports and variables to keep code clean.
 
 ---
-**These instructions reflect the current sidebar and layout design as of December 5, 2025.**
+
+# Task Circuit Project Copilot Instructions
+
+## Profile Component & User Info
+- Always use the getUserInfo() function from utils/user.js to retrieve user data for profile, activity, and notification settings.
+- All profile fields (username, avatar, description, account key, user key, join date, last login, etc.) are loaded from local storage via getUserInfo().
+- Profile picture can be updated via file upload (UI only, backend integration pending).
+- User description is editable inline with a modern text input.
+
+## User Activity Section
+- Display user activity stats in two rows of floating white cards:
+  - Row 1: Total Tasks | Completed
+  - Row 2: Pending | Success Rate
+- All cards have no border radius and use box shadow for a floating effect.
+
+## Account Settings Section
+- Show two left-aligned buttons: Edit Username and Edit Password.
+- Buttons use black text, white background, and a small margin between them.
+- No border radius; use box shadow for subtle elevation.
+
+## Notification Settings Section
+- Use a toggle switch for enabling/disabling notifications.
+- When notifications are off, all three notification type switches (Push, Email, Phone) are disabled.
+- When notifications are enabled, user can toggle each notification type individually.
+- All notification settings are loaded from getUserInfo().
+
+## General UI Guidelines
+- No border radius for cards or buttons in profile/settings.
+- Use modern, clean, and minimal design with clear separation between sections.
+- All user actions and settings should first check local storage for data before making API calls.
+- Keep unused imports out of components for cleanliness.
+
+## Maintenance
+- Always update these instructions when making significant UI or logic changes.
+- Ensure all new features and logic are documented for future contributors.
