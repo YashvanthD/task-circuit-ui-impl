@@ -16,6 +16,8 @@ import SalesTaxPage from './pages/user/SalesTaxPage';
 import InvoicePage from './pages/user/InvoicePage';
 import SettingsPage from './pages/user/SettingsPage';
 import { getRefreshToken, loadUserFromLocalStorage, removeFromLocalStorage, removeUserFromLocalStorage } from './utils/storage';
+import SignupForm from './forms/SignupForm';
+import RegisterCompanyForm from './forms/RegisterCompanyForm';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -41,6 +43,8 @@ function AppRoutes() {
       <Route path="/taskcircuit/" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
       <Route path="/taskcircuit/home" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><HomePage /></BaseLayout>} />
       <Route path="/taskcircuit/login" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LoginPage /></BaseLayout>} />
+      <Route path="/taskcircuit/signup" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><SignupForm /></BaseLayout>} />
+      <Route path="/taskcircuit/register-company" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><RegisterCompanyForm /></BaseLayout>} />
       <Route path="/taskcircuit/user/*" element={<UserLayout />}>
         <Route index element={<DashboardPage />} />
         <Route path="dashboard" element={<DashboardPage />} />

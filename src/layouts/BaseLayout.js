@@ -90,11 +90,11 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                   Login
                 </Button>
                 <Button
-                  component={Link}
-                  to="/taskcircuit/register-company"
+                  color="primary"
                   variant="contained"
-                  color="success"
-                  sx={{ color: 'common.white', bgcolor: 'success.main', boxShadow: 2, '&:hover': { bgcolor: 'success.dark' } }}
+                  sx={{ ml: 2, boxShadow: 2, textTransform: 'none', fontWeight: 500, minWidth: 120 }}
+                  to="/taskcircuit/register-company"
+                  component={Link}
                 >
                   Register Company
                 </Button>
