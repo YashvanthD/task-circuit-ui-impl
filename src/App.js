@@ -18,6 +18,7 @@ import SettingsPage from './pages/user/SettingsPage';
 import { getRefreshToken, loadUserFromLocalStorage, removeFromLocalStorage, removeUserFromLocalStorage } from './utils/storage';
 import SignupForm from './forms/SignupForm';
 import RegisterCompanyForm from './forms/RegisterCompanyForm';
+import FishPage from './pages/user/FishPage';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -57,6 +58,7 @@ function AppRoutes() {
         <Route path="dataset" element={<DatasetPage />} />
         <Route path="manage-users" element={<ManageUsersPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="fish" element={<FishPage />} />
         {/* Add other user routes here */}
       </Route>
     </Routes>

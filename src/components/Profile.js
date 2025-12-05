@@ -1,14 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Card, CardContent, Typography, Avatar, IconButton, Button, Stack, Divider, TextField, Radio, FormControlLabel, FormGroup, Switch } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import { getUserInfo } from '../utils/user';
+import UpdateMobileForm from '../forms/UpdateMobileForm';
+import UpdateMailForm from '../forms/UpdateMailForm';
+import UpdatePasswordForm from '../forms/UpdatePasswordForm';
+import UpdateUsernameForm from '../forms/UpdateUsernameForm';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export default function Profile() {
+export default function Profile({ onThemeChange }) {
   const user = getUserInfo();
   const [profilePic, setProfilePic] = useState(user?.avatar_url || '');
   const [desc, setDesc] = useState(user?.description || '');
   const [editDesc, setEditDesc] = useState(false);
+  const [mobileDialogOpen, setMobileDialogOpen] = useState(false);
+  const [mailDialogOpen, setMailDialogOpen] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [usernameDialogOpen, setUsernameDialogOpen] = useState(false);
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('themeMode') || 'light');
+
+  useEffect(() => {
+    localStorage.setItem('themeMode', themeMode);
+    if (onThemeChange) onThemeChange(themeMode);
+  }, [themeMode, onThemeChange]);
 
   const handlePicChange = (e) => {
     const file = e.target.files[0];
@@ -40,14 +60,14 @@ export default function Profile() {
               <Typography variant="body2" color="text.secondary">
                 {user?.mobile || 'Mobile not added'}
               </Typography>
-              <Button size="small" variant="outlined" sx={{ mt: 1 }}>Update Mobile</Button>
+              <Button size="small" variant="outlined" sx={{ mt: 1 }} onClick={() => setMobileDialogOpen(true)}>Update Mobile</Button>
             </Box>
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Box sx={{ minWidth: 0, flex: 1, textAlign: 'center' }}>
               <Typography variant="body2" color="text.secondary">
                 {user?.email || 'Email not added'}
               </Typography>
-              <Button size="small" variant="outlined" sx={{ mt: 1 }}>Update Email</Button>
+              <Button size="small" variant="outlined" sx={{ mt: 1 }} onClick={() => setMailDialogOpen(true)}>Update Email</Button>
             </Box>
           </Stack>
           <Divider sx={{ my: 2 }} />
@@ -122,89 +142,167 @@ export default function Profile() {
             </Stack>
           </Box>
           <Divider sx={{ my: 2 }} />
-          {/* Account Settings Section - only Edit Username and Edit Password, no margin between buttons */}
-          <Box sx={{ width: '100%' }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom>Account Settings</Typography>
-            <Divider sx={{ mb: 2 }} />
-            <Stack spacing={1}>
-              <Button
-                variant="contained"
-                color="primary"
-                fullWidth
-                sx={{
-                  fontWeight: 400,
-                  boxShadow: 2,
-                  p: 1,
-                  bgcolor: 'common.white',
-                  color: 'black',
-                  textTransform: 'none',
-                  fontSize: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-start',
-                  mb: 1,
-                  '&:hover': {
-                    bgcolor: 'primary.light',
+          {/* Account Settings Section in its own Card */}
+          <Card sx={{ width: '100%', boxShadow: 2, bgcolor: 'common.white', mb: 2 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>Account Settings</Typography>
+              <Divider sx={{ mb: 2 }} />
+              <Stack spacing={1}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  sx={{
+                    fontWeight: 400,
+                    boxShadow: 2,
+                    p: 1,
+                    bgcolor: 'common.white',
                     color: 'black',
-                  },
-                }}
-                startIcon={<EditIcon />}
-              >
-                Edit Username
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                fullWidth
-                sx={{
-                  fontWeight: 400,
-                  boxShadow: 2,
-                  p: 1,
-                  bgcolor: 'common.white',
-                  color: 'black',
-                  textTransform: 'none',
-                  fontSize: 16,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-start',
-                  '&:hover': {
-                    bgcolor: 'primary.light',
+                    textTransform: 'none',
+                    fontSize: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    mb: 1,
+                    '&:hover': {
+                      bgcolor: 'primary.light',
+                      color: 'black',
+                    },
+                  }}
+                  startIcon={<EditIcon />}
+                  onClick={() => setUsernameDialogOpen(true)}
+                >
+                  Edit Username
+                </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  sx={{
+                    fontWeight: 400,
+                    boxShadow: 2,
+                    p: 1,
+                    bgcolor: 'common.white',
                     color: 'black',
-                  },
-                }}
-                startIcon={<EditIcon />}
-              >
-                Edit Password
-              </Button>
-            </Stack>
-          </Box>
+                    textTransform: 'none',
+                    fontSize: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-start',
+                    '&:hover': {
+                      bgcolor: 'primary.light',
+                      color: 'black',
+                    },
+                  }}
+                  startIcon={<EditIcon />}
+                  onClick={() => setPasswordDialogOpen(true)}
+                >
+                  Edit Password
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
           <Divider sx={{ my: 2 }} />
-          {/* Notification Settings Section - toggle switches, disables when notifications off */}
-          <Box sx={{ width: '100%' }}>
-            <Typography variant="h6" fontWeight={600} gutterBottom>Notification Settings</Typography>
-            <Divider sx={{ mb: 2 }} />
-            <Stack spacing={2}>
+          {/* Notification Settings Section in its own Card */}
+          <Card sx={{ width: '100%', boxShadow: 2, bgcolor: 'common.white', mb: 2 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>Notification Settings</Typography>
+              <Divider sx={{ mb: 2 }} />
+              <Stack spacing={2}>
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <Typography variant="body1">Notifications</Typography>
+                  <Switch checked={!!user?.settings?.notifications?.enabled} />
+                </Stack>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <FormControlLabel
+                    control={<Switch checked={!!user?.settings?.notifications?.push} disabled={!user?.settings?.notifications?.enabled} />}
+                    label="Push Notification"
+                  />
+                  <FormControlLabel
+                    control={<Switch checked={!!user?.settings?.notifications?.email} disabled={!user?.settings?.notifications?.enabled} />}
+                    label="Email"
+                  />
+                  <FormControlLabel
+                    control={<Switch checked={!!user?.settings?.notifications?.sms} disabled={!user?.settings?.notifications?.enabled} />}
+                    label="Phone"
+                  />
+                </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
+          {/* Theme Section in its own Card with icons and animation */}
+          <Card sx={{ width: '100%', boxShadow: 2, bgcolor: 'common.white', mb: 2 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={600} gutterBottom>Theme</Typography>
+              <Divider sx={{ mb: 2 }} />
               <Stack direction="row" alignItems="center" spacing={2}>
-                <Typography variant="body1">Notifications</Typography>
-                <Switch checked={!!user?.settings?.notifications?.enabled} />
+                <AnimatePresence mode="wait">
+                  {themeMode === 'dark' ? (
+                    <motion.span
+                      key="dark"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.3 }}
+                      style={{ display: 'flex', alignItems: 'center' }}
+                    >
+                      <Brightness4Icon color="primary" sx={{ fontSize: 32, mr: 1 }} />
+                      <Typography variant="body1">Dark Mode</Typography>
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      key="light"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.3 }}
+                      style={{ display: 'flex', alignItems: 'center' }}
+                    >
+                      <Brightness7Icon color="warning" sx={{ fontSize: 32, mr: 1 }} />
+                      <Typography variant="body1">Light Mode</Typography>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+                <Switch
+                  checked={themeMode === 'dark'}
+                  onChange={e => setThemeMode(e.target.checked ? 'dark' : 'light')}
+                  inputProps={{ 'aria-label': 'theme toggle' }}
+                  sx={{
+                    '& .MuiSwitch-thumb': {
+                      transition: 'background 0.3s',
+                      bgcolor: themeMode === 'dark' ? 'primary.main' : 'warning.main',
+                    },
+                  }}
+                />
               </Stack>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <FormControlLabel
-                  control={<Switch checked={!!user?.settings?.notifications?.push} disabled={!user?.settings?.notifications?.enabled} />}
-                  label="Push Notification"
-                />
-                <FormControlLabel
-                  control={<Switch checked={!!user?.settings?.notifications?.email} disabled={!user?.settings?.notifications?.enabled} />}
-                  label="Email"
-                />
-                <FormControlLabel
-                  control={<Switch checked={!!user?.settings?.notifications?.sms} disabled={!user?.settings?.notifications?.enabled} />}
-                  label="Phone"
-                />
-              </Stack>
-            </Stack>
-          </Box>
+            </CardContent>
+          </Card>
         </Stack>
+        {/* Dialogs for forms */}
+        <Dialog open={mobileDialogOpen} onClose={() => setMobileDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Update Mobile</DialogTitle>
+          <DialogContent>
+            <UpdateMobileForm />
+          </DialogContent>
+        </Dialog>
+        <Dialog open={mailDialogOpen} onClose={() => setMailDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Update Email</DialogTitle>
+          <DialogContent>
+            <UpdateMailForm />
+          </DialogContent>
+        </Dialog>
+        <Dialog open={passwordDialogOpen} onClose={() => setPasswordDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Update Password</DialogTitle>
+          <DialogContent>
+            <UpdatePasswordForm />
+          </DialogContent>
+        </Dialog>
+        <Dialog open={usernameDialogOpen} onClose={() => setUsernameDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Update Username</DialogTitle>
+          <DialogContent>
+            <UpdateUsernameForm />
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
