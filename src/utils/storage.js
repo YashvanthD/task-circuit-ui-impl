@@ -277,17 +277,17 @@ export function parseJwt(token) {
  * @param {object} loginResponse
  */
 export function processLoginResponse(loginResponse) {
-  if (!loginResponse || !loginResponse.access_token || !loginResponse.refresh_token) return;
-  const payload = parseJwt(loginResponse.access_token);
+  if (!loginResponse || !loginResponse.data || !loginResponse.data.accessToken || !loginResponse.data.refreshToken) return;
+  const payload = parseJwt(loginResponse.data.accessToken);
   let expiresIn = 3600; // default 1 hour
   if (payload && payload.exp) {
     const nowSec = Math.floor(Date.now() / 1000);
     expiresIn = payload.exp - nowSec;
     if (expiresIn < 0) expiresIn = 0;
   }
-  saveAccessToken(loginResponse.access_token, expiresIn);
-  saveToLocalStorage('refresh_token', loginResponse.refresh_token);
-  saveUserToLocalStorage(loginResponse);
+  saveAccessToken(loginResponse.data.accessToken, expiresIn);
+  saveToLocalStorage('refresh_token', loginResponse.data.refreshToken);
+  saveUserToLocalStorage(loginResponse.data);
 }
 
 /**

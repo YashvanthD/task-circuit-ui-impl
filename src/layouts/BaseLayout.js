@@ -25,6 +25,9 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import LocalAtmIcon from '@mui/icons-material/LocalAtm';
 import SettingsIcon from '@mui/icons-material/Settings';
 
+// Import storage utilities to clear tokens/user data on logout
+import { clearAccessTokenManagement, removeUserFromLocalStorage, removeFromLocalStorage, clearTasksFromLocalStorage } from '../utils/storage';
+
 /**
  * BaseLayout is the base model for all pages in the Task Circuit project.
  *
@@ -68,6 +71,47 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
   const [anchorEl, setAnchorEl] = React.useState(null);
   const handleProfileMenuOpen = (event) => setAnchorEl(event.currentTarget);
   const handleProfileMenuClose = () => setAnchorEl(null);
+
+  // Robust logout handler: clears timers, tokens, cached user data and tasks, then calls provided onLogout or redirects
+  const handleLogout = () => {
+    // close menu first
+    handleProfileMenuClose();
+    try {
+      // stop any token refresh timers
+      clearAccessTokenManagement();
+    } catch (e) {
+      // swallow errors to avoid blocking logout
+      // eslint-disable-next-line no-console
+      console.warn('clearAccessTokenManagement failed', e);
+    }
+
+    try {
+      // remove auth tokens and user data from localStorage
+      removeUserFromLocalStorage();
+      removeFromLocalStorage('access_token');
+      removeFromLocalStorage('refresh_token');
+      removeFromLocalStorage('access_token_expiry');
+      // clear any cached tasks or app-specific state
+      clearTasksFromLocalStorage();
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('Clearing local storage failed', e);
+    }
+
+    // call provided logout callback if present
+    if (typeof onLogout === 'function') {
+      try {
+        onLogout();
+      } catch (e) {
+        // ignore errors from external handler
+        // eslint-disable-next-line no-console
+        console.warn('onLogout callback threw', e);
+      }
+    } else {
+      // otherwise redirect to login
+      window.location.href = '/taskcircuit/login';
+    }
+  };
 
   return (
     <Box sx={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -147,7 +191,10 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                     <SettingsIcon fontSize="small" />
                     Settings
                   </MenuItem>
-                  <MenuItem onClick={() => { handleProfileMenuClose(); onLogout(); }} sx={{ minHeight: 48, fontSize: 16, py: 2 }}>
+                  <MenuItem
+                    onClick={handleLogout}
+                    sx={{ minHeight: 48, fontSize: 16, py: 2 }}
+                  >
                     Logout
                   </MenuItem>
                 </Menu>

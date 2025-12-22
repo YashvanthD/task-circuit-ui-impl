@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { apiFetch } from '../utils/api';
-import { UPDATE_PASSWORD_ENDPOINT } from '../endpoints';
+import { updateUserPassword } from '../utils/user';
 
 /**
  * UpdatePasswordForm - Form to update user password
@@ -29,19 +28,10 @@ export default function UpdatePasswordForm() {
       return;
     }
     try {
-      const res = await apiFetch(UPDATE_PASSWORD_ENDPOINT, {
-        method: 'PUT',
-        body: JSON.stringify({ old_password: form.old_password, new_password: form.new_password }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSuccess('Password updated successfully!');
-      } else {
-        setError(data.error || 'Failed to update password');
-      }
+      await updateUserPassword(form.old_password, form.new_password);
+      setSuccess('Password updated successfully!');
     } catch (err) {
-      setError('Network/server error');
+      setError(err.message || 'Failed to update password');
     }
   };
 
@@ -59,4 +49,3 @@ export default function UpdatePasswordForm() {
     </Paper>
   );
 }
-

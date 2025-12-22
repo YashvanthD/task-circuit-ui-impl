@@ -31,10 +31,10 @@ export default function SignupForm() {
       setError('Company name is required');
       return;
     }
-    if (!form.master_password) {
-      setError('Master password is required');
-      return;
-    }
+    // if (!form.master_password) {
+    //   setError('Master password is required');
+    //   return;
+    // }
     try {
       const submitBody = { ...form };
       const res = await apiFetch(SIGNUP_ENDPOINT, {
@@ -61,7 +61,7 @@ export default function SignupForm() {
         <TextField label="Email" name="email" type="email" variant="outlined" fullWidth margin="normal" value={form.email} onChange={handleChange} />
         <TextField label="Password" name="password" type="password" variant="outlined" fullWidth margin="normal" value={form.password} onChange={handleChange} />
         <TextField label="Company Name" name="company_name" variant="outlined" fullWidth margin="normal" value={form.company_name} onChange={handleChange} required />
-        <TextField label="Master Password" name="master_password" type="password" variant="outlined" fullWidth margin="normal" value={form.master_password} onChange={handleChange} required />
+        <TextField label="Master Password" name="master_password" type="password" variant="outlined" fullWidth margin="normal" value={form.master_password} onChange={handleChange}  />
         {error && <Typography color="error" mt={2}>{error}</Typography>}
         {success && <Typography color="success.main" mt={2}>{success}</Typography>}
         <Button variant="contained" color="primary" fullWidth sx={{mt:2}} type="submit">Sign Up</Button>

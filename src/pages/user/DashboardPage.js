@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { getAccessToken, loadTasksFromLocalStorage, saveTasksToLocalStorage, getTasksLastFetched } from '../../utils/storage';
 import { BASE_URL } from '../../config';
 import { apiFetch } from '../../utils/api';
+import { getTasks, updateTask as updateTaskInCache } from '../../utils/tasks';
+import { getPriorityStyle } from '../../utils/common';
 
 /**
  * Dashboard page for logged-in users in Task Circuit.
@@ -28,31 +30,21 @@ export default function DashboardPage() {
       navigate('/taskcircuit/login');
       return;
     }
-    const localTasks = loadTasksFromLocalStorage();
-    const lastFetched = getTasksLastFetched();
-    const now = Date.now();
-    // Use cached tasks if fetched within last 5 minutes
-    if (localTasks && lastFetched && (now - lastFetched < 5 * 60 * 1000)) {
-      setTasks(localTasks);
-      setLoading(false);
-      return;
-    }
     async function fetchTasks() {
       setLoading(true);
       setError('');
       try {
-        const res = await apiFetch(`${BASE_URL}/task/`, { method: 'GET' });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          setTasks(data.tasks || []);
-          saveTasksToLocalStorage(data.tasks || []);
+        const tasks = await getTasks();
+        if (tasks) {
+          setTasks(tasks);
         } else {
-          setError(data.error || 'Failed to fetch tasks');
+          setError('Failed to fetch tasks');
         }
       } catch (err) {
-        setError('Network/server error');
+        setError('Network error. Please try again later.');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     fetchTasks();
   }, [navigate]);
@@ -84,23 +76,6 @@ export default function DashboardPage() {
     { label: 'Reports', to: '/taskcircuit/user/reports' }
   ];
 
-  function getPriorityStyle(priority) {
-    switch (priority) {
-      case 1:
-        return { border: '1.5px solid #f44336', boxShadow: '0 0 4px #f44336' };
-      case 2:
-        return { border: '1.5px solid #ff7961', boxShadow: '0 0 4px #ff7961' };
-      case 3:
-        return { border: '1.5px solid #ff9800', boxShadow: '0 0 4px #ff9800' };
-      case 4:
-        return { border: '1.5px solid #ffeb3b', boxShadow: '0 0 4px #ffeb3b' };
-      case 5:
-        return { border: '1.5px solid #4caf50', boxShadow: '0 0 4px #4caf50' };
-      default:
-        return { border: '1px solid #e0e0e0' };
-    }
-  }
-
   // Dialog handlers
   const handleAlertClick = (alert, idx) => {
     setSelectedAlert({ ...alert, idx });
@@ -117,27 +92,17 @@ export default function DashboardPage() {
     saveTasksToLocalStorage(newTasks);
   };
   /**
-   * Update a task by ID with given changes, sync with API and localStorage.
-   * @param {string} taskId
-   * @param {object} changes
+   * Update a task by ID with given changes, using centralized task util (updates API + cache).
    */
   const updateTask = async (taskId, changes) => {
-    const accessToken = getAccessToken();
     try {
-      const res = await apiFetch(`${BASE_URL}/task/${taskId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
-        body: JSON.stringify(changes)
-      });
-      if (res.ok) {
-        // Update local state and localStorage
-        const newTasks = tasks.map(t => t.task_id === taskId ? { ...t, ...changes } : t);
-        setTasks(newTasks);
-        saveTasksToLocalStorage(newTasks);
-        return true;
-      }
-    } catch (err) {}
-    return false;
+      await updateTaskInCache(taskId, changes);
+      const newTasks = tasks.map(t => t.task_id === taskId ? { ...t, ...changes } : t);
+      setTasks(newTasks);
+      return true;
+    } catch (e) {
+      return false;
+    }
   };
 
   // Update usages in handlers

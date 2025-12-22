@@ -46,3 +46,100 @@ export async function apiFetch(url, options = {}, forceLogout) {
     };
   }
 }
+
+/**
+ * Login to the application.
+ * @param {object} credentials - The login credentials (e.g., email and password).
+ * @returns {Promise<object>} The login response.
+ */
+export async function login(credentials) {
+  return apiFetch('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  });
+}
+
+/**
+ * Validate the access token.
+ * @param {string} token - The access token to validate.
+ * @returns {Promise<object>} The validation response.
+ */
+export async function validateToken(token) {
+  return apiFetch('/auth/validate', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+}
+
+/**
+ * Refresh the access token.
+ * @param {string} refreshToken - The refresh token.
+ * @returns {Promise<object>} The new access token.
+ */
+export async function refreshToken(refreshToken) {
+  return apiFetch('/auth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'refresh_token', token: refreshToken }),
+  });
+}
+
+/**
+ * Add a new fish.
+ * @param {object} fishData - The data for the new fish.
+ * @returns {Promise<object>} The response from the server.
+ */
+export async function addFish(fishData) {
+  return apiFetch('/fish', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fishData),
+  });
+}
+
+/**
+ * Get details of a specific fish.
+ * @param {string} fishId - The ID of the fish.
+ * @returns {Promise<object>} The fish details.
+ */
+export async function getFish(fishId) {
+  return apiFetch(`/fish/${fishId}`, {
+    method: 'GET',
+  });
+}
+
+/**
+ * List all fish.
+ * @returns {Promise<Array>} The list of fish.
+ */
+export async function listFish() {
+  return apiFetch('/fish', {
+    method: 'GET',
+  });
+}
+
+/**
+ * Update a fish's details.
+ * @param {string} fishId - The ID of the fish.
+ * @param {object} fishData - The updated fish data.
+ * @returns {Promise<object>} The response from the server.
+ */
+export async function updateFish(fishId, fishData) {
+  return apiFetch(`/fish/${fishId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fishData),
+  });
+}
+
+/**
+ * Delete a fish.
+ * @param {string} fishId - The ID of the fish to delete.
+ * @returns {Promise<object>} The response from the server.
+ */
+export async function deleteFish(fishId) {
+  return apiFetch(`/fish/${fishId}`, {
+    method: 'DELETE',
+  });
+}

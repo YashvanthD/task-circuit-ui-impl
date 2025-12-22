@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { apiFetch } from '../utils/api';
-import { UPDATE_USERNAME_ENDPOINT } from '../endpoints';
+import { updateUsername } from '../utils/user';
 
 /**
  * UpdateUsernameForm - Form to update user username
@@ -25,19 +24,10 @@ export default function UpdateUsernameForm() {
       return;
     }
     try {
-      const res = await apiFetch(UPDATE_USERNAME_ENDPOINT, {
-        method: 'PUT',
-        body: JSON.stringify({ username: form.new_username }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSuccess('Username updated successfully!');
-      } else {
-        setError(data.error || 'Failed to update username');
-      }
+      await updateUsername(form.new_username);
+      setSuccess('Username updated successfully!');
     } catch (err) {
-      setError('Network/server error');
+      setError(err.message || 'Failed to update username');
     }
   };
 
@@ -53,4 +43,3 @@ export default function UpdateUsernameForm() {
     </Paper>
   );
 }
-

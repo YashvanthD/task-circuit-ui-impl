@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Card, CardContent, Typography, Avatar, IconButton, Button, Stack, Divider, TextField, Radio, FormControlLabel, FormGroup, Switch } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
-import { getUserInfo } from '../utils/user';
+import { getCurrentUser } from '../utils/user';
 import UpdateMobileForm from '../forms/UpdateMobileForm';
 import UpdateMailForm from '../forms/UpdateMailForm';
 import UpdatePasswordForm from '../forms/UpdatePasswordForm';
@@ -15,15 +15,26 @@ import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Profile({ onThemeChange }) {
-  const user = getUserInfo();
-  const [profilePic, setProfilePic] = useState(user?.avatar_url || '');
-  const [desc, setDesc] = useState(user?.description || '');
+  const [user, setUser] = useState(null);
+  const [profilePic, setProfilePic] = useState('');
+  const [desc, setDesc] = useState('');
   const [editDesc, setEditDesc] = useState(false);
   const [mobileDialogOpen, setMobileDialogOpen] = useState(false);
   const [mailDialogOpen, setMailDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [usernameDialogOpen, setUsernameDialogOpen] = useState(false);
   const [themeMode, setThemeMode] = useState(() => localStorage.getItem('themeMode') || 'light');
+
+  useEffect(() => {
+    (async () => {
+      const u = await getCurrentUser(); // cached + API fallback
+      if (u) {
+        setUser(u);
+        setProfilePic(u.avatar_url || '');
+        setDesc(u.description || '');
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('themeMode', themeMode);

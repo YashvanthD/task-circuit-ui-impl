@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { apiFetch } from '../utils/api';
-import { UPDATE_MOBILE_ENDPOINT } from '../endpoints';
+import { updateUserMobile } from '../utils/user';
 
 /**
  * UpdateMobileForm - Form to update user mobile number
@@ -39,19 +38,10 @@ export default function UpdateMobileForm() {
     }
     // OTP can be skipped
     try {
-      const res = await apiFetch(UPDATE_MOBILE_ENDPOINT, {
-        method: 'PUT',
-        body: JSON.stringify({ mobile: form.mobile, otp: form.otp }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSuccess('Mobile number updated successfully!');
-      } else {
-        setError(data.error || 'Failed to update mobile number');
-      }
+      await updateUserMobile(form.mobile, form.otp);
+      setSuccess('Mobile number updated successfully!');
     } catch (err) {
-      setError('Network/server error');
+      setError(err.message || 'Failed to update mobile number');
     }
   };
 
@@ -71,4 +61,3 @@ export default function UpdateMobileForm() {
     </Paper>
   );
 }
-

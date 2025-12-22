@@ -7,43 +7,21 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import EditIcon from '@mui/icons-material/Edit';
 import { apiFetch } from '../../utils/api';
-import { getUserInfo } from '../../utils/user';
-import { getTasks, saveTasks, updateTask, getTasksLastFetched } from '../../utils/tasks';
+import { getUserInfo, listAccountUsers } from '../../utils/user';
+import { fetchAllTasks, saveTask, deleteTask, saveTasks, getTasks, updateTask } from '../../utils/tasks';
+import { getPriorityColor, getPriorityLabel, getPriorityStyle, getNextActionColor } from '../../utils/common';
 import { getDefaultEndDate, getTimeLeft } from '../../utils/date';
 
 const initialForm = {
   title: '',
   description: '',
   status: 'pending',
-  priority: 3,
+  priority: '3',
   assigned_to: '',
   end_date: getDefaultEndDate(),
   task_date: '',
   notes: '',
 };
-
-// Mock fetchAccountUsers for now
-function fetchAccountUsers() {
-  return Promise.resolve([
-    { user_key: 'u1', username: 'Alice' },
-    { user_key: 'u2', username: 'Bob' },
-    { user_key: 'u3', username: 'Charlie' },
-  ]);
-}
-
-function getPriorityStyle(priority, status) {
-  if (status === 'completed') {
-    return { border: '1.5px solid #4caf50', boxShadow: '0 0 4px #4caf50' };
-  }
-  switch (priority) {
-    case 1: return { border: '1.5px solid #f44336', boxShadow: '0 0 4px #f44336' };
-    case 2: return { border: '1.5px solid #ff7961', boxShadow: '0 0 4px #ff7961' };
-    case 3: return { border: '1.5px solid #ff9800', boxShadow: '0 0 4px #ff9800' };
-    case 4: return { border: '1.5px solid #ffeb3b', boxShadow: '0 0 4px #ffeb3b' };
-    case 5: return { border: '1.5px solid #4caf50', boxShadow: '0 0 4px #4caf50' };
-    default: return { border: '1px solid #e0e0e0' };
-  }
-}
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState([]);
@@ -56,30 +34,26 @@ export default function TasksPage() {
   const [form, setForm] = useState(initialForm);
   const [formError, setFormError] = useState('');
   const [userOptions, setUserOptions] = useState([]);
+  const [usersLoaded, setUsersLoaded] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
-  const userInfo = getUserInfo();
+  const rawUserInfo = getUserInfo();
+  const selfUserKey = rawUserInfo?.userKey || rawUserInfo?.user_key || '';
+  const selfUserName = rawUserInfo?.user?.username || rawUserInfo?.username || 'Self (You)';
+  const selfUser = selfUserKey ? { user_key: String(selfUserKey), username: selfUserName } : null;
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (forceApiCall = false) => {
     setLoading(true);
     setError('');
-    console.log('[TasksPage Debug] fetchTasks called');
+    console.log('[TasksPage Debug] fetchTasks called, forceApiCall:', forceApiCall);
     try {
-      const res = await apiFetch('/task/', { method: 'GET' });
-      console.log('[TasksPage Debug] API response status:', res.status);
-      const data = await res.json();
-      console.log('[TasksPage Debug] API response data:', data);
-      if (res.ok && data.success) {
-        setTasks(data.tasks || []);
-        saveTasks(data.tasks || []);
-        console.log('[TasksPage Debug] Tasks set:', data.tasks);
-      } else {
-        setError(data.error || 'Failed to fetch tasks');
-        console.log('[TasksPage Debug] Error:', data.error || 'Failed to fetch tasks');
-      }
+      const tasks = forceApiCall ? await fetchAllTasks() : await getTasks();
+      setTasks(tasks || []);
+      if (tasks) await saveTasks(tasks);
+      console.log('[TasksPage Debug] Tasks set:', tasks);
     } catch (err) {
-      setError('Network/server error');
-      console.log('[TasksPage Debug] Network/server error:', err);
+      setError(err.message);
+      console.log('[TasksPage Debug] Error:', err.message);
     }
     setLoading(false);
     console.log('[TasksPage Debug] Loading set to false');
@@ -89,26 +63,29 @@ export default function TasksPage() {
 
   useEffect(() => {
     console.log('[TasksPage Debug] useEffect triggered, refresh:', refresh);
-    fetchTasks();
+    fetchTasks(refresh); // when refresh toggles true, force API; otherwise use cache
   }, [refresh, fetchTasks]);
 
   useEffect(() => {
     async function loadUsers() {
-      console.log('[TasksPage Debug] loadUsers called');
-      const users = await fetchAccountUsers();
-      console.log('[TasksPage Debug] Account users:', users);
-      const selfUser = userInfo ? { user_key: userInfo.user_key, username: userInfo.user?.username || 'Self (You)' } : null;
-      let options = users.filter(u => u.user_key !== selfUser?.user_key);
-      if (selfUser) options = [selfUser, ...options];
-      setUserOptions(options);
-      console.log('[TasksPage Debug] User options set:', options);
-      if (!form.assigned_to && selfUser) {
-        setForm(f => ({ ...f, assigned_to: selfUser.user_key }));
-        console.log('[TasksPage Debug] Assigned_to set to self:', selfUser.user_key);
+      if (!dialogOpen || usersLoaded) return;
+      try {
+        const users = await listAccountUsers();
+        const normalized = users.map(u => ({
+          ...u,
+          user_key: String(u.user_key || u.userKey),
+        }));
+        const options = selfUser
+          ? [selfUser, ...normalized.filter(u => u.user_key !== selfUser.user_key)]
+          : normalized;
+        setUserOptions(options);
+        setUsersLoaded(true);
+      } catch (err) {
+        console.log('[TasksPage Debug] Failed to load account users:', err.message);
       }
     }
     loadUsers();
-  }, [dialogOpen]);
+  }, [dialogOpen, selfUser, usersLoaded]);
 
   const meta = tasks.reduce((acc, t) => {
     if (t.status === 'completed') acc.completed++;
@@ -139,49 +116,47 @@ export default function TasksPage() {
   });
 
   function handleFormChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
   }
+
   function handleFormSubmit(e) {
     e.preventDefault();
     setFormError('');
     let submitForm = { ...form };
-    if (!submitForm.assigned_to && userInfo?.user_key) {
-      submitForm.assigned_to = userInfo.user_key;
+    if (!submitForm.assigned_to && selfUser) {
+      submitForm.assigned_to = selfUser.user_key;
     }
     if (!submitForm.title || !submitForm.assigned_to || !submitForm.end_date) {
       setFormError('Fields marked * are required');
       return;
     }
+    submitForm.priority = parseInt(submitForm.priority, 10) || 3;
     const isEdit = !!submitForm.task_id;
-    const url = isEdit ? `/task/${submitForm.task_id}` : '/task/';
-    const method = isEdit ? 'PUT' : 'POST';
     delete submitForm._id;
     console.log('[TasksPage Debug] handleFormSubmit called, form:', submitForm);
-    apiFetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(submitForm)
-    })
-      .then(res => res.json())
-      .then(data => {
-        console.log('[TasksPage Debug] handleFormSubmit API response:', data);
-        if (data.success) {
-          setDialogOpen(false);
-          setForm(initialForm);
-          setRefresh(r => !r);
-          fetchTasks();
-        } else {
-          setFormError(data.error || (isEdit ? 'Failed to update task' : 'Failed to create task'));
-          console.log('[TasksPage Debug] Form error:', data.error);
-        }
+    saveTask(submitForm, isEdit)
+      .then(() => {
+        setDialogOpen(false);
+        setForm(initialForm);
+        setRefresh(r => !r);
+        fetchTasks();
       })
       .catch((err) => {
-        setFormError('Network/server error: ' + err);
-        console.log('[TasksPage Debug] Network/server error:', err);
+        setFormError(err.message);
+        console.log('[TasksPage Debug] Form error:', err.message);
       });
   }
 
+  // Helper to safely resolve a task's ID from multiple possible fields
+  function resolveTaskId(task) {
+    if (!task) return undefined;
+    const rawId = task.taskId || task.task_id || task.id || task._id;
+    return rawId != null ? String(rawId) : undefined;
+  }
+
   function handleEdit(task) {
+    const taskId = resolveTaskId(task);
     setForm({
       ...task,
       title: task.title,
@@ -192,28 +167,72 @@ export default function TasksPage() {
       end_date: task.end_date || getDefaultEndDate(),
       task_date: task.task_date || '',
       notes: task.notes || '',
-      task_id: task.task_id
+      task_id: taskId,
     });
     setDialogOpen(true);
   }
 
+  function getUsername(userKey) {
+    const user = userOptions.find(u => u.user_key === userKey);
+    return user ? user.username : userKey;
+  }
+
+  function getNextAction(status) {
+    switch (status) {
+      case 'pending':
+        return 'Start';
+      case 'inprogress':
+        return 'Resolve';
+      case 'completed':
+        return 'Resolved';
+      default:
+        return 'Next';
+    }
+  }
+
+  function getNextActionVariant(status) {
+    // All primary actions are contained for now; this is here for future style tweaks per status
+    return 'contained';
+  }
+
+  function handleNextAction(task) {
+    let nextStatus = task.status;
+    if (task.status === 'pending') {
+      nextStatus = 'inprogress';
+    } else if (task.status === 'inprogress') {
+      nextStatus = 'completed';
+    } else {
+      // completed/resolved state: no further action
+      return;
+    }
+
+    const id = resolveTaskId(task);
+    if (!id) {
+      console.log('[TasksPage Debug] handleNextAction missing task id', task);
+      return;
+    }
+
+    updateTask(id, { status: nextStatus })
+      .then(() => setRefresh((r) => !r))
+      .catch((err) => {
+        console.log('[TasksPage Debug] handleNextAction error:', err?.message || err);
+      });
+  }
+
   async function handleConfirmDelete() {
     if (!taskToDelete) return;
-    console.log('[TasksPage Debug] handleConfirmDelete called, task:', taskToDelete);
+    const id = resolveTaskId(taskToDelete);
+    if (!id) {
+      console.log('[TasksPage Debug] handleConfirmDelete missing task id', taskToDelete);
+      return;
+    }
     try {
-      await apiFetch(`/task/${taskToDelete.task_id}`, {
-        method: 'DELETE',
-      });
+      await deleteTask(id);
       setDeleteDialogOpen(false);
       setTaskToDelete(null);
       setRefresh(r => !r);
-      fetchTasks();
-      console.log('[TasksPage Debug] Task deleted:', taskToDelete.task_id);
     } catch (err) {
-      setError('Failed to delete task');
-      setDeleteDialogOpen(false);
-      setTaskToDelete(null);
-      console.log('[TasksPage Debug] Failed to delete task:', err);
+      console.log('[TasksPage Debug] Delete error:', err.message);
     }
   }
 
@@ -222,83 +241,8 @@ export default function TasksPage() {
     setTaskToDelete(null);
   }
 
-  function getPriorityLabel(priority) {
-    switch(priority) {
-      case 1: return 'High';
-      case 2: return 'Critical';
-      case 3: return 'Medium';
-      case 4: return 'Low';
-      case 5: return 'Normal';
-      default: return 'Unknown';
-    }
-  }
-  function getPriorityColor(priority) {
-    switch(priority) {
-      case 1: return 'error';
-      case 2: return 'warning';
-      case 3: return 'info';
-      case 4: return 'success';
-      case 5: return 'default';
-      default: return 'default';
-    }
-  }
-  function getUsername(userKey) {
-    const user = userOptions.find(u => u.user_key === userKey);
-    return user ? user.username : userKey;
-  }
-  function getNextAction(status) {
-    switch(status) {
-      case 'pending': return 'Start';
-      case 'inprogress': return 'Resolve';
-      case 'completed': return 'Resolved';
-      case 'wontdo': return "Won't Do";
-      default: return 'Next';
-    }
-  }
-  function getNextActionColor(status) {
-    switch(status) {
-      case 'pending': return 'primary';
-      case 'inprogress': return 'success';
-      case 'completed': return 'success';
-      case 'wontdo': return 'warning';
-      case 'resolve': return 'orange';
-      default: return 'default';
-    }
-  }
-  function getNextActionVariant(status) {
-    switch(status) {
-      case 'pending': return 'contained';
-      case 'inprogress': return 'contained';
-      case 'completed': return 'contained';
-      case 'wontdo': return 'contained';
-      case 'resolve': return 'contained';
-      default: return 'contained';
-    }
-  }
-
-  function handleNextAction(task) {
-    let nextStatus = task.status;
-    if (task.status === 'pending') nextStatus = 'inprogress';
-    else if (task.status === 'inprogress') nextStatus = 'completed';
-    else return;
-    apiFetch(`/task/${task.task_id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...task, status: nextStatus })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) setRefresh(r => !r);
-      });
-  }
-
-  function handleDeleteFromDialog() {
-    setTaskToDelete(form);
-    setDeleteDialogOpen(true);
-  }
-
   return (
-    <Paper sx={{padding:4, maxWidth:1000, margin:'40px auto'}}>
+    <Paper sx={{ padding: 4, maxWidth: 1280, margin: '40px auto' }}>
       {/* Top bar */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{mb:3}}>
         <Stack direction="row" spacing={2} alignItems="center">
@@ -307,8 +251,14 @@ export default function TasksPage() {
           <Chip label={`In Progress: ${meta.inprogress}`} color="info" />
           <Chip label={`Pending: ${meta.pending}`} color="default" />
           <FormControl size="small" sx={{minWidth:120}}>
-            <InputLabel>Status</InputLabel>
-            <Select value={filterStatus} label="Status" onChange={e => setFilterStatus(e.target.value)} variant="outlined">
+            <InputLabel id="filter-status-label">Status</InputLabel>
+            <Select
+              labelId="filter-status-label"
+              value={filterStatus}
+              label="Status"
+              onChange={e => setFilterStatus(e.target.value)}
+              variant="outlined"
+            >
               <MenuItem value="all">All</MenuItem>
               <MenuItem value="pending">Pending</MenuItem>
               <MenuItem value="inprogress">In Progress</MenuItem>
@@ -316,7 +266,17 @@ export default function TasksPage() {
             </Select>
           </FormControl>
         </Stack>
-        <Button variant="contained" color="primary" onClick={() => { setDialogOpen(true); setForm(initialForm); }}>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => {
+            setForm({
+              ...initialForm,
+              assigned_to: selfUser ? selfUser.user_key : '',
+            });
+            setDialogOpen(true);
+          }}
+        >
           Create New Task
         </Button>
       </Stack>
@@ -353,56 +313,104 @@ export default function TasksPage() {
       )}
       {/* Tasks list */}
       {loading ? (
-        <Stack alignItems="center" sx={{mt:4, mb:4}}>
+        <Stack alignItems="center" sx={{ mt: 4, mb: 4 }}>
           <CircularProgress />
-          <Typography variant="body2" sx={{mt:2}}>Loading tasks...</Typography>
+          <Typography variant="body2" sx={{ mt: 2 }}>Loading tasks...</Typography>
         </Stack>
       ) : (!error && filteredTasks.length > 0) ? (
-        <Grid container spacing={2}>
+        <Grid container spacing={2.5}>
           {filteredTasks.map((task, idx) => (
-            <Grid item xs={12} sm={6} md={6} key={task.task_id || idx}>
-              <Paper elevation={3} sx={{p:2, mb:2, ...getPriorityStyle(task.priority, task.status)}}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between">
-                  <Typography variant="h6" sx={{fontWeight:'bold'}}>{task.title}</Typography>
-                  <Stack direction="row" alignItems="center" spacing={1}>
-                    <Chip label={getPriorityLabel(task.priority)} color={getPriorityColor(task.priority)} size="small" />
-                    <IconButton onClick={() => handleEdit(task)}><EditIcon /></IconButton>
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={4}
+              lg={4}
+              xl={4}
+              key={task.task_id || idx}
+            >
+              <Paper
+                elevation={1}
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  border: '1px solid rgba(0,0,0,0.06)',
+                  ...getPriorityStyle(task.priority, task.status),
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.75,
+                  boxSizing: 'border-box',
+                }}
+              >
+                {/* Header: title + priority + edit */}
+                <Stack
+                  direction="row"
+                  alignItems="flex-start"
+                  justifyContent="space-between"
+                  spacing={1}
+                >
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}
+                    noWrap
+                  >
+                    {task.title}
+                  </Typography>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <Chip
+                      label={getPriorityLabel(task.priority)}
+                      color={getPriorityColor(task.priority)}
+                      size="small"
+                    />
+                    <IconButton size="small" onClick={() => handleEdit(task)}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
                   </Stack>
                 </Stack>
-                <Typography variant="body2" sx={{mb:1, color:'#888'}}>{task.description}</Typography>
-                <Stack spacing={0.5} sx={{mb:1}}>
-                  <Typography variant="body2" sx={{color:'#555'}}>
-                    <strong>End Date:</strong> {task.end_date}
+
+                {/* Optional description */}
+                {task.description && (
+                  <Typography
+                    variant="body2"
+                    sx={{ color: 'text.secondary' }}
+                    noWrap
+                  >
+                    {task.description}
                   </Typography>
-                  <Typography variant="body2" sx={{color:'#555'}}>
+                )}
+
+                {/* Meta info */}
+                <Stack spacing={0.25} sx={{ mt: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    <strong>End:</strong> {task.end_date}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                     <strong>Time Left:</strong> {getTimeLeft(task.end_date)}
                   </Typography>
-                  <Typography variant="body2" sx={{color:'#555'}}>
-                    <strong>Assigned To:</strong> {getUsername(task.assigned_to)}
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    <strong>Assigned:</strong> {getUsername(task.assigned_to)}
                   </Typography>
-                  {task.recurring && (
-                    <Typography variant="body2" sx={{color:'#555'}}>
-                      <strong>Recurring:</strong> {task.recurring}
-                    </Typography>
-                  )}
-                  {task.tags && Array.isArray(task.tags) && task.tags.length > 0 && (
-                    <Typography variant="body2" sx={{color:'#555'}}>
-                      <strong>Tags:</strong> {task.tags.join(', ')}
-                    </Typography>
-                  )}
-                  {task.type && (
-                    <Typography variant="body2" sx={{color:'#555'}}>
-                      <strong>Type:</strong> {task.type}
-                    </Typography>
-                  )}
                 </Stack>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{mt:1}}>
+
+                {/* Footer: actions + id */}
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ mt: 'auto', pt: 1 }}
+                  spacing={1}
+                >
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Button
                       variant={getNextActionVariant(task.status)}
                       size="small"
                       color={task.status === 'completed' ? 'success' : (task.status === 'inprogress' ? 'warning' : getNextActionColor(task.status))}
-                      sx={task.status === 'inprogress' ? {backgroundColor: 'orange', color: 'white', '&:hover': {backgroundColor: '#ff9800'}} : (task.status === 'completed' ? {backgroundColor: '#4caf50', color: 'white', opacity: 1, pointerEvents: 'none'} : {})}
+                      sx={task.status === 'inprogress'
+                        ? { backgroundColor: 'orange', color: 'white', '&:hover': { backgroundColor: '#ff9800' } }
+                        : (task.status === 'completed'
+                          ? { backgroundColor: '#4caf50', color: 'white', opacity: 1, pointerEvents: 'none' }
+                          : {})}
                       onClick={() => handleNextAction(task)}
                       disabled={task.status === 'completed'}
                     >
@@ -410,54 +418,84 @@ export default function TasksPage() {
                     </Button>
                     {task.status === 'completed' && (
                       <Button
-                        variant="contained"
+                        variant="outlined"
                         color="error"
                         size="small"
-                        sx={{ml:1}}
                         onClick={() => { setTaskToDelete(task); setDeleteDialogOpen(true); }}
                       >
                         Delete
                       </Button>
                     )}
                   </Stack>
-                  <Typography variant="caption" sx={{color:'#aaa'}}>{task.task_id}</Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.disabled', textAlign: 'right' }}
+                    noWrap
+                  >
+                    {task.task_id}
+                  </Typography>
                 </Stack>
               </Paper>
             </Grid>
           ))}
         </Grid>
       ) : null}
+
       {/* Create/Edit Task Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>{form.title ? 'Edit Task' : 'Create Task'}</DialogTitle>
+        <DialogTitle>{form.task_id ? 'Edit Task' : 'Create Task'}</DialogTitle>
         <form onSubmit={handleFormSubmit}>
           <DialogContent>
             <Stack spacing={2}>
               <TextField label={<span>Title <span style={{color:'red'}}>*</span></span>} name="title" value={form.title} onChange={handleFormChange} required fullWidth />
               <TextField label="Description" name="description" value={form.description} onChange={handleFormChange} multiline rows={2} fullWidth />
               <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select name="status" value={form.status} label="Status" onChange={handleFormChange} variant="outlined">
+                <InputLabel id="task-status-label">Status</InputLabel>
+                <Select
+                  labelId="task-status-label"
+                  name="status"
+                  value={form.status}
+                  label="Status"
+                  onChange={handleFormChange}
+                  variant="outlined"
+                >
                   <MenuItem value="pending">Pending</MenuItem>
                   <MenuItem value="inprogress">In Progress</MenuItem>
                   <MenuItem value="completed">Completed</MenuItem>
                 </Select>
               </FormControl>
               <FormControl fullWidth>
-                <InputLabel>Priority</InputLabel>
-                <Select name="priority" value={form.priority} label="Priority" onChange={handleFormChange} variant="outlined">
-                  <MenuItem value={1}>1</MenuItem>
-                  <MenuItem value={2}>2</MenuItem>
-                  <MenuItem value={3}>3</MenuItem>
-                  <MenuItem value={4}>4</MenuItem>
-                  <MenuItem value={5}>5</MenuItem>
+                <InputLabel id="task-priority-label">Priority</InputLabel>
+                <Select
+                  labelId="task-priority-label"
+                  name="priority"
+                  value={form.priority}
+                  label="Priority"
+                  onChange={handleFormChange}
+                  variant="outlined"
+                >
+                  <MenuItem value="1">1</MenuItem>
+                  <MenuItem value="2">2</MenuItem>
+                  <MenuItem value="3">3</MenuItem>
+                  <MenuItem value="4">4</MenuItem>
+                  <MenuItem value="5">5</MenuItem>
                 </Select>
               </FormControl>
               <FormControl fullWidth>
-                <InputLabel>Assigned To *</InputLabel>
-                <Select name="assigned_to" value={form.assigned_to} label="Assigned To *" onChange={handleFormChange} variant="outlined" required>
+                <InputLabel id="task-assigned-label">Assigned To *</InputLabel>
+                <Select
+                  labelId="task-assigned-label"
+                  name="assigned_to"
+                  value={form.assigned_to}
+                  label="Assigned To *"
+                  onChange={handleFormChange}
+                  variant="outlined"
+                  required
+                >
                   {userOptions.map(u => (
-                    <MenuItem key={u.user_key} value={u.user_key}>{u.username || u.user_key}{u.user_key === userInfo?.user_key ? ' (You)' : ''}</MenuItem>
+                    <MenuItem key={u.user_key} value={u.user_key}>
+                      {u.username || u.user_key}{selfUser && u.user_key === selfUser.user_key ? ' (You)' : ''}
+                    </MenuItem>
                   ))}
                 </Select>
               </FormControl>
@@ -469,10 +507,22 @@ export default function TasksPage() {
           </DialogContent>
           <DialogActions>
             {form.task_id && (
-              <Button onClick={handleDeleteFromDialog} variant="contained" color="error" sx={{mr:'auto'}}>Delete</Button>
+              <Button
+                onClick={() => {
+                  setTaskToDelete(form);
+                  setDeleteDialogOpen(true);
+                }}
+                variant="contained"
+                color="error"
+                sx={{ mr: 'auto' }}
+              >
+                Delete
+              </Button>
             )}
             <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained" color="primary">{form.title ? 'Update' : 'Create'}</Button>
+            <Button type="submit" variant="contained" color="primary">
+              {form.task_id ? 'Update' : 'Create'}
+            </Button>
           </DialogActions>
         </form>
       </Dialog>

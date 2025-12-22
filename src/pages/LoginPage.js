@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Paper } from '@mui/material';
-import { saveToLocalStorage, saveUserToLocalStorage, processLoginResponse } from '../utils/storage';
-import { LOGIN_ENDPOINT } from '../endpoints';
+import { processLoginResponse } from '../utils/storage';
+import { login } from '../utils/api';
 
 /**
  * Login page component for Task Circuit.
@@ -24,11 +24,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const response = await fetch(LOGIN_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
+      const response = await login(username, password);
       if (!response.ok) {
         const data = await response.json();
         setError(data.message || 'Invalid credentials.');
@@ -36,7 +32,7 @@ export default function LoginPage() {
         return;
       }
       const data = await response.json();
-      if (data.refresh_token && data.access_token) {
+      if (data.data && data.data.refreshToken && data.data.accessToken) {
         processLoginResponse(data);
         navigate('/taskcircuit/user/dashboard', { replace: true });
       } else {

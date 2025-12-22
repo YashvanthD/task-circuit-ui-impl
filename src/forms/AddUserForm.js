@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box, MenuItem, Stack } from '@mui/material';
-import { apiFetch } from '../utils/api';
-import { ADD_USER_ENDPOINT } from '../endpoints';
+import { addUser } from '../utils/user';
 
 /**
  * AddUserForm - Form to add a new user
@@ -41,19 +40,10 @@ export default function AddUserForm() {
       return;
     }
     try {
-      const res = await apiFetch(ADD_USER_ENDPOINT, {
-        method: 'POST',
-        body: JSON.stringify(form),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSuccess('User added successfully!');
-      } else {
-        setError(data.error || 'Failed to add user');
-      }
+      await addUser(form);
+      setSuccess('User added successfully!');
     } catch (err) {
-      setError('Network/server error');
+      setError(err.message || 'Failed to add user');
     }
   };
 
@@ -78,4 +68,3 @@ export default function AddUserForm() {
     </Paper>
   );
 }
-

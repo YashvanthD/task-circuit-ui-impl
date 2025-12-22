@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { apiFetch } from '../utils/api';
-import { UPDATE_MAIL_ENDPOINT } from '../endpoints';
+import { updateUserEmail } from '../utils/user';
 
 /**
  * UpdateMailForm - Form to update user email
@@ -39,19 +38,10 @@ export default function UpdateMailForm() {
     }
     // OTP can be skipped
     try {
-      const res = await apiFetch(UPDATE_MAIL_ENDPOINT, {
-        method: 'PUT',
-        body: JSON.stringify({ email: form.email, otp: form.otp }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSuccess('Email updated successfully!');
-      } else {
-        setError(data.error || 'Failed to update email');
-      }
+      await updateUserEmail(form.email, form.otp);
+      setSuccess('Email updated successfully!');
     } catch (err) {
-      setError('Network/server error');
+      setError(err.message || 'Failed to update email');
     }
   };
 
@@ -71,4 +61,3 @@ export default function UpdateMailForm() {
     </Paper>
   );
 }
-
