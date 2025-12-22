@@ -24,7 +24,7 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const response = await login(username, password);
+      const response = await login({ username, password });
       if (!response.ok) {
         const data = await response.json();
         setError(data.message || 'Invalid credentials.');
