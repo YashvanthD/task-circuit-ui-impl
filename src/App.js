@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, matchPath } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, matchPath, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -31,7 +31,7 @@ function AppRoutes() {
     if (!getRefreshToken() && isUserRoute && location.pathname !== '/taskcircuit/login') {
       navigate('/taskcircuit/login', { replace: true });
     }
-  }, [location]);
+  }, [location, navigate]);
 
   const handleLogout = () => {
     removeFromLocalStorage('refresh_token');
@@ -41,6 +41,8 @@ function AppRoutes() {
 
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/taskcircuit/" replace />} />
+      <Route path="/home" element={<Navigate to="/taskcircuit/" replace />} />
       <Route path="/taskcircuit/" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
       <Route path="/taskcircuit/home" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><HomePage /></BaseLayout>} />
       <Route path="/taskcircuit/login" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LoginPage /></BaseLayout>} />

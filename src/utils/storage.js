@@ -21,7 +21,15 @@ export function saveToLocalStorage(key, value) {
  */
 export function loadFromLocalStorage(key) {
   const value = localStorage.getItem(key);
-  return value ? JSON.parse(value) : null;
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch (err) {
+    console.warn(`Failed to parse localStorage key "${key}":`, value, err);
+    // Remove the malformed value to avoid repeated parse errors
+    localStorage.removeItem(key);
+    return null;
+  }
 }
 
 /**
@@ -53,8 +61,8 @@ export function saveUserToLocalStorage(userInfo) {
  * @returns {object|null}
  */
 export function loadUserFromLocalStorage() {
-  const value = localStorage.getItem('user');
-  return value ? JSON.parse(value) : null;
+  // Reuse the robust loader to safely parse user data; handles malformed JSON (e.g. "undefined").
+  return loadFromLocalStorage('user');
 }
 
 /**
