@@ -12,7 +12,7 @@ import ReportsPage from './pages/user/ReportsPage';
 import ManageUsersPage from './pages/user/ManageUsersPage';
 import DatasetPage from './pages/user/DatasetPage';
 import ChatPage from './pages/user/ChatPage';
-import SalesTaxPage from './pages/user/SalesTaxPage';
+import ExpensesPage from './pages/user/ExpensesPage';
 import InvoicePage from './pages/user/InvoicePage';
 import SettingsPage from './pages/user/SettingsPage';
 import { getRefreshToken, loadUserFromLocalStorage, removeFromLocalStorage, removeUserFromLocalStorage } from './utils/storage';
@@ -55,7 +55,7 @@ function AppRoutes() {
         <Route path="pond" element={<PondPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="invoice" element={<InvoicePage />} />
-        <Route path="sales-tax" element={<SalesTaxPage />} />
+        <Route path="expenses" element={<ExpensesPage />} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="dataset" element={<DatasetPage />} />
         <Route path="manage-users" element={<ManageUsersPage />} />

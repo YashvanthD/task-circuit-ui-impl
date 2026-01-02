@@ -57,7 +57,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
     { label: 'Pond', to: '/taskcircuit/user/pond', icon: <PoolIcon /> }, // Fish icon (PoolIcon as substitute)
     { label: 'Reports', to: '/taskcircuit/user/reports', icon: <AnalyticsIcon /> }, // Analytics icon
     { label: 'Invoice', to: '/taskcircuit/user/invoice', icon: <ReceiptIcon /> },
-    { label: 'Sales Tax', to: '/taskcircuit/user/sales-tax', icon: <LocalAtmIcon /> },
+    { label: 'Expenses', to: '/taskcircuit/user/expenses', icon: <LocalAtmIcon /> },
     { label: 'Chat', to: '/taskcircuit/user/chat', icon: <ChatIcon /> },
     { label: 'Dataset', to: '/taskcircuit/user/dataset', icon: <StorageIcon /> }, // Database icon
     { label: 'Manage Users', to: '/taskcircuit/user/manage-users', icon: <AccountCircleIcon /> },
