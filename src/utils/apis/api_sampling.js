@@ -2,10 +2,15 @@ import { apiFetch } from '../api';
 import { getAuthHeaders } from './api_auth';
 
 export async function createSampling(payload) {
+  // Ensure the server receives a 'type' indicating whether this is a buy (cost calc enabled) or a sample
+  const body = Object.assign({}, payload);
+  if (!body.type) {
+    body.type = body.cost_enabled ? 'buy' : 'buy';
+  }
   return apiFetch('/sampling', {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 }
 

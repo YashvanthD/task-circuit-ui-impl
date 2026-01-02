@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Paper, Typography, TextField, Stack, Button, CircularProgress, Box, InputAdornment, IconButton, Grid, Tooltip } from '@mui/material';
+import { Paper, Typography, TextField, Stack, Button, CircularProgress, Box, InputAdornment, IconButton, Grid, Tooltip, FormControlLabel } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Autocomplete from '@mui/material/Autocomplete';
 import { getPondOptions, getFishOptions } from '../utils/options';
 import userUtil from '../utils/user';
+import Switch from '@mui/material/Switch';
 
 export default function SamplingForm({ initialData = {}, onSubmit, onCancel, users = [] }) {
   const [form, setForm] = useState({
@@ -19,15 +19,18 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
     // New fields
     fish_cost: initialData.fish_cost ?? 50, // INR per kg default 50
     total_amount: initialData.total_amount || 0, // editable lumpsum (manual override)
+    // cost calculation toggle: default enabled
+    cost_enabled: (initialData.cost_enabled === undefined || initialData.cost_enabled === null) ? true : Boolean(initialData.cost_enabled),
     recorded_by_userKey: initialData.recorded_by_userKey || initialData.recordedBy || initialData.recorded_by || '',
   });
 
-  const [manualTotal, setManualTotal] = useState(false);
+  // manualTotal indicates whether user has overridden the computed total.
+  const [manualTotal, setManualTotal] = useState(initialData.manual_total ?? initialData.manualTotal ?? false);
   const [pondOptions, setPondOptions] = useState([]);
   const [fishOptions, setFishOptions] = useState([]);
   const [loadingPonds, setLoadingPonds] = useState(false);
   const [loadingFish, setLoadingFish] = useState(false);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [, setLoadingUsers] = useState(false);
   const [localUsers, setLocalUsers] = useState(Array.isArray(users) ? users : []);
   const [inputValue, setInputValue] = useState('');
   const mountedRef = useRef(true);
@@ -89,6 +92,7 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
 
   // computed total: total_count * weightPerFishKg * fish_cost
   const computeTotal = () => {
+    if (!form.cost_enabled) return 0;
     const totalCount = Number(form.total_count) || 0;
     const unit = Number(form.fish_cost) || 0; // cost per kg
     return Number((totalCount * weightPerFishKg() * unit).toFixed(2));
@@ -118,7 +122,7 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
           next = { ...next, pond_id: p[0] };
         }
         // if total_amount not set (0) and not manual, set to computed
-        if (!manualTotal && (!prev.total_amount || Number(prev.total_amount) === 0)) {
+        if (!manualTotal && (!prev.total_amount || Number(prev.total_amount) === 0) && prev.cost_enabled) {
           next = { ...next, total_amount: computeTotal() };
         }
         return next;
@@ -139,13 +143,17 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
   }, []);
 
   useEffect(() => {
-    // Recompute total when inputs change, unless user manually overrode
-    if (!manualTotal) {
-      const total = computeTotal();
-      setForm(prev => ({ ...prev, total_amount: total }));
+    // Recompute total when inputs change, unless user manually overrode.
+    // If cost calculation is enabled and user hasn't manually edited total, update it.
+    if (form.cost_enabled) {
+      if (!manualTotal) {
+        const total = computeTotal();
+        setForm(prev => ({ ...prev, total_amount: total }));
+      }
     }
+    // When cost calculation is disabled, do not reset manualTotal or the total_amount value - keep it editable by the user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.total_count, form.avg_weight, form.fish_cost]);
+  }, [form.total_count, form.avg_weight, form.fish_cost, form.cost_enabled]);
 
   const handleReloadFish = async () => {
     setLoadingFish(true);
@@ -198,14 +206,9 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
   const handleChange = (patch) => setForm(f => ({ ...f, ...patch }));
 
   const handleTotalManualChange = (value) => {
+    // Accept manual changes regardless of cost calculation being enabled.
     setManualTotal(true);
     setForm(prev => ({ ...prev, total_amount: value }));
-  };
-
-  const resetTotalToAuto = () => {
-    const total = computeTotal();
-    setManualTotal(false);
-    setForm(prev => ({ ...prev, total_amount: total }));
   };
 
   const handleSubmit = (e) => {
@@ -234,6 +237,7 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
       notes: form.notes || '',
       fish_cost: Number(form.fish_cost) || 0,
       total_amount: Number(form.total_amount) || 0,
+      cost_enabled: Boolean(form.cost_enabled),
       manual_total: manualTotal,
       recorded_by_userKey: form.recorded_by_userKey || '',
     };
@@ -361,52 +365,49 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
           <Box>
             <Typography variant="subtitle2">Cost calculation</Typography>
             <Grid container spacing={2} alignItems="center" sx={{ mt: 1 }}>
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  label={<>Fish cost (INR per kg) <Tooltip title="Price per kilogram used to compute total cost"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
-                  name="fish_cost"
-                  type="number"
-                  value={form.fish_cost}
-                  onChange={e => handleChange({ fish_cost: e.target.value })}
-                  inputProps={{ min: 0 }}
-                  fullWidth
-                />
-              </Grid>
+               <Grid item xs={12} sm={12}>
+                 <Tooltip title={form.cost_enabled ? 'Cost calculation enabled' : 'Cost calculation disabled'}>
+                   <FormControlLabel
+                     control={<Switch size="small" checked={Boolean(form.cost_enabled)} onChange={(e) => handleChange({ cost_enabled: Boolean(e.target.checked) })} inputProps={{ 'aria-label': 'Toggle cost calculation' }} />}
+                     label="Buy"
+                   />
+                 </Tooltip>
+               </Grid>
+               <Grid item xs={12} sm={4}>
+                 <TextField
+                   label={<>Fish cost (INR per kg) <Tooltip title="Price per kilogram used to compute total cost"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
+                   name="fish_cost"
+                   type="number"
+                   value={form.fish_cost}
+                   onChange={e => handleChange({ fish_cost: e.target.value })}
+                   disabled={!form.cost_enabled}
+                   inputProps={{ min: 0 }}
+                   fullWidth
+                 />
+               </Grid>
 
-              <Grid item xs={12} sm={4}>
-                <Box sx={{ p: 1, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
-                  <Typography variant="caption" color="text.secondary">Computed total (INR)</Typography>
-                  <Typography variant="h6" sx={{ mt: 0.5 }}>{computeTotal()}</Typography>
-                </Box>
-              </Grid>
+               <Grid item xs={12} sm={3}>
+                 <TextField
+                   label={<>Total amount (INR) <Tooltip title="Total payable amount; editable by the user"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
+                   name="total_amount"
+                   type="number"
+                   value={form.total_amount}
+                   onChange={e => handleTotalManualChange(Number(e.target.value))}
+                   // Always editable; user edits set manualTotal and prevent subsequent auto-updates
+                   inputProps={{ min: 0 }}
+                   fullWidth
+                 />
+               </Grid>
+             </Grid>
+           </Box>
 
-              <Grid item xs={12} sm={4}>
-                <TextField
-                  label={<>Total amount (INR) <Tooltip title="Total payable amount; editable to override computed value"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
-                  name="total_amount"
-                  type="number"
-                  value={form.total_amount}
-                  onChange={e => handleTotalManualChange(Number(e.target.value))}
-                  inputProps={{ min: 0 }}
-                  fullWidth
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={1}>
-                <IconButton onClick={resetTotalToAuto} aria-label="Reset total to auto" title="Reset total to auto" size="small">
-                  <AutorenewIcon />
-                </IconButton>
-              </Grid>
-            </Grid>
-          </Box>
-
-          <TextField label="Notes" name="notes" value={form.notes} onChange={e => handleChange({ notes: e.target.value })} fullWidth multiline rows={3} />
-          <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
-            <Button variant="outlined" onClick={onCancel}>Cancel</Button>
-            <Button variant="contained" type="submit">Save</Button>
-          </Stack>
-        </Stack>
-      </form>
-    </Paper>
-  );
+           <TextField label="Notes" name="notes" value={form.notes} onChange={e => handleChange({ notes: e.target.value })} fullWidth multiline rows={3} />
+           <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
+             <Button variant="outlined" onClick={onCancel}>Cancel</Button>
+             <Button variant="contained" type="submit">Save</Button>
+           </Stack>
+         </Stack>
+       </form>
+     </Paper>
+   );
 }

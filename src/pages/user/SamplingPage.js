@@ -70,6 +70,8 @@ export default function SamplingPage() {
       sampling_date: (row.samplingDate ?? row.sampling_date ?? row.date ?? (row.createdAt || row.created_at)) || null,
       fish_cost: row.cost ?? row.cost_amount ?? row.fish_cost ?? 0,
       total_amount: row.totalAmount ?? row.total_amount ?? row.amount ?? 0,
+      // map cost_enabled flag (support various backend key variants)
+      cost_enabled: (row.cost_enabled !== undefined) ? Boolean(row.cost_enabled) : ((row.costEnabled !== undefined) ? Boolean(row.costEnabled) : true),
       total_count: row.total_count ?? row.totalCount ?? row.totalCountRaw ?? 0,
       totalCount: row.totalCount ?? row.total_count ?? row.totalCountRaw ?? 0,
       pond_id: row.pondId ?? row.pond ?? row.pond_id ?? '',
@@ -173,6 +175,7 @@ export default function SamplingPage() {
               <TableCell align="right">Total fish</TableCell>
               <TableCell align="right">Avg size (g)</TableCell>
                <TableCell align="right">Cost</TableCell>
+              <TableCell align="center">Cost Enabled</TableCell>
                <TableCell align="right">Total (INR)</TableCell>
                <TableCell>Actions</TableCell>
              </TableRow>
@@ -211,6 +214,7 @@ export default function SamplingPage() {
                    return `${num.toFixed(0)} g`;
                 })()}</TableCell>
                 <TableCell align="right">{(r.cost ?? r.cost_amount ?? r.fish_cost) || ''}</TableCell>
+                <TableCell align="center">{(r.cost_enabled ?? r.costEnabled ?? true) ? 'Yes' : 'No'}</TableCell>
                 <TableCell align="right">{(r.totalAmount ?? r.total_amount ?? r.amount) || ''}</TableCell>
                 <TableCell>
                   <IconButton size="small" onClick={() => handleEdit(r)} title="Edit"><EditIcon fontSize="small" /></IconButton>

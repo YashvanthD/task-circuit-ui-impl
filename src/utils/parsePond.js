@@ -38,9 +38,22 @@ export function parsePond(p = {}) {
     dissolved_oxygen = dissolved_oxygen || first.do || first.dissolved_oxygen || '';
   }
 
-  const currentStock = p.currentStock || p.current_stock || [];
+  const rawCurrentStock = p.currentStock || p.current_stock || [];
+  // Normalize stock entries: prefer numeric counts (quantity/count/number), normalize averageWeight -> average_weight, unit price keys, and keep original fields
+  const currentStock = Array.isArray(rawCurrentStock) ? rawCurrentStock.map(s => {
+    const cnt = Number(s.count || s.number || s.quantity || 0) || 0;
+    const avg = (s.averageWeight !== undefined) ? s.averageWeight : (s.average_weight !== undefined ? s.average_weight : (s.avgWeight !== undefined ? s.avgWeight : (s.avg_weight !== undefined ? s.avg_weight : (s.avg !== undefined ? s.avg : (s.weight !== undefined ? s.weight : null)))));
+    const unitPrice = (s.unit_price !== undefined) ? s.unit_price : (s.price !== undefined ? s.price : (s.avg_price !== undefined ? s.avg_price : (s.avgPrice !== undefined ? s.avgPrice : 0)));
+    return {
+      ...s,
+      count: cnt,
+      quantity: Number(s.quantity || s.count || s.number || 0) || 0,
+      average_weight: (avg === null || avg === undefined) ? null : (Number(avg) || 0),
+      unit_price: Number(unitPrice || 0) || 0,
+    };
+  }) : [];
   const stocked_species = Array.isArray(currentStock) && currentStock.length > 0 ? currentStock.map(s => s.species || s.name || '').filter(Boolean).join(', ') : '';
-  const number_stocked = Array.isArray(currentStock) && currentStock.length > 0 ? currentStock.reduce((acc, s) => acc + (Number(s.count) || Number(s.number) || 0), 0) : (p.number_stocked || 0);
+  const number_stocked = Array.isArray(currentStock) && currentStock.length > 0 ? currentStock.reduce((acc, s) => acc + (Number(s.count || s.number || s.quantity || 0) || 0), 0) : (p.number_stocked || 0);
 
   const last_update = p.lastMaintenance || p.last_maintenance || p.last_update || p.updatedAt || p.createdAt || '';
 
@@ -90,6 +103,9 @@ export function parsePond(p = {}) {
 
   return {
     ...p,
+    // override raw currentStock with normalized structure for UI consumers
+    currentStock,
+    current_stock: currentStock,
     farm_name: farmName,
     pond_id: pondId,
     pond_location: pondLocation,

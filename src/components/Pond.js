@@ -177,7 +177,7 @@ export default function Pond({ initialData = {}, onOpen, onDailyUpdate, onEdit, 
                     stackEntries.map((s, idx) => (
                       <Box key={idx} sx={{ display: 'flex', py: 0.5, alignItems: 'center' }}>
                         <Box sx={{ flex: 3 }}><Typography variant="body2">{s.species}</Typography></Box>
-                        <Box sx={{ flex: 2, textAlign: 'right' }}><Typography variant="body2">{s.avgw && s.avgw !== '-' ? `${formatNumber(s.avgw, 2)} g` : '--'}</Typography></Box>
+                        <Box sx={{ flex: 2, textAlign: 'right' }}><Typography variant="body2">{s.avgw && s.avgw !== '-' ? `${formatNumber(s.avgw, 2)} kg` : '--'}</Typography></Box>
                         <Box sx={{ flex: 1, textAlign: 'right' }}><Typography variant="body2">{s.count}</Typography></Box>
                         <Box sx={{ flex: 2, textAlign: 'right' }}><Typography variant="body2">{formatCurrency(s.subtotal)}</Typography></Box>
                       </Box>

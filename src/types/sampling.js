@@ -47,6 +47,10 @@ export function normalizeSampling(input = {}) {
     try { samplingDate = new Date(samplingDate).toISOString(); } catch (e) { /* ignore */ }
   }
 
+  // cost_enabled: default to true when not provided by backend (UI expects enabled by default)
+  const costEnabledProvided = (input.cost_enabled !== undefined) || (input.costEnabled !== undefined);
+  const cost_enabled = costEnabledProvided ? Boolean(input.cost_enabled ?? input.costEnabled) : true;
+
   return {
     pond_id: (input.pond_id && typeof input.pond_id === 'object') ? (input.pond_id.pond_id || input.pond_id.id || input.pond_id) : (input.pond_id || input.pondId || ''),
     species: speciesObj,
@@ -56,6 +60,7 @@ export function normalizeSampling(input = {}) {
     fish_cost: Number(input.fish_cost || input.cost || 0) || 0,
     total_amount: Number(input.total_amount || input.totalAmount || 0) || 0,
     manual_total: Boolean(input.manual_total || input.manualTotal),
+    cost_enabled: cost_enabled,
     sampling_date: samplingDate,
     notes: input.notes || '',
     createdAt: input.createdAt || new Date().toISOString(),
