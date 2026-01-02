@@ -19,6 +19,7 @@ import { getRefreshToken, loadUserFromLocalStorage, removeFromLocalStorage, remo
 import SignupForm from './forms/SignupForm';
 import RegisterCompanyForm from './forms/RegisterCompanyForm';
 import FishPage from './pages/user/FishPage';
+import SamplingPage from './pages/user/SamplingPage';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -61,6 +62,7 @@ function AppRoutes() {
         <Route path="manage-users" element={<ManageUsersPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="fish" element={<FishPage />} />
+        <Route path="sampling" element={<SamplingPage />} />
         {/* Add other user routes here */}
       </Route>
     </Routes>

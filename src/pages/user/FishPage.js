@@ -7,11 +7,13 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PoolIcon from '@mui/icons-material/Pool';
 import fishUtil, { fishEvents } from '../../utils/fish';
 import { parseFishList } from '../../utils/parseFish';
+import SamplingForm from '../../forms/SamplingForm';
 
 export default function FishPage() {
   const [selectedFish, setSelectedFish] = useState(null);
   const [fishDialogOpen, setFishDialogOpen] = useState(false);
   const [addFishDialogOpen, setAddFishDialogOpen] = useState(false);
+  const [samplingDialogOpen, setSamplingDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [fishList, setFishList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -61,6 +63,8 @@ export default function FishPage() {
   const handleCloseFish = () => { setFishDialogOpen(false); setSelectedFish(null); };
   const handleOpenAddFish = () => setAddFishDialogOpen(true);
   const handleCloseAddFish = () => setAddFishDialogOpen(false);
+  const handleOpenSampling = () => setSamplingDialogOpen(true);
+  const handleCloseSampling = () => setSamplingDialogOpen(false);
   const handleAddFish = async (newFish) => {
     try {
       await fishUtil.createFish(newFish);
@@ -69,6 +73,10 @@ export default function FishPage() {
       console.error('Failed to add fish', err);
       alert('Failed to add fish: ' + (err.message || err));
     }
+  };
+  const handleSubmitSampling = (data) => {
+    console.log('Sampling submitted from FishPage', data);
+    setSamplingDialogOpen(false);
   };
 
   const filteredFishList = fishList.filter(fish => (fish.common_name || '').toLowerCase().includes(searchTerm.toLowerCase()));
@@ -91,7 +99,10 @@ export default function FishPage() {
           sx={{ minWidth: 220 }}
           InputProps={{ startAdornment: <SearchIcon sx={{ mr: 1, color: 'grey.500' }} /> }}
         />
-        <Button variant="contained" color="primary" onClick={handleOpenAddFish} startIcon={<AddCircleIcon />}>Add Fish Data</Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" color="secondary" onClick={handleOpenSampling}>Sampling</Button>
+          <Button variant="contained" color="primary" onClick={handleOpenAddFish} startIcon={<AddCircleIcon />}>Add Fish Data</Button>
+        </Stack>
       </Stack>
 
       {loading ? <CircularProgress /> : null}
@@ -146,6 +157,9 @@ export default function FishPage() {
       </Dialog>
       <Dialog open={addFishDialogOpen} onClose={handleCloseAddFish} maxWidth="lg" fullWidth>
         <FishForm onSubmit={handleAddFish} onCancel={handleCloseAddFish} />
+      </Dialog>
+      <Dialog open={samplingDialogOpen} onClose={handleCloseSampling} maxWidth="sm" fullWidth>
+        <SamplingForm onSubmit={handleSubmitSampling} onCancel={handleCloseSampling} />
       </Dialog>
     </Paper>
   );
