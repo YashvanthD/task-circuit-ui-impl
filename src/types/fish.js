@@ -2,17 +2,23 @@
 /**
  * @typedef {Object} Fish
  * @property {string|number} [id]
- * @property {string} [fish_id]
+ * @property {string} [_id]
+ * @property {string} [speciesCode]
+ * @property {string} [species_code]
+ * @property {string} [commonName]
  * @property {string} [common_name]
+ * @property {string} [scientificName]
  * @property {string} [scientific_name]
- * @property {string} [capture_date]
- * @property {string} [vessel_name]
- * @property {string} [specimen_photo]
- * @property {number} [count]
- * @property {Array<string>} [ponds]
- * @property {number} [avg_weight]
- * @property {number} [unit_price]
- * @property {Object} [meta]
+ * @property {number} [averageSizeCm]
+ * @property {number} [weightKg]
+ * @property {number} [lifespanYears]
+ * @property {string} [type]
+ * @property {string} [habitat]
+ * @property {string} [distribution]
+ * @property {string} [conservationStatus]
+ * @property {Object} [taxonomicClassification]
+ * @property {Object} [economicValueInr]
+ * @property {Object} [metadata]
  */
 
 // Export nothing at runtime; file is used for JSDoc imports

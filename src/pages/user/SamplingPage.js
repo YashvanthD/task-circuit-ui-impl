@@ -70,7 +70,8 @@ export default function SamplingPage() {
       sampling_date: (row.samplingDate ?? row.sampling_date ?? row.date ?? (row.createdAt || row.created_at)) || null,
       fish_cost: row.cost ?? row.cost_amount ?? row.fish_cost ?? 0,
       total_amount: row.totalAmount ?? row.total_amount ?? row.amount ?? 0,
-      total_count: row.total_count ?? row.totalCount ?? 0,
+      total_count: row.total_count ?? row.totalCount ?? row.totalCountRaw ?? 0,
+      totalCount: row.totalCount ?? row.total_count ?? row.totalCountRaw ?? 0,
       pond_id: row.pondId ?? row.pond ?? row.pond_id ?? '',
       notes: row.notes ?? row.note ?? '',
       species: row.species ?? row.fish ?? row.speciesCode ?? row.id ?? null,
@@ -168,19 +169,19 @@ export default function SamplingPage() {
               <TableCell>Fish</TableCell>
               <TableCell>Recorded By</TableCell>
               <TableCell>Pond</TableCell>
-              <TableCell align="right"># Fish</TableCell>
+              <TableCell align="right">Sampled</TableCell>
+              <TableCell align="right">Total fish</TableCell>
               <TableCell align="right">Avg size (g)</TableCell>
-              <TableCell align="right">Sample count</TableCell>
-              <TableCell align="right">Cost</TableCell>
-              <TableCell align="right">Total (INR)</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((r, idx) => (
-              <TableRow key={r.id || r._id || idx}>
+               <TableCell align="right">Cost</TableCell>
+               <TableCell align="right">Total (INR)</TableCell>
+               <TableCell>Actions</TableCell>
+             </TableRow>
+           </TableHead>
+           <TableBody>
+             {rows.map((r, idx) => (
+               <TableRow key={r.id || r._id || idx}>
                 <TableCell>{(r.samplingDate || r.sampling_date || r.date || r.createdAt || r.created_at || '').toString()}</TableCell>
-                <TableCell>{(() => {
+                 <TableCell>{(() => {
                   const s = r.species || r.fish || '';
                   if (!s) return '';
                   if (typeof s === 'string') return s;
@@ -196,19 +197,19 @@ export default function SamplingPage() {
                 })()}</TableCell>
                 <TableCell>{userNames[r.recordedBy || r.recorded_by || r.recorded_by_user || r.recorded_by_userKey || r.recordedByUser] || (r.recordedBy || r.recorded_by || r.recorded_by_user || r.recorded_by_userKey || r.recordedByUser || '')}</TableCell>
                 <TableCell>{r.pondId || r.pond || r.pond_id || ''}</TableCell>
-                <TableCell align="right">{r.sampleSize || r.count || r.number || 0}</TableCell>
+                <TableCell align="right">{r.sampleSize || r.sample_size || r.sample_count || r.count || 0}</TableCell>
+                <TableCell align="right">{(r.totalCount ?? r.total_count ?? r.total_count ?? r.totalCount ?? '') || ''}</TableCell>
                 <TableCell align="right">{(() => {
-                  // display avg weight in grams for readability (form uses grams, backend stores kg)
-                  const awKg = r.averageWeight ?? r.avg_weight ?? r.average_size ?? null;
-                  if (awKg === null || awKg === undefined || awKg === '') return '';
-                  const num = Number(awKg);
-                  if (!Number.isFinite(num)) return String(awKg);
-                  // if value looks like kg (<=100 likely kg?), but treat numbers < 10 as kg -> convert to g
-                  // Heuristic: if num <= 10 assume kg and convert to g; if >10 assume grams already
-                  if (num <= 10) return `${(num * 1000).toFixed(0)} g`;
-                  return `${num.toFixed(0)} g`;
+                   // display avg weight in grams for readability (form uses grams, backend stores kg)
+                   const awKg = r.averageWeight ?? r.avg_weight ?? r.average_size ?? null;
+                   if (awKg === null || awKg === undefined || awKg === '') return '';
+                   const num = Number(awKg);
+                   if (!Number.isFinite(num)) return String(awKg);
+                   // if value looks like kg (<=100 likely kg?), but treat numbers < 10 as kg -> convert to g
+                   // Heuristic: if num <= 10 assume kg and convert to g; if >10 assume grams already
+                   if (num <= 10) return `${(num * 1000).toFixed(0)} g`;
+                   return `${num.toFixed(0)} g`;
                 })()}</TableCell>
-                <TableCell align="right">{r.sampleSize || r.sample_count || ''}</TableCell>
                 <TableCell align="right">{(r.cost ?? r.cost_amount ?? r.fish_cost) || ''}</TableCell>
                 <TableCell align="right">{(r.totalAmount ?? r.total_amount ?? r.amount) || ''}</TableCell>
                 <TableCell>

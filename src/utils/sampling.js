@@ -109,6 +109,12 @@ function normalizeSamplingPayload(payload = {}) {
     const t = Number(rawTotal);
     if (Number.isFinite(t)) out.totalAmount = t;
   }
+  // normalize total_count (total fish count) from UI to totalCount
+  const rawTotalCount = payload.total_count ?? payload.totalCount ?? payload.totalCountRaw ?? payload.total;
+  if (rawTotalCount !== undefined) {
+    const tc = Number(rawTotalCount);
+    if (Number.isFinite(tc)) out.totalCount = tc;
+  }
   // Remove common UI-only aliases to avoid duplicate/confusing fields being sent
   delete out.sampling_count; delete out.samplingCount; delete out.count; delete out.sample_size; delete out.sample_count; delete out.avg_weight; delete out.average_size; delete out.average_weight;
   // also remove UI recorder alias
@@ -135,6 +141,7 @@ export async function createSampling(payload, apiFetch = true) {
     ...(normalized.recordedBy ? { recordedBy: normalized.recordedBy, recorded_by: normalized.recordedBy } : {}),
     ...(normalized.cost !== undefined ? { cost: normalized.cost, cost_unit: normalized.costUnit || 'kg', costUnit: normalized.costUnit || 'kg' } : {}),
     ...(normalized.totalAmount !== undefined ? { totalAmount: normalized.totalAmount, total_amount: normalized.totalAmount } : {}),
+    ...(normalized.totalCount !== undefined ? { totalCount: normalized.totalCount, total_count: normalized.totalCount } : {}),
   };
   // include samplingDate if normalized
   if (normalized.samplingDate) {
@@ -249,6 +256,8 @@ export async function updateSampling(id, payload, apiFetch = true) {
   if (normalized.samplingDate) {
     normalized.sampling_date = normalized.samplingDate;
   }
+  // include totalCount snake_case if present
+  if (normalized.totalCount !== undefined) normalized.total_count = normalized.totalCount;
   // include snake_case variants as some backends expect them
   if (normalized.recordedBy) normalized.recorded_by = normalized.recordedBy;
   if (normalized.cost !== undefined) {
