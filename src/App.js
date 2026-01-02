@@ -41,7 +41,7 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/taskcircuit/" replace />} />
+      <Route path="" element={<Navigate to="/taskcircuit/" replace />} />
       <Route path="/home" element={<Navigate to="/taskcircuit/" replace />} />
       <Route path="/taskcircuit/" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
       <Route path="/taskcircuit/home" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><HomePage /></BaseLayout>} />

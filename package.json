@@ -2,8 +2,7 @@
   "name": "task-circuit",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://github.com/YashvanthD/task-circuit-ui-impl.git",
-
+  "homepage": "/taskcircuit",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
