@@ -14,6 +14,10 @@ export async function apiFetch(url, options = {}, forceLogout) {
   const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url.startsWith('/') ? url : '/' + url}`;
   let opts = { ...options };
   if (!opts.headers) opts.headers = {};
+  // Prefer JSON responses by default
+  if (!opts.headers['Accept'] && !opts.headers['accept']) {
+    opts.headers['Accept'] = 'application/json';
+  }
   const token = getAccessToken();
   if (token) opts.headers['Authorization'] = `Bearer ${token}`;
   console.log('[apiFetch Debug] Request URL:', fullUrl);
@@ -141,5 +145,76 @@ export async function updateFish(fishId, fishData) {
 export async function deleteFish(fishId) {
   return apiFetch(`/fish/${fishId}`, {
     method: 'DELETE',
+  });
+}
+
+// Pond endpoints
+/**
+ * List ponds
+ */
+export async function listPonds() {
+  return apiFetch('/pond', { method: 'GET' });
+}
+
+/**
+ * Get pond details
+ */
+export async function getPond(pondId) {
+  return apiFetch(`/pond/${pondId}`, { method: 'GET' });
+}
+
+/**
+ * Add a new pond
+ */
+export async function addPond(pondData) {
+  const opts = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(pondData),
+  };
+  // Use canonical create endpoint per API doc.
+  return apiFetch('/pond/create', opts);
+}
+
+/**
+ * Update a pond
+ */
+export async function updatePond(pondId, pondData) {
+  const opts = {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(pondData),
+  };
+  // Preferred doc endpoint is /pond/update/:pond_id; fallback to /pond/:pond_id
+  try {
+    const res = await apiFetch(`/pond/update/${pondId}`, opts);
+    const status = res && res.status;
+    const nonJsonClientError = res && !res.ok && res.error === 'Non-JSON response' && status >= 400 && status < 500;
+    if (res && (status === 404 || status === 405 || nonJsonClientError)) {
+      console.warn('[api.updatePond] falling back to /pond/:id because /pond/update returned', status);
+      return apiFetch(`/pond/${pondId}`, opts);
+    }
+    return res;
+  } catch (err) {
+    console.warn('[api.updatePond] /pond/update request failed, trying /pond/:id', err);
+    return apiFetch(`/pond/${pondId}`, opts);
+  }
+}
+
+/**
+ * Delete a pond
+ */
+export async function deletePond(pondId) {
+  return apiFetch(`/pond/${pondId}`, { method: 'DELETE' });
+}
+
+/**
+ * Add a daily update for a pond
+ */
+export async function addPondDailyUpdate(pondId, updateData) {
+  return apiFetch(`/pond/${pondId}/daily`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updateData),
   });
 }

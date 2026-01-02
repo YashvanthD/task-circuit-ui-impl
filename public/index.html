@@ -25,6 +25,31 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>React App</title>
+
+    <!-- Redirect root of GitHub Pages to /taskcircuit -->
+    <script>
+      (function () {
+        try {
+          var path = window.location.pathname || '/';
+          // If served from GitHub Pages repo root (/username/repo/) redirect to /taskcircuit
+          // Avoid redirecting if already under /taskcircuit or if requesting an asset (has a dot)
+          var isAsset = path.match(/\.[a-zA-Z0-9]{1,5}$/);
+          var already = path.toLowerCase().indexOf('/taskcircuit') === 0;
+          // Only redirect when at repo root (single- or double-slash) or index.html
+          var atRoot = path === '/' || path === '' || path === '/index.html' || path.match(/^\/[^\/]+\/?$/);
+          if (!already && !isAsset && atRoot) {
+            var base = path === '/' || path === '' || path === '/index.html' ? '' : path.replace(/\/$/, '');
+            // Construct target by appending /taskcircuit
+            var target = (base || '') + '/taskcircuit';
+            // Make sure we don't create double slashes
+            target = target.replace(/\/+/g, '/');
+            window.location.replace(target + window.location.search + window.location.hash);
+          }
+        } catch (e) {
+          console.warn('Redirect script failed', e);
+        }
+      })();
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

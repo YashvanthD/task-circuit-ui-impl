@@ -7,7 +7,7 @@ import BaseLayout from './layouts/BaseLayout';
 import UserLayout from './layouts/UserLayout';
 import DashboardPage from './pages/user/DashboardPage';
 import TasksPage from './pages/user/TasksPage';
-import PondPage from './pages/user/PoolPage';
+import PondPage from './pages/user/PondPage';
 import ReportsPage from './pages/user/ReportsPage';
 import ManageUsersPage from './pages/user/ManageUsersPage';
 import DatasetPage from './pages/user/DatasetPage';
