@@ -79,8 +79,20 @@ export default function Pond({ initialData = {}, onOpen, onDailyUpdate, onEdit, 
             <Box>
               <Typography variant="caption" color="text.secondary">Same__</Typography>
               <Typography variant="h6" sx={{ mt: 0.5 }}>{farmName}</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>Id: {altId}</Typography>
-              <Typography variant="caption" color="text.secondary">Pond ID: {pondId}</Typography>
+              {/* Show either id or pond id if they are the same; if both present and different, show both */}
+              {altId && pondId ? (
+                altId === pondId ? (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>ID: {altId}</Typography>
+                ) : (
+                  <>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>Id: {altId}</Typography>
+                    <Typography variant="caption" color="text.secondary">Pond ID: {pondId}</Typography>
+                  </>
+                )
+              ) : (
+                // show whichever exists
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>{altId ? `ID: ${altId}` : (pondId ? `Pond ID: ${pondId}` : '')}</Typography>
+              )}
             </Box>
 
             <Box sx={{ textAlign: 'right' }}>
@@ -141,12 +153,14 @@ export default function Pond({ initialData = {}, onOpen, onDailyUpdate, onEdit, 
           {/* Stacks section: total fish count and total cost, and a table of fish rows */}
           {(() => {
             const totalFishCount = stackEntries.reduce((acc, e) => acc + (Number(e.count) || 0), 0);
-            const totalFishCost = stackEntries.reduce((acc, e) => acc + (Number(e.subtotal) || 0), 0);
+            const computedTotalFishCost = stackEntries.reduce((acc, e) => acc + (Number(e.subtotal) || 0), 0);
+            // prefer API-provided totals if available; otherwise use computed subtotal; fallback to stockValue or 0
+            const totalFishCost = (initialData.total_fish_cost ?? initialData.totalFishCost ?? initialData.totalFishValue ?? computedTotalFishCost ?? stockValue ?? 0);
             return (
               <Box sx={{ mt: 1, mb: 1 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="subtitle2">Stacks ({totalFishCount} , {formatCurrency(totalFishCost)})</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatCurrency(stockValue)}</Typography>
+                  <Typography variant="subtitle2">Stack - {totalFishCount}</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>{formatCurrency(totalFishCost)}</Typography>
                 </Stack>
 
                 <Box sx={{ mt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
