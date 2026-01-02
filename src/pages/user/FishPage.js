@@ -8,6 +8,7 @@ import PoolIcon from '@mui/icons-material/Pool';
 import fishUtil, { fishEvents } from '../../utils/fish';
 import { parseFishList } from '../../utils/parseFish';
 import SamplingForm from '../../forms/SamplingForm';
+import samplingUtil from '../../utils/sampling';
 
 export default function FishPage() {
   const [selectedFish, setSelectedFish] = useState(null);
@@ -74,9 +75,14 @@ export default function FishPage() {
       alert('Failed to add fish: ' + (err.message || err));
     }
   };
-  const handleSubmitSampling = (data) => {
-    console.log('Sampling submitted from FishPage', data);
-    setSamplingDialogOpen(false);
+  const handleSubmitSampling = async (data) => {
+    try {
+      await samplingUtil.createSampling(data);
+      setSamplingDialogOpen(false);
+    } catch (e) {
+      console.error('Failed to create sampling', e);
+      alert('Failed to create sampling: ' + (e.message || e));
+    }
   };
 
   const filteredFishList = fishList.filter(fish => (fish.common_name || '').toLowerCase().includes(searchTerm.toLowerCase()));

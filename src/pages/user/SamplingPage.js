@@ -2,16 +2,21 @@ import React, { useState } from 'react';
 import { Paper, Typography, Button, Grid, Dialog } from '@mui/material';
 import SamplingForm from '../../forms/SamplingForm';
 import Sampling from '../../components/Sampling';
+import samplingUtil from '../../utils/sampling';
 
 export default function SamplingPage() {
   const [open, setOpen] = useState(false);
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => { setOpen(false); };
-  const handleSubmit = (data) => {
-    // For now, just log; this should call sampling util API when available
-    console.log('Sampling submitted', data);
-    handleClose();
+  const handleSubmit = async (data) => {
+    try {
+      await samplingUtil.createSampling(data);
+      handleClose();
+    } catch (e) {
+      console.error('Failed to create sampling', e);
+      alert('Failed to create sampling: ' + (e.message || e));
+    }
   };
 
   return (

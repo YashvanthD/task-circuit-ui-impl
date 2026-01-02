@@ -86,6 +86,22 @@ export const fields = /** @type {ResourceFieldDefs} */ ({
     { key: 'feed_type', label: 'Feed', type: 'string', desc: 'Feed type', aliases: ['feed_type', 'feed'], visible: false, card: { show: false, order: 70 } },
   ],
 
+  // Sampling (new resource)
+  sampling: [
+    { key: 'sampling_id', label: 'Sampling ID', type: 'string', desc: 'Sampling record id', aliases: ['sampling_id', 'id'], visible: false, card: { show: false, order: 5 } },
+    { key: 'pond_id', label: 'Pond', type: 'string', desc: 'Pond identifier for sampling', aliases: ['pond_id', 'pondId', 'pond'], visible: true, card: { show: true, order: 10 } },
+    { key: 'species', label: 'Species', type: 'string', desc: 'Species sampled', aliases: ['species', 'species_id', 'common_name'], visible: true, card: { show: true, order: 15, prominent: true } },
+    { key: 'sampling_count', label: 'Sampled Count', type: 'number', desc: 'Number of fish sampled to compute average', aliases: ['sampling_count', 'sample_count'], visible: true, card: { show: true, order: 20 } },
+    { key: 'total_count', label: 'Total Count', type: 'number', desc: 'Total number intended to purchase/stock', aliases: ['total_count', 'count', 'totalCount'], visible: true, card: { show: true, order: 25 } },
+    { key: 'avg_weight', label: 'Avg Weight (g)', type: 'number', desc: 'Average weight per sampled fish (grams)', aliases: ['avg_weight', 'average_weight'], visible: true, card: { show: true, order: 30 }, formatter: 'number2', default: 1000 },
+    { key: 'fish_cost', label: 'Fish Cost (INR/kg)', type: 'number', desc: 'Cost per kilogram used for computing total', aliases: ['fish_cost', 'cost_per_kg', 'price_per_kg'], visible: true, card: { show: true, order: 35 }, formatter: 'currency', default: 50 },
+    { key: 'computed_total', label: 'Computed Total (INR)', type: 'currency', desc: 'Computed total amount (total_count * max(avg_weight,1kg) * fish_cost)', aliases: ['computed_total', 'computedAmount'], visible: true, card: { show: true, order: 40 }, formatter: 'currency' },
+    { key: 'total_amount', label: 'Total Amount (INR)', type: 'currency', desc: 'Final total amount (editable override)', aliases: ['total_amount', 'amount', 'totalAmount'], visible: true, card: { show: true, order: 45 }, formatter: 'currency' },
+    { key: 'manual_total', label: 'Manual Total', type: 'boolean', desc: 'Whether total_amount was manually overridden', aliases: ['manual_total'], visible: false, card: { show: false, order: 50 } },
+    { key: 'notes', label: 'Notes', type: 'string', desc: 'Sampling notes', aliases: ['notes', 'remarks'], visible: false, card: { show: false, order: 60 } },
+    { key: 'createdAt', label: 'Created', type: 'date', desc: 'Sampling created timestamp', aliases: ['createdAt', 'created_at', 'timestamp'], visible: false, card: { show: false, order: 70 }, formatter: 'date' },
+  ],
+
   // Tasks
   task: [
     { key: 'task_id', label: 'Task ID', type: 'string', desc: 'Task identifier', aliases: ['task_id', 'id'], visible: false, card: { show: false, order: 5 } },
