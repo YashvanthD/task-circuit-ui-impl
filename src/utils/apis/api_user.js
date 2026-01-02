@@ -1,16 +1,18 @@
 import { apiFetch } from '../api';
+import { getAuthHeaders } from './api_auth';
 
 export async function getProfile() {
-  return apiFetch('/user/profile', { method: 'GET' });
+  return apiFetch('/user/profile', { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export async function updateProfile(data) {
-  return apiFetch('/user/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  return apiFetch('/user/profile', { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(data) });
 }
 
 export async function listUsers(params = {}) {
+  // Use account users endpoint per API docs
   const qs = Object.keys(params).map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k])}`).join('&');
-  return apiFetch(`/user${qs ? '?' + qs : ''}`, { method: 'GET' });
+  return apiFetch(`/auth/account/users${qs ? ('?' + qs) : ''}`, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export default { getProfile, updateProfile, listUsers };

@@ -5,8 +5,9 @@ import AutorenewIcon from '@mui/icons-material/Autorenew';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import Autocomplete from '@mui/material/Autocomplete';
 import { getPondOptions, getFishOptions } from '../utils/options';
+import userUtil from '../utils/user';
 
-export default function SamplingForm({ initialData = {}, onSubmit, onCancel }) {
+export default function SamplingForm({ initialData = {}, onSubmit, onCancel, users = [] }) {
   const [form, setForm] = useState({
     pond_id: initialData.pond_id || '',
     species: initialData.species || null,
@@ -14,9 +15,11 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel }) {
     total_count: initialData.total_count ?? 100, // total fish to buy (default 100)
     avg_weight: initialData.avg_weight ?? 1000, // grams (default 1kg)
     notes: initialData.notes || '',
+    sampling_date: initialData.sampling_date || initialData.samplingDate || new Date().toISOString().slice(0,10), // YYYY-MM-DD for date picker
     // New fields
     fish_cost: initialData.fish_cost ?? 50, // INR per kg default 50
     total_amount: initialData.total_amount || 0, // editable lumpsum (manual override)
+    recorded_by_userKey: initialData.recorded_by_userKey || initialData.recordedBy || initialData.recorded_by || '',
   });
 
   const [manualTotal, setManualTotal] = useState(false);
@@ -24,8 +27,58 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel }) {
   const [fishOptions, setFishOptions] = useState([]);
   const [loadingPonds, setLoadingPonds] = useState(false);
   const [loadingFish, setLoadingFish] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [localUsers, setLocalUsers] = useState(Array.isArray(users) ? users : []);
   const [inputValue, setInputValue] = useState('');
   const mountedRef = useRef(true);
+
+  useEffect(() => { setLocalUsers(Array.isArray(users) ? users : []); }, [users]);
+
+  useEffect(() => {
+    // if no users provided via props, try to fetch them once
+    let mounted = true;
+    (async () => {
+      // prefill with current user immediately if available
+      try {
+        const cur = await userUtil.getCurrentUser();
+        if (mounted && cur && (cur.user_key || cur.userKey || cur.id || cur._id)) {
+          setForm(prev => ({ ...prev, recorded_by_userKey: prev.recorded_by_userKey || (cur.user_key || cur.userKey || cur.id || cur._id) }));
+          // also include current user in localUsers so selector shows label
+          setLocalUsers(prev => { if (prev && prev.length > 0) return prev; return cur ? [cur] : prev; });
+        }
+      } catch (e) { /* ignore */ }
+      if ((!Array.isArray(users) || users.length === 0) && localUsers.length === 0 && mounted) {
+        await reloadUsers();
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  const reloadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const u = await userUtil.fetchUsers();
+      console.debug('[SamplingForm] reloadUsers fetched:', u);
+      if (!mountedRef.current) return;
+      if (Array.isArray(u) && u.length > 0) setLocalUsers(u);
+      else {
+        // fallback: try current user
+        try {
+          const cur = await userUtil.getCurrentUser();
+          console.debug('[SamplingForm] fallback current user:', cur);
+          if (cur && (cur.user_key || cur.userKey || cur.id || cur._id)) {
+            setLocalUsers([cur]);
+            // if form has no recorded_by_userKey preselect current user
+            setForm(prev => ({ ...prev, recorded_by_userKey: prev.recorded_by_userKey || (cur.user_key || cur.userKey || cur.id || cur._id) }));
+          }
+        } catch (e) { /* ignore */ }
+      }
+    } catch (e) {
+      console.error('Failed to load users', e);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   // compute weight-per-fish in kg with minimum 1kg as per instruction
   const weightPerFishKg = () => {
@@ -177,13 +230,17 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel }) {
       sampling_count: Number(form.sampling_count) || 0,
       total_count: Number(form.total_count) || 0,
       avg_weight: Number(form.avg_weight) || 0,
+      sampling_date: form.sampling_date || form.samplingDate || null,
       notes: form.notes || '',
       fish_cost: Number(form.fish_cost) || 0,
       total_amount: Number(form.total_amount) || 0,
       manual_total: manualTotal,
+      recorded_by_userKey: form.recorded_by_userKey || '',
     };
 
     if (onSubmit) onSubmit(out);
+    // debug: log outgoing normalized form payload (client side)
+    console.debug('[SamplingForm] submit payload:', out);
   };
 
   return (
@@ -265,12 +322,35 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel }) {
 
           </Box>
 
+          {/* Recorded By selector - shows username/display name but stores userKey */}
+          <Box>
+            <Autocomplete
+              options={localUsers || []}
+              getOptionLabel={(opt) => (typeof opt === 'string' ? opt : (opt.display_name || opt.username || opt.name || opt.email || opt.user_key || ''))}
+              onChange={(e, val) => handleChange({ recorded_by_userKey: val ? (val.user_key || val.userKey || val.id || val._id) : '' })}
+              value={localUsers.find(u => (u.user_key === form.recorded_by_userKey || u.userKey === form.recorded_by_userKey || u.id === form.recorded_by_userKey || u._id === form.recorded_by_userKey)) || null}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={<><span>Recorded By (user)</span> <Tooltip title="Who recorded this sampling (user key). Selecting shows username/display name"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
+                  placeholder="Select user"
+                  fullWidth
+                  sx={{ minWidth: 320, mt: 2 }}
+                />
+              )}
+              isOptionEqualToValue={(option, value) => (option.user_key === value.user_key || option.userKey === value.userKey || option.id === value.id || option._id === value._id)}
+            />
+          </Box>
+
           <Grid container spacing={2}>
             <Grid item xs={12} sm={4}>
               <TextField label={<>Sampling count <Tooltip title="Number of fish sampled to estimate average weight"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="sampling_count" value={form.sampling_count} onChange={e => handleChange({ sampling_count: e.target.value })} fullWidth />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField label={<>Total count <Tooltip title="Total number of fish to purchase/stock"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="total_count" value={form.total_count} onChange={e => handleChange({ total_count: e.target.value })} fullWidth />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField label={<>Sampling date <Tooltip title="Date when the sampling was performed"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="sampling_date" type="date" value={form.sampling_date?.slice(0,10) || ''} onChange={e => handleChange({ sampling_date: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField label={<>Avg weight (g) <Tooltip title="Average weight per sampled fish in grams (min 1000g used for cost calc)"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="avg_weight" value={form.avg_weight} onChange={e => handleChange({ avg_weight: e.target.value })} fullWidth />

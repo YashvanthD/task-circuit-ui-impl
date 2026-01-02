@@ -1,27 +1,28 @@
 import { apiFetch } from '../api';
+import { getAuthHeaders } from './api_auth';
 
 export async function registerCompany(payload) {
   return apiFetch('/company/register', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
 }
 
 export async function getCompany(accountKey) {
-  return apiFetch(`/company/${accountKey}`, { method: 'GET' });
+  return apiFetch(`/company/${accountKey}`, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export async function updateCompany(accountKey, data) {
   return apiFetch(`/company/${accountKey}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 }
 
 export async function getPublicCompany(accountKey) {
-  return apiFetch(`/company/public/${accountKey}`, { method: 'GET' });
+  return apiFetch(`/company/public/${accountKey}`, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 const companyApi = { registerCompany, getCompany, updateCompany, getPublicCompany };

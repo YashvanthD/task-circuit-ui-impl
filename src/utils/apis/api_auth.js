@@ -1,4 +1,5 @@
 import { apiFetch } from '../api';
+import { getAccessToken } from '../storage';
 
 export async function login(credentials) {
   return apiFetch('/auth/login', {
@@ -23,5 +24,15 @@ export async function refreshToken(refreshToken) {
   });
 }
 
-const authApi = { login, validateToken, refreshToken };
+// Centralized header helper so API modules can reuse consistent headers and auth
+export function getAuthHeaders({ contentType = 'application/json', accept = 'application/json', extra = {} } = {}) {
+  const headers = { ...extra };
+  if (contentType) headers['Content-Type'] = contentType;
+  if (accept) headers['Accept'] = accept;
+  const token = getAccessToken();
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
+const authApi = { login, validateToken, refreshToken, getAuthHeaders };
 export default authApi;

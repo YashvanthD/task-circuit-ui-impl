@@ -10,8 +10,13 @@ import { BASE_URL } from '../config';
  * @returns {Promise<Response>} fetch response
  */
 export async function apiFetch(url, options = {}, forceLogout) {
-  // Always use BASE_URL for relative endpoints
-  const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url.startsWith('/') ? url : '/' + url}`;
+  // Use full URL logic: if the url is absolute, use it. If running in development and a CRA proxy is present,
+  // prefer a relative path so the dev server proxy forwards requests to backend and avoids CORS.
+  const isAbsolute = url.startsWith('http');
+  const preferRelativeProxy = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development');
+
+  const fullUrl = isAbsolute ? url : (preferRelativeProxy ? (url.startsWith('/') ? url : '/' + url) : `${BASE_URL}${url.startsWith('/') ? url : '/' + url}`);
+
   let opts = { ...options };
   if (!opts.headers) opts.headers = {};
   // Prefer JSON responses by default

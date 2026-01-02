@@ -1,211 +1,179 @@
-import { apiFetch } from './api';
-import { BASE_URL } from '../config';
+import * as apiUser from './apis/api_user';
 
-const USER_INFO_KEY = 'user';
-const USER_LAST_FETCHED_KEY = 'user_last_fetched';
-const USER_STALE_MS = 5 * 60 * 1000; // 5 minutes
+const USERS_CACHE_KEY = 'tc_cache_users';
 
-const ACCOUNT_USERS_KEY = 'account_users';
-const ACCOUNT_USERS_LAST_FETCHED_KEY = 'account_users_last_fetched';
-const ACCOUNT_USERS_STALE_MS = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Get user info from localStorage (fast, no API call).
- * @returns {object|null}
- */
-export function getUserInfo() {
-  const value = localStorage.getItem(USER_INFO_KEY);
-  return value ? JSON.parse(value) : null;
+function readUsersCache() {
+  try {
+    const raw = localStorage.getItem(USERS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
 }
 
-/**
- * Get current user, using localStorage cache when fresh.
- * If forceApiCall is true or cache is stale/missing, fetch from /user/me and refresh cache.
- * @param {boolean} [forceApiCall=false]
- * @returns {Promise<object|null>}
- */
-export async function getCurrentUser(forceApiCall = false) {
-  const cached = getUserInfo();
-  const lastFetchedRaw = localStorage.getItem(USER_LAST_FETCHED_KEY);
-  const lastFetched = lastFetchedRaw ? parseInt(lastFetchedRaw, 10) : null;
-  const now = Date.now();
+function writeUsersCache(obj) {
+  try {
+    localStorage.setItem(USERS_CACHE_KEY, JSON.stringify(obj));
+  } catch (e) {}
+}
 
-  if (!forceApiCall && cached && lastFetched && (now - lastFetched < USER_STALE_MS)) {
-    return cached;
+export async function fetchUsers(params = {}) {
+  // returns array of users or null
+  try {
+    const res = await apiUser.listUsers(params);
+    let data = res;
+    if (res && res.json) {
+      try { data = await res.json(); } catch (e) { data = res; }
+    }
+    console.debug('[user.fetchUsers] raw response parsed:', data);
+    // expected shapes: { data: [...users] } or array
+    if (!data) return null;
+    if (Array.isArray(data)) return data;
+    // handle nested shapes: { data: { users: [...] } }
+    if (data.data && Array.isArray(data.data)) return data.data;
+    if (data.data && data.data.users && Array.isArray(data.data.users)) return data.data.users;
+    if (data.users && Array.isArray(data.users)) return data.users;
+    // sometimes data may be { success: true, data: { data: { users: [...] } } }
+    if (data.data && data.data.data && Array.isArray(data.data.data.users)) return data.data.data.users;
+    return null;
+  } catch (e) {
+    console.error('fetchUsers failed', e);
+    return null;
+  }
+}
+
+export async function getUserByKey(userKey, forceApi = false) {
+  if (!userKey) return null;
+  const cache = readUsersCache();
+  if (!forceApi && cache && cache[userKey]) return cache[userKey];
+
+  // try API with a query param if supported
+  try {
+    const params = { user_key: userKey };
+    let users = await fetchUsers(params);
+    if (!users || users.length === 0) {
+      // fallback to listing all users (may be large) and filter
+      users = await fetchUsers();
+    }
+    if (users && users.length > 0) {
+      // find matching by common keys
+      const found = users.find(u => (u.user_key === userKey || u.userKey === userKey || u.key === userKey || u.id === userKey || u._id === userKey || String(u.account_user_key) === String(userKey)));
+      if (found) {
+        cache[userKey] = found;
+        writeUsersCache(cache);
+        return found;
+      }
+    }
+  } catch (e) {
+    console.error('getUserByKey api failed', e);
   }
 
-  // Fallback to explicit fresh fetch
-  const fresh = await getUserInfoFresh();
-  return fresh || cached;
-}
-
-/**
- * Explicitly fetch user info from API and update localStorage.
- * Use only when a fresh get is needed.
- * @returns {Promise<object|null>}
- */
-export async function getUserInfoFresh() {
-  try {
-    const res = await apiFetch(`${BASE_URL}/user/me`, { method: 'GET' });
-    const data = await res.json();
-    if (res.ok && data.success) {
-      saveUserInfo(data.user);
-      localStorage.setItem(USER_LAST_FETCHED_KEY, Date.now().toString());
-      return data.user;
-    }
-  } catch (err) {}
   return null;
 }
 
-/**
- * Save user info to localStorage only.
- * @param {object} userInfo
- */
-export function saveUserInfo(userInfo) {
-  localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo));
+export async function getUserName(userKey, forceApi = false) {
+  const u = await getUserByKey(userKey, forceApi);
+  if (!u) return null;
+  // prefer display name fields
+  return u.display_name || u.fullName || u.full_name || u.name || u.username || u.user_name || u.label || u.email || u.user_key || u.userKey || null;
 }
 
-/**
- * Remove user info from localStorage.
- */
-export function removeUserInfo() {
-  localStorage.removeItem(USER_INFO_KEY);
-  localStorage.removeItem(USER_LAST_FETCHED_KEY);
+export function clearUsersCache() {
+  try { localStorage.removeItem(USERS_CACHE_KEY); } catch (e) {}
 }
 
-/**
- * Update user info in localStorage only.
- * @param {object} updates
- */
-export function updateUserInfo(updates) {
-  const user = getUserInfo();
-  if (!user) return;
-  const updated = { ...user, ...updates };
-  saveUserInfo(updated);
-}
-
-/**
- * Manually sync user info with API (explicit call only).
- * @param {object} userInfo
- * @returns {Promise<void>}
- */
-export async function syncUserInfoWithApi(userInfo) {
+// New helpers for current user and profile updates
+export async function getCurrentUser(forceApi = false) {
   try {
-    await apiFetch(`${BASE_URL}/user/me`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userInfo)
-    });
-  } catch (err) {}
-}
-
-/**
- * Update current user's password.
- */
-export async function updateUserPassword(oldPassword, newPassword) {
-  const res = await apiFetch('/user/password', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
-  });
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    throw new Error(data.error || 'Failed to update password');
-  }
-  return data;
-}
-
-/**
- * Update current user's mobile.
- */
-export async function updateUserMobile(mobile, otp) {
-  const res = await apiFetch('/user/mobile', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mobile, otp })
-  });
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    throw new Error(data.error || 'Failed to update mobile number');
-  }
-  return data;
-}
-
-/**
- * Update current user's email.
- */
-export async function updateUserEmail(email, otp) {
-  const res = await apiFetch('/user/email', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, otp })
-  });
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    throw new Error(data.error || 'Failed to update email');
-  }
-  return data;
-}
-
-/**
- * Update current user's username.
- */
-export async function updateUsername(username) {
-  const res = await apiFetch('/user/username', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username })
-  });
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    throw new Error(data.error || 'Failed to update username');
-  }
-  return data;
-}
-
-/**
- * Add a new user to the current account.
- */
-export async function addUser(payload) {
-  const res = await apiFetch('/user/add', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    throw new Error(data.error || 'Failed to add user');
-  }
-  return data;
-}
-
-/**
- * List users in the current account.
- * Uses localStorage cache (list + map) to avoid repeated API calls.
- * @param {boolean} [forceApiCall=false] - if true, ignores cache and hits API.
- * @returns {Promise<Array>} users array
- */
-export async function listAccountUsers(forceApiCall = false) {
-  const now = Date.now();
-  if (!forceApiCall) {
-    const cachedRaw = localStorage.getItem(ACCOUNT_USERS_KEY);
-    const lastFetchedRaw = localStorage.getItem(ACCOUNT_USERS_LAST_FETCHED_KEY);
-    const lastFetched = lastFetchedRaw ? parseInt(lastFetchedRaw, 10) : null;
-    if (cachedRaw && lastFetched && now - lastFetched < ACCOUNT_USERS_STALE_MS) {
-      try {
-        return JSON.parse(cachedRaw);
-      } catch (e) {
-        // fall through to API
-      }
+    const res = await apiUser.getProfile();
+    let data = res;
+    if (res && res.json) {
+      try { data = await res.json(); } catch (e) { data = res; }
     }
+    // canonical shape: { data: { ...user } }
+    if (data && data.data) return data.data;
+    if (data && data.user) return data.user;
+    return data;
+  } catch (e) {
+    console.error('getCurrentUser failed', e);
+    return null;
   }
-  const res = await apiFetch('/auth/account/users', { method: 'GET' });
-  const data = await res.json();
-  if (!res.ok || data.success === false) {
-    throw new Error(data.error || 'Failed to load users');
-  }
-  const users = data.data?.users || data.users || [];
-  localStorage.setItem(ACCOUNT_USERS_KEY, JSON.stringify(users));
-  localStorage.setItem(ACCOUNT_USERS_LAST_FETCHED_KEY, now.toString());
-  return users;
 }
+
+export async function getUserInfo(userKey, forceApi = false) {
+  // alias for getUserByKey
+  return getUserByKey(userKey, forceApi);
+}
+
+export async function listAccountUsers(accountKey, params = {}) {
+  // list users for an account. Use listUsers API and filter by accountKey if API doesn't support direct filter
+  try {
+    const p = { ...params };
+    if (accountKey) p.account_key = accountKey;
+    let users = await fetchUsers(p);
+    if ((!users || users.length === 0) && accountKey) {
+      // fallback: get all users and filter locally
+      users = await fetchUsers();
+      if (users && users.length > 0) users = users.filter(u => (u.accountKey === accountKey || u.account_key === accountKey || u.account === accountKey));
+    }
+    return users || [];
+  } catch (e) {
+    console.error('listAccountUsers failed', e);
+    return [];
+  }
+}
+
+// Update helpers - reuse apiUser.updateProfile which updates current user's profile.
+// These functions are convenience wrappers used by forms.
+export async function updateUserEmail(newEmail) {
+  try {
+    const res = await apiUser.updateProfile({ email: newEmail });
+    let data = res;
+    if (res && res.json) data = await res.json();
+    return data;
+  } catch (e) {
+    console.error('updateUserEmail failed', e);
+    throw e;
+  }
+}
+
+export async function updateUserMobile(newMobile) {
+  try {
+    const res = await apiUser.updateProfile({ mobile: newMobile });
+    let data = res;
+    if (res && res.json) data = await res.json();
+    return data;
+  } catch (e) {
+    console.error('updateUserMobile failed', e);
+    throw e;
+  }
+}
+
+export async function updateUserPassword(payload) {
+  // payload may include currentPassword and newPassword or similar keys depending on form
+  try {
+    const res = await apiUser.updateProfile(payload);
+    let data = res;
+    if (res && res.json) data = await res.json();
+    return data;
+  } catch (e) {
+    console.error('updateUserPassword failed', e);
+    throw e;
+  }
+}
+
+export async function updateUsername(newUsername) {
+  try {
+    const res = await apiUser.updateProfile({ username: newUsername });
+    let data = res;
+    if (res && res.json) data = await res.json();
+    return data;
+  } catch (e) {
+    console.error('updateUsername failed', e);
+    throw e;
+  }
+}
+
+const userUtil = { fetchUsers, getUserByKey, getUserName, clearUsersCache, getCurrentUser, getUserInfo, listAccountUsers, updateUserEmail, updateUserMobile, updateUserPassword, updateUsername };
+export default userUtil;
+
