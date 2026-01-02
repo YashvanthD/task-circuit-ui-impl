@@ -1,62 +1,77 @@
-import React, { useState } from 'react';
-import { Paper, Typography, Grid, Card, CardContent, CardActionArea, Dialog, Button, TextField, Stack } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Paper, Typography, Grid, Card, CardContent, CardActionArea, Dialog, Button, TextField, Stack, CircularProgress } from '@mui/material';
 import Fish from '../../components/Fish';
 import FishForm from '../../forms/FishForm';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PoolIcon from '@mui/icons-material/Pool';
-
-const mockFishList = [
-  {
-    id: 1,
-    common_name: 'Tilapia',
-    scientific_name: 'Oreochromis niloticus',
-    capture_date: '2025-12-01',
-    vessel_name: 'AquaVessel',
-    specimen_photo: null,
-    count: 10,
-    ponds: ['Pond 1', 'Pond 2'],
-  },
-  {
-    id: 2,
-    common_name: 'Catfish',
-    scientific_name: 'Clarias gariepinus',
-    capture_date: '2025-11-28',
-    vessel_name: 'FishBoat',
-    specimen_photo: null,
-    count: 5,
-    ponds: ['Pond 3'],
-  },
-];
+import fishUtil, { fishEvents } from '../../utils/fish';
+import { parseFishList } from '../../utils/parseFish';
 
 export default function FishPage() {
   const [selectedFish, setSelectedFish] = useState(null);
   const [fishDialogOpen, setFishDialogOpen] = useState(false);
   const [addFishDialogOpen, setAddFishDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [fishList, setFishList] = useState(mockFishList);
+  const [fishList, setFishList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const handleOpenFish = (fish) => {
-    setSelectedFish(fish);
-    setFishDialogOpen(true);
+  const fetchFish = async ({ force = false } = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fishUtil.getFishList({ force });
+      const raw = res && (res.data || res) ? (res.data || res) : [];
+      const mapped = parseFishList(raw);
+      if ((!Array.isArray(mapped) || mapped.length === 0) && fishUtil.getCachedFish) {
+        const cached = fishUtil.getCachedFish();
+        if (Array.isArray(cached) && cached.length > 0) {
+          setFishList(cached);
+          setLoading(false);
+          return;
+        }
+      }
+      setFishList(mapped);
+    } catch (err) {
+      console.error('Failed to fetch fish', err);
+      setError(err.message || 'Failed to fetch fish');
+    } finally {
+      setLoading(false);
+    }
   };
-  const handleCloseFish = () => {
-    setFishDialogOpen(false);
-    setSelectedFish(null);
+
+  useEffect(() => {
+    fetchFish({ force: true });
+    // subscribe to fish events to keep UI in sync
+    const unsubAdded = fishEvents.on('added', (p) => {
+      const parsed = p && p.id ? p : (p && p.data ? p.data : p);
+      setFishList(prev => [...prev, parsed]);
+    });
+    const unsubUpdated = fishEvents.on('updated', (p) => {
+      const parsed = p && p.id ? p : (p && p.data ? p.data : p);
+      setFishList(prev => prev.map(x => (x.id === parsed.id || x.fish_id === parsed.fish_id ? { ...x, ...parsed } : x)));
+    });
+    const unsubDeleted = fishEvents.on('deleted', ({ id }) => setFishList(prev => prev.filter(x => !(x.id === id || x.fish_id === id))));
+    const unsubRefreshed = fishEvents.on('refreshed', (list) => setFishList(parseFishList(list || [])));
+    return () => { unsubAdded(); unsubUpdated(); unsubDeleted(); unsubRefreshed(); };
+  }, []);
+
+  const handleOpenFish = (fish) => { setSelectedFish(fish); setFishDialogOpen(true); };
+  const handleCloseFish = () => { setFishDialogOpen(false); setSelectedFish(null); };
+  const handleOpenAddFish = () => setAddFishDialogOpen(true);
+  const handleCloseAddFish = () => setAddFishDialogOpen(false);
+  const handleAddFish = async (newFish) => {
+    try {
+      await fishUtil.createFish(newFish);
+      setAddFishDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to add fish', err);
+      alert('Failed to add fish: ' + (err.message || err));
+    }
   };
-  const handleOpenAddFish = () => {
-    setAddFishDialogOpen(true);
-  };
-  const handleCloseAddFish = () => {
-    setAddFishDialogOpen(false);
-  };
-  const handleAddFish = (newFish) => {
-    setFishList(prev => [...prev, { ...newFish, id: Date.now() }]);
-    setAddFishDialogOpen(false);
-  };
-  const filteredFishList = fishList.filter(fish =>
-    fish.common_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
+  const filteredFishList = fishList.filter(fish => (fish.common_name || '').toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <Paper sx={{ padding: 4, maxWidth: 1000, margin: '40px auto' }}>
@@ -78,14 +93,18 @@ export default function FishPage() {
         />
         <Button variant="contained" color="primary" onClick={handleOpenAddFish} startIcon={<AddCircleIcon />}>Add Fish Data</Button>
       </Stack>
+
+      {loading ? <CircularProgress /> : null}
+      {error && <Typography color="error">{error}</Typography>}
+
       <Grid container spacing={2}>
         {filteredFishList.map(fish => (
-          <Grid item xs={12} sm={6} md={4} key={fish.id}>
+          <Grid item xs={12} sm={6} md={4} key={fish.id || fish.fish_id}>
             <Card variant="outlined" sx={{ mb: 1, p: 2, minHeight: 120 }}>
               <CardActionArea onClick={() => handleOpenFish(fish)} sx={{ display: 'flex', alignItems: 'center' }}>
                 {/* Fish image if available */}
                 {fish.specimen_photo ? (
-                  <img src={URL.createObjectURL(fish.specimen_photo)} alt={fish.common_name} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, marginRight: 16 }} />
+                  <img src={fish.specimen_photo} alt={fish.common_name} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, marginRight: 16 }} />
                 ) : (
                   <PoolIcon sx={{ fontSize: 48, color: 'grey.400', mr: 2 }} />
                 )}
@@ -103,11 +122,7 @@ export default function FishPage() {
                   {/* Next date */}
                   {fish.capture_date && (
                     <Typography variant="caption" color="info.main" sx={{ display: 'block', mb: 0.5 }}>
-                      Next Date: {(() => {
-                        const d = new Date(fish.capture_date);
-                        d.setDate(d.getDate() + 30);
-                        return d.toLocaleDateString();
-                      })()}
+                      Next Date: {(() => { const d = new Date(fish.capture_date); d.setDate(d.getDate() + 30); return d.toLocaleDateString(); })()}
                     </Typography>
                   )}
                   {/* Ponds list */}
@@ -125,6 +140,7 @@ export default function FishPage() {
           </Grid>
         ))}
       </Grid>
+
       <Dialog open={fishDialogOpen} onClose={handleCloseFish} maxWidth="lg" fullWidth>
         {selectedFish && <Fish initialData={selectedFish} />}
       </Dialog>
