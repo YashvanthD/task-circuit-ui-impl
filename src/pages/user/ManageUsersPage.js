@@ -9,6 +9,7 @@ import AddUserForm from '../../forms/AddUserForm';
 import userUtil from '../../utils/user';
 import Unauthorized from '../../components/error/Unauthorized';
 import { is_admin } from '../../utils/permissions';
+import { loadUserFromLocalStorage, getAccessToken } from '../../utils/storage';
 
 function ManageUsersPageContent() {
   const [open, setOpen] = useState(false);
@@ -234,11 +235,35 @@ export default function ManageUsersPage() {
     let mounted = true;
     (async () => {
       try {
+        // Quick: prefer explicit is_admin flag stored at login
+        const rawFlag = localStorage.getItem('is_admin');
+        if (rawFlag !== null) {
+          if (!mounted) return;
+          setIsAdmin(JSON.parse(rawFlag) === true);
+          return;
+        }
+
+        // Next: prefer stored user in localStorage (fast, no network)
+        const stored = loadUserFromLocalStorage();
+        if (stored) {
+          if (!mounted) return;
+          setIsAdmin(!!is_admin(stored));
+          return;
+        }
+
+        // If there's no access token, don't call the API (avoids triggering global logout/clears via handle401)
+        const token = getAccessToken();
+        if (!token) {
+          if (!mounted) return;
+          setIsAdmin(false);
+          return;
+        }
+
+        // Last resort: call API to fetch current user (token present)
         const cu = await userUtil.getCurrentUser();
         if (!mounted) return;
         setIsAdmin(!!is_admin(cu));
       } catch (e) {
-        // fallback to non-admin
         if (!mounted) return;
         setIsAdmin(false);
       }
