@@ -1,35 +1,40 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Paper, Typography, Grid, TextField, Button, Stack, Autocomplete, IconButton, Tooltip, Box, InputAdornment } from '@mui/material';
+import { Paper, Typography, Grid, TextField, Button, Stack, Autocomplete, IconButton, Tooltip, InputAdornment } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { getPondOptions } from '../utils/options';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import { getPondOptions, getFishOptions } from '../utils/options';
 import Switch from '@mui/material/Switch';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 export default function TransformForm({ initialData = {}, onSubmit, onCancel }) {
   const mountedRef = useRef(true);
   const [pondOptions, setPondOptions] = useState([]);
+  const [fishOptions, setFishOptions] = useState([]);
   const [loadingPonds, setLoadingPonds] = useState(false);
+  const [loadingFish, setLoadingFish] = useState(false);
   const [manualAmount, setManualAmount] = useState(false);
 
   // form state
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     fromPond: initialData.fromPond || '',
     toPond: initialData.toPond || '',
-    count: initialData.count ?? 0,
-    // average weight per fish in grams (used to compute kg)
-    avgWeight: initialData.avgWeight ?? 1000,
+    // fishes: array of { species, count, avgWeight }
+    fishes: initialData.fishes && Array.isArray(initialData.fishes) ? initialData.fishes.map(f => ({ species: f.species || '', count: f.count || 0, avgWeight: f.avgWeight || 1000 })) : [{ species: initialData.species || '', count: initialData.count ?? 0, avgWeight: initialData.avgWeight ?? 1000 }],
+    // defaults
     // when selling
     pricePerKg: initialData.pricePerKg ?? 0,
     totalAmount: initialData.totalAmount ?? 0,
     transfer: initialData.transfer !== undefined ? Boolean(initialData.transfer) : true, // true = move between ponds, false = sell
     notes: initialData.notes || '',
-  });
+  }));
 
   const fieldSx = { minWidth: 220 };
 
   useEffect(() => {
     mountedRef.current = true;
     loadPonds();
+    loadFishOptions();
     return () => { mountedRef.current = false; };
   }, []);
 
@@ -57,15 +62,37 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
     }
   };
 
+  const loadFishOptions = async () => {
+    setLoadingFish(true);
+    try {
+      const f = await getFishOptions({ force: false });
+      if (!mountedRef.current) return;
+      setFishOptions(Array.isArray(f) ? f : []);
+    } catch (e) {
+      console.warn('Failed to load fish options', e);
+    } finally {
+      setLoadingFish(false);
+    }
+  };
+
   const handleChange = (patch) => setForm(f => ({ ...f, ...patch }));
 
-  // compute amount when selling: count * (avgWeight g -> kg) * pricePerKg
+  // helpers for fishes list
+  const updateFishAt = (idx, patch) => setForm(f => ({ ...f, fishes: f.fishes.map((row, i) => i === idx ? { ...row, ...patch } : row) }));
+  const addFishRow = () => setForm(f => ({ ...f, fishes: [ ...f.fishes, { species: '', count: 0, avgWeight: f.fishes.length > 0 ? (f.fishes[0].avgWeight || 1000) : 1000 } ] }));
+  const removeFishAt = (idx) => setForm(f => ({ ...f, fishes: f.fishes.filter((_, i) => i !== idx) }));
+
+  const totalCount = () => (form.fishes || []).reduce((s, r) => s + (Number(r.count) || 0), 0);
+
+  // compute amount when selling: sum over species (count * (avgWeight g -> kg) * pricePerKg)
   const computeAmount = () => {
-    const cnt = Number(form.count) || 0;
-    const avgKg = (Number(form.avgWeight) || 0) / 1000;
     const price = Number(form.pricePerKg) || 0;
-    const amt = cnt * avgKg * price;
-    return Number(isFinite(amt) ? amt.toFixed(2) : 0);
+    const sum = (form.fishes || []).reduce((s, r) => {
+      const cnt = Number(r.count) || 0;
+      const avgKg = ((Number(r.avgWeight) || 0) / 1000) || 0;
+      return s + cnt * avgKg * price;
+    }, 0);
+    return Number(isFinite(sum) ? sum.toFixed(2) : 0);
   };
 
   useEffect(() => {
@@ -77,7 +104,7 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.count, form.avgWeight, form.pricePerKg, form.transfer, manualAmount]);
+  }, [form.fishes, form.pricePerKg, form.transfer, manualAmount]);
 
   const handleReloadPonds = async () => {
     await loadPonds();
@@ -88,12 +115,22 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
     // normalize ponds to ids
     const from = typeof form.fromPond === 'object' ? (form.fromPond.id || form.fromPond.raw?.id || '') : form.fromPond;
     const to = typeof form.toPond === 'object' ? (form.toPond.id || form.toPond.raw?.id || '') : form.toPond;
+
+    // normalize fishes: ensure we include speciesId and label for display
+    const fishesNorm = (form.fishes || []).map(f => {
+      const speciesObj = typeof f.species === 'object' && f.species ? f.species : (typeof f.species === 'string' ? { id: f.species, label: f.species } : null);
+      const speciesId = speciesObj ? (speciesObj.id || speciesObj.raw?.id || speciesObj.speciesId || '') : '';
+      const speciesLabel = speciesObj ? (speciesObj.label || speciesObj.common_name || speciesObj.name || speciesObj.id || '') : '';
+      return { speciesId, speciesLabel, count: Number(f.count) || 0, avgWeight: Number(f.avgWeight) || 0 };
+    });
+
     const payload = {
       eventType: form.transfer ? 'move' : 'sell',
       fromPond: from,
       toPond: form.transfer ? to : null,
-      count: Number(form.count) || 0,
-      avgWeight: Number(form.avgWeight) || 0,
+      fishes: fishesNorm,
+      count: totalCount(),
+      avgWeight: null, // per-species avg is included in fishes
       pricePerKg: form.transfer ? null : Number(form.pricePerKg) || 0,
       totalAmount: Number(form.totalAmount) || 0,
       notes: form.notes || '',
@@ -132,9 +169,36 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
             </IconButton>
           </Grid>
 
-          <Grid item xs={12} sm={6}>
-            <TextField sx={fieldSx} label="Fish count" type="number" value={form.count} onChange={(e) => handleChange({ count: e.target.value })} fullWidth />
-          </Grid>
+          {/* Fish rows - allow multiple species */}
+          {(form.fishes || []).map((row, idx) => (
+            <React.Fragment key={idx}>
+              <Grid item xs={12} md={5}>
+                <Autocomplete
+                  options={fishOptions}
+                  getOptionLabel={(opt) => typeof opt === 'string' ? opt : (opt.label || opt.id || '')}
+                  loading={loadingFish}
+                  onChange={(e, val) => updateFishAt(idx, { species: val })}
+                  value={row.species}
+                  freeSolo
+                  renderInput={(params) => (
+                    <TextField {...params} label={idx === 0 ? 'Species (multiple allowed)' : 'Species'} placeholder="Select species" fullWidth sx={{ minWidth: 260 }} />
+                  )}
+                />
+              </Grid>
+              <Grid item xs={6} md={2}>
+                <TextField label="Count" type="number" value={row.count} onChange={(e) => updateFishAt(idx, { count: e.target.value })} fullWidth />
+              </Grid>
+              <Grid item xs={6} md={3}>
+                <TextField label="Avg weight (g)" type="number" value={row.avgWeight} onChange={(e) => updateFishAt(idx, { avgWeight: e.target.value })} fullWidth />
+              </Grid>
+              <Grid item xs={12} md={2} sx={{ display: 'flex', alignItems: 'center' }}>
+                <IconButton size="small" onClick={() => removeFishAt(idx)} disabled={(form.fishes || []).length <= 1} title="Remove species"><DeleteIcon /></IconButton>
+                {idx === (form.fishes || []).length - 1 && (
+                  <IconButton size="small" onClick={addFishRow} title="Add species"><AddIcon /></IconButton>
+                )}
+              </Grid>
+            </React.Fragment>
+          ))}
 
           <Grid item xs={12} sm={6}>
             <Stack direction="row" alignItems="center" spacing={1}>
@@ -161,10 +225,6 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
                 />
               )}
             />
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <TextField sx={fieldSx} label="Avg weight (g)" type="number" value={form.avgWeight} onChange={(e) => handleChange({ avgWeight: e.target.value })} fullWidth />
           </Grid>
 
           {/* Sell-specific fields */}

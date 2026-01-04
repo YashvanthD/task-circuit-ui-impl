@@ -72,7 +72,7 @@ export default function DashboardPage() {
     { label: 'Water Test', to: '/taskcircuit/user/water-test' },
     { label: 'Sampling', to: '/taskcircuit/user/sampling' },
     { label: 'Transform', to: '/taskcircuit/user/transform' },
-    { label: 'New Task', to: '/taskcircuit/user/tasks/new' },
+    { label: 'New Task', to: '/taskcircuit/user/tasks' },
     { label: 'Reports', to: '/taskcircuit/user/reports' }
   ];
 
