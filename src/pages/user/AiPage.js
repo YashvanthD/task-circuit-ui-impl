@@ -298,9 +298,7 @@ export default function AiPage() {
         </Box>
       </Paper>
 
-      <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
-        Tip: Microphone transcription uses the browser's Speech Recognition API (Google Web Speech where available). Uploaded media are local previews; to transcribe uploaded audio files, integrate a backend transcription service.
-      </Typography>
+
     </Box>
   );
 }

@@ -29,7 +29,7 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
     notes: initialData.notes || '',
   }));
 
-  const fieldSx = { minWidth: 220 };
+  const fieldSx = { minWidth: 280, width: '100%' };
 
   useEffect(() => {
     mountedRef.current = true;
@@ -176,6 +176,7 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
           {/* From and To ponds on one row (simplified labels) */}
           <Grid item xs={12} md={6}>
             <Autocomplete
+              sx={{ width: '100%' }}
               options={pondOptions}
               getOptionLabel={(opt) => opt.label || opt.id || ''}
               loading={loadingPonds}
@@ -186,13 +187,14 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
                   {...params}
                   label="From Pond"
                   fullWidth
-                  sx={{ minWidth: 320 }}
+                  sx={{ minWidth: 320, width: '100%' }}
                 />
               )}
             />
           </Grid>
           <Grid item xs={10} md={5}>
             <Autocomplete
+              sx={{ width: '100%' }}
               options={pondOptions}
               getOptionLabel={(opt) => opt.label || opt.id || ''}
               loading={loadingPonds}
@@ -204,7 +206,7 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
                   {...params}
                   label="To Pond"
                   fullWidth
-                  sx={fieldSx}
+                  sx={{ ...fieldSx, width: '100%' }}
                 />
               )}
             />
@@ -226,6 +228,7 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
                 <Grid container spacing={2} alignItems="center">
                   <Grid item xs={12} md={6}>
                     <Autocomplete
+                      sx={{ width: '100%' }}
                       options={fishOptions}
                       getOptionLabel={(opt) => typeof opt === 'string' ? opt : (opt.label || opt.id || '')}
                       loading={loadingFish}
@@ -233,7 +236,7 @@ export default function TransformForm({ initialData = {}, onSubmit, onCancel }) 
                       value={row.species}
                       freeSolo
                       renderInput={(params) => (
-                        <TextField {...params} label="Type" fullWidth />
+                        <TextField {...params} label="Type" fullWidth sx={{ minWidth: 260, width: '100%' }} />
                       )}
                     />
                   </Grid>
