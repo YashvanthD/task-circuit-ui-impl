@@ -65,6 +65,22 @@ export default function Pond({ initialData = {}, onOpen, onDailyUpdate, onEdit, 
     : // fallback: parse pond_stack string into simple entries
       (initialData.pond_stack ? initialData.pond_stack.split(',').map(t => ({ species: t.trim(), count: 0, avgw: '-', unitPrice: 0, subtotal: 0 })) : []);
 
+  // Helper: format average weight (avgw expected in grams). Display grams without decimals, or convert to kg when >=1000 with up to 2 decimals (trim trailing zeros).
+  const formatAvgWeight = (val) => {
+    if (val === null || val === undefined || val === '') return '--';
+    const n = Number(val);
+    if (Number.isNaN(n) || n === 0) return '--';
+    if (n >= 1000) {
+      const kg = n / 1000;
+      let s = kg.toFixed(2);
+      // trim trailing zeros and optional dot
+      s = s.replace(/\.0+$/, '').replace(/(\.[0-9]*?)0+$/, '$1').replace(/\.$/, '');
+      return `${s} kg`;
+    }
+    // grams - no decimals
+    return `${formatNumber(n, 0)} g`;
+  };
+
   const toggleExpanded = (e) => { e && e.stopPropagation(); setExpanded(v => !v); };
 
   const expenseSignPositive = (val) => Number(val) >= 0;
@@ -177,7 +193,7 @@ export default function Pond({ initialData = {}, onOpen, onDailyUpdate, onEdit, 
                     stackEntries.map((s, idx) => (
                       <Box key={idx} sx={{ display: 'flex', py: 0.5, alignItems: 'center' }}>
                         <Box sx={{ flex: 3 }}><Typography variant="body2">{s.species}</Typography></Box>
-                        <Box sx={{ flex: 2, textAlign: 'right' }}><Typography variant="body2">{s.avgw && s.avgw !== '-' ? `${formatNumber(s.avgw, 2)} kg` : '--'}</Typography></Box>
+                        <Box sx={{ flex: 2, textAlign: 'right' }}><Typography variant="body2">{s.avgw && s.avgw !== '-' ? formatAvgWeight(s.avgw) : '--'}</Typography></Box>
                         <Box sx={{ flex: 1, textAlign: 'right' }}><Typography variant="body2">{s.count}</Typography></Box>
                         <Box sx={{ flex: 2, textAlign: 'right' }}><Typography variant="body2">{formatCurrency(s.subtotal)}</Typography></Box>
                       </Box>

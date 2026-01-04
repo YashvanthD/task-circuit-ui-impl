@@ -19,7 +19,6 @@ export default function PondPage() {
   const [deleteCandidate, setDeleteCandidate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [pondList, setPondList] = useState([]);
-  const [lastFetch, setLastFetch] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -29,23 +28,10 @@ export default function PondPage() {
     try {
       const res = await pondUtil.getPonds({ force });
       console.debug('[PondPage] getPonds result:', res);
-      setLastFetch(res);
-      const raw = res && (res.data || res) ? (res.data || res) : [];
-      console.debug('[PondPage] raw ponds data shape:', raw && (Array.isArray(raw) ? raw.length : typeof raw));
-      const mapped = parsePondList(raw);
+      // Use parsed result from pondUtil.getPonds()
+      const mapped = (res && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
       console.debug('[PondPage] mapped ponds count:', Array.isArray(mapped) ? mapped.length : 0);
-      // if API returned empty, try cached raw cache as fallback
-      if ((!Array.isArray(mapped) || mapped.length === 0) && pondUtil.getCachedPonds) {
-        try {
-          const cached = pondUtil.getCachedPonds();
-          if (Array.isArray(cached) && cached.length > 0) {
-            console.debug('[PondPage] using cached ponds fallback count:', cached.length);
-            setPondList(cached);
-            setLoading(false);
-            return;
-          }
-        } catch (e) { /* ignore */ }
-      }
+      // No raw fallback; use mapped (parsed) data or cached fallback below
       setPondList(mapped);
     } catch (err) {
       console.error('Failed to fetch ponds', err);
@@ -77,7 +63,6 @@ export default function PondPage() {
       unsubAdded(); unsubUpdated(); unsubDeleted(); unsubRefreshed(); unsubDaily();
     };
   }, []);
-  // ...existing code...
 
   const handleOpenPond = (pond) => {
     setSelectedPond(pond);
@@ -199,13 +184,7 @@ export default function PondPage() {
       {error && <Typography color="error">{error}</Typography>}
 
       {filteredPondList.length === 0 && !loading ? (
-        <>
-          <Typography variant="body2" color="text.secondary">No ponds found.</Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>Debug (last fetch):</Typography>
-          <Box component="pre" sx={{ bgcolor: 'grey.100', p: 2, borderRadius: 1, maxHeight: 240, overflow: 'auto' }}>
-            {JSON.stringify(lastFetch || { ponds: pondList }, null, 2)}
-          </Box>
-        </>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>No ponds available.</Typography>
       ) : (
         <Grid container spacing={2}>
           {filteredPondList.map(pond => (

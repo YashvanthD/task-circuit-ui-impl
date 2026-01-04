@@ -42,13 +42,23 @@ export function parsePond(p = {}) {
   // Normalize stock entries: prefer numeric counts (quantity/count/number), normalize averageWeight -> average_weight, unit price keys, and keep original fields
   const currentStock = Array.isArray(rawCurrentStock) ? rawCurrentStock.map(s => {
     const cnt = Number(s.count || s.number || s.quantity || 0) || 0;
-    const avg = (s.averageWeight !== undefined) ? s.averageWeight : (s.average_weight !== undefined ? s.average_weight : (s.avgWeight !== undefined ? s.avgWeight : (s.avg_weight !== undefined ? s.avg_weight : (s.avg !== undefined ? s.avg : (s.weight !== undefined ? s.weight : null)))));
+    const rawAvg = (s.averageWeight !== undefined) ? s.averageWeight : (s.average_weight !== undefined ? s.average_weight : (s.avgWeight !== undefined ? s.avgWeight : (s.avg_weight !== undefined ? s.avg_weight : (s.avg !== undefined ? s.avg : (s.weight !== undefined ? s.weight : null)))));
+    // Normalize average weight to grams for UI consumers. Some APIs send averageWeight in kilograms (e.g., 1)
+    let avgVal = null;
+    if (rawAvg !== null && rawAvg !== undefined && rawAvg !== '') {
+      const n = Number(rawAvg);
+      if (!Number.isNaN(n)) {
+        // Heuristic: values <= 10 are likely kilograms (1, 2.5, etc.) -> convert to grams
+        if (n > 0 && n <= 10) avgVal = n * 1000;
+        else avgVal = n;
+      }
+    }
     const unitPrice = (s.unit_price !== undefined) ? s.unit_price : (s.price !== undefined ? s.price : (s.avg_price !== undefined ? s.avg_price : (s.avgPrice !== undefined ? s.avgPrice : 0)));
     return {
       ...s,
       count: cnt,
       quantity: Number(s.quantity || s.count || s.number || 0) || 0,
-      average_weight: (avg === null || avg === undefined) ? null : (Number(avg) || 0),
+      average_weight: avgVal === null ? null : (Number(avgVal) || 0),
       unit_price: Number(unitPrice || 0) || 0,
     };
   }) : [];
@@ -142,6 +152,34 @@ export function parsePondList(raw) {
   if (Array.isArray(raw)) arr = raw;
   else if (raw && Array.isArray(raw.ponds)) arr = raw.ponds;
   else if (raw && raw.data && Array.isArray(raw.data.ponds)) arr = raw.data.ponds;
-  else arr = [];
+  else {
+    // recursive scan: find first array of objects that look like ponds
+    const looksLikePondArray = (a) => {
+      if (!Array.isArray(a) || a.length === 0) return false;
+      const sample = a[0];
+      if (!sample || typeof sample !== 'object') return false;
+      const keys = Object.keys(sample).map(k => k.toLowerCase());
+      return keys.includes('pondid') || keys.includes('pond_id') || keys.includes('id') || keys.includes('farmname');
+    };
+
+    const queue = [raw];
+    const seen = new Set();
+    while (queue.length) {
+      const cur = queue.shift();
+      if (!cur || typeof cur !== 'object') continue;
+      if (seen.has(cur)) continue;
+      seen.add(cur);
+      for (const k of Object.keys(cur)) {
+        try {
+          const v = cur[k];
+          if (Array.isArray(v) && looksLikePondArray(v)) {
+            arr = v; break;
+          }
+          if (v && typeof v === 'object') queue.push(v);
+        } catch (e) { /* ignore */ }
+      }
+      if (arr.length) break;
+    }
+  }
   return arr.map(parsePond);
 }
