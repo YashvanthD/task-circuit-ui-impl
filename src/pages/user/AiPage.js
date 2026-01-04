@@ -134,7 +134,7 @@ export default function AiPage() {
     // rec.onend will setIsRecording(false)
   };
 
-  const handleAttachClick = (e) => {
+  const handleAttachClick = () => {
     fileInputRef.current?.click();
   };
 

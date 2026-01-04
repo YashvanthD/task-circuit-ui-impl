@@ -26,6 +26,7 @@ import LocalAtmIcon from '@mui/icons-material/LocalAtm';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ScienceIcon from '@mui/icons-material/Science';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import RoamingAssistant from '../components/RoamingAssistant';
 
 // Import storage utilities to clear tokens/user data on logout
 import { clearAccessTokenManagement, removeUserFromLocalStorage, removeFromLocalStorage, clearTasksFromLocalStorage } from '../utils/storage';
@@ -304,6 +305,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
       >
         {children}
       </Box>
+      {showSidebar && <RoamingAssistant />}
     </Box>
   );
 }
