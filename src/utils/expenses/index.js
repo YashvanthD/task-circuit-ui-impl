@@ -252,3 +252,35 @@ export function getAllowedCategoriesForUser(dataObj, userOrRole) {
   const visible = loadVisibleCategories(dataObj, userOrRole, '');
   return visible.map(v => v.cat);
 }
+
+/**
+ * Return a small list of dummy passbook ledger entries for the organization.
+ * Each entry: { date, description, reference, type: 'credit'|'debit', amount, balance }
+ * In future this will be replaced by an API call.
+ */
+export function getDummyPassbookEntries() {
+  // static sample entries in descending date order
+  return [
+    { date: '2025-12-31', description: 'Year-end settlement', reference: 'YRSET2025', type: 'credit', amount: 2500000, balance: 12500000 },
+    { date: '2025-11-15', description: 'Feed purchase - Supplier A', reference: 'INV-5482', type: 'debit', amount: 450000, balance: 10000000 },
+    { date: '2025-10-02', description: 'Sales revenue (batch 102)', reference: 'SR-102', type: 'credit', amount: 1200000, balance: 10450000 },
+    { date: '2025-09-20', description: 'Equipment maintenance', reference: 'PM-77', type: 'debit', amount: 75000, balance: 9250000 },
+    { date: '2025-08-05', description: 'Grant received - Aquaculture Dev', reference: 'GRANT-AD-01', type: 'credit', amount: 500000, balance: 9325000 },
+  ];
+}
+
+/**
+ * Return dummy payslips for a user.
+ * Each payslip: { id, userId, month, year, gross, tax, deductions, net, dateIssued }
+ */
+export function getDummyPayslips(userId) {
+  // static sample payslips
+  const base = [
+    { id: 'PS-2025-12', userId: 'u1', month: 12, year: 2025, gross: 50000, tax: 5000, deductions: 2000, net: 43000, dateIssued: '2025-12-31' },
+    { id: 'PS-2025-11', userId: 'u1', month: 11, year: 2025, gross: 50000, tax: 4800, deductions: 2000, net: 43200, dateIssued: '2025-11-30' },
+    { id: 'PS-2025-10', userId: 'u1', month: 10, year: 2025, gross: 50000, tax: 4700, deductions: 2000, net: 43300, dateIssued: '2025-10-31' },
+    { id: 'PS-2025-09', userId: 'u2', month: 9, year: 2025, gross: 60000, tax: 6000, deductions: 2500, net: 51500, dateIssued: '2025-09-30' }
+  ];
+  if (!userId) return base;
+  return base.filter(p => p.userId === userId);
+}

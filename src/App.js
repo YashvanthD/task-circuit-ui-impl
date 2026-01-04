@@ -22,6 +22,10 @@ import FishPage from './pages/user/FishPage';
 import SamplingPage from './pages/user/SamplingPage';
 import CategoryList from './pages/user/expenses/CategoryList';
 import TypeDetail from './pages/user/expenses/TypeDetail';
+import CompanyAccount from './pages/user/expenses/CompanyAccount';
+import Passbook from './pages/user/expenses/Passbook';
+import MyAccount from './pages/user/expenses/MyAccount';
+import UserPaySlips from './pages/user/expenses/UserPaySlips';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -67,6 +71,10 @@ function AppRoutes() {
         <Route path="sampling" element={<SamplingPage />} />
         <Route path="expenses/:category" element={<CategoryList />} />
         <Route path="expenses/:category/:type" element={<TypeDetail />} />
+        <Route path="expenses/company-account" element={<CompanyAccount />} />
+        <Route path="expenses/passbook" element={<Passbook />} />
+        <Route path="expenses/my-account" element={<MyAccount />} />
+        <Route path="expenses/payslips" element={<UserPaySlips />} />
         {/* Add other user routes here */}
       </Route>
     </Routes>

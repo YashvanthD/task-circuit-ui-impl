@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import data from '../../data/expenses.json';
 import { loadVisibleCategories, renderHighlighted as highlightParts, formatCurrency } from '../../utils/expenses';
 import { loadUserFromLocalStorage } from '../../utils/storage';
+import { is_admin } from '../../utils/permissions';
+import Button from '@mui/material/Button';
 
 export default function ExpensesPage() {
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ export default function ExpensesPage() {
   const currentUser = loadUserFromLocalStorage();
   const results = useMemo(() => loadVisibleCategories(data, currentUser, q), [currentUser, q]);
   const visibleAll = useMemo(() => loadVisibleCategories(data, currentUser, ''), [currentUser]);
+  const userIsAdmin = is_admin(currentUser);
 
   return (
     <Paper sx={{ p: 4, maxWidth: 1200, margin: '24px auto' }}>
@@ -37,8 +40,42 @@ export default function ExpensesPage() {
             </IconButton>
           </Box>
           <Chip label={q ? `Showing ${results.length} of ${visibleAll.length} categories` : `Total categories: ${visibleAll.length}`} color="primary" />
+          {/* Public My Account button so users can always navigate to their account */}
+          <Button variant="text" onClick={() => navigate('/taskcircuit/user/expenses/my-account')}>My Account</Button>
         </Box>
       </Box>
+
+      {/* Admin-only analysis container */}
+      {userIsAdmin && (
+        <Box sx={{ mb: 3 }}>
+          <Card variant="outlined" sx={{ p: 2 }}>
+            <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Box>
+                <Typography variant="h6">Organization Analysis</Typography>
+                <Typography variant="body2" color="text.secondary">High-level financial snapshot (admin only)</Typography>
+                <Box sx={{ display: 'flex', gap: 4, mt: 2 }}>
+                  <Box>
+                    <Typography variant="subtitle2">Total amount invested</Typography>
+                    <Typography variant="h6">₹{formatCurrency(0)}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle2">Total profit</Typography>
+                    <Typography variant="h6">₹{formatCurrency(0)}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Button variant="contained" onClick={() => navigate('/taskcircuit/user/expenses/company-account')}>{(loadUserFromLocalStorage() || {}).companyName || 'Company'} Account</Button>
+                <Button variant="outlined" onClick={() => navigate('/taskcircuit/user/expenses/passbook')}>Passbook</Button>
+                {/* Public actions visible to all users (moved My Account to header) */}
+                <Box>
+                  {/* Intentionally left empty; My Account page contains payslip selectors */}
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+      )}
 
       <Grid container spacing={3}>
         {results.map(({ cat, typeCount, matchedTypes, categoryMatch }) => {
