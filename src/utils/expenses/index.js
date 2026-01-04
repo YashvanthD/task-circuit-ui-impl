@@ -284,3 +284,46 @@ export function getDummyPayslips(userId) {
   if (!userId) return base;
   return base.filter(p => p.userId === userId);
 }
+
+/**
+ * Return a dummy organization tree for selection in CompanyAccount.
+ * Structure: { id, name, title?, children: [...] }
+ */
+export function getDummyOrgTree() {
+  return {
+    id: 'root',
+    name: 'ACME Corp',
+    title: 'Root',
+    children: [
+      {
+        id: 'admin-1', name: 'Alice Admin', title: 'Admin', children: [
+          { id: 'mgr-1', name: 'Mark Manager', title: 'Manager', children: [
+            { id: 'u1', name: 'Uma User', title: 'User' },
+            { id: 'u2', name: 'Usha User', title: 'User' }
+          ]},
+          { id: 'mgr-2', name: 'Maya Manager', title: 'Manager', children: [
+            { id: 'u3', name: 'Ravi Rao', title: 'User' }
+          ]}
+        ]
+      },
+      { id: 'admin-2', name: 'Bob Admin', title: 'Admin', children: [
+        { id: 'mgr-3', name: 'Nina Manager', title: 'Manager', children: [ { id: 'u4', name: 'Sam User', title: 'User' } ] }
+      ] }
+    ]
+  };
+}
+
+/**
+ * Return dummy analytics for a user id.
+ */
+export function getUserAnalytics(userId) {
+  const map = {
+    u1: { totalSpent: 120000, tasks: 34, lastActive: '2025-12-20' },
+    u2: { totalSpent: 85000, tasks: 21, lastActive: '2025-11-30' },
+    u3: { totalSpent: 47000, tasks: 12, lastActive: '2025-10-08' },
+    u4: { totalSpent: 23000, tasks: 5, lastActive: '2025-09-19' },
+    'mgr-1': { totalSpent: 500000, tasks: 120, lastActive: '2025-12-29' },
+    'admin-1': { totalSpent: 1200000, tasks: 300, lastActive: '2025-12-31' }
+  };
+  return map[userId] || { totalSpent: 0, tasks: 0, lastActive: '--' };
+}

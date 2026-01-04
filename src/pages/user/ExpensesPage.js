@@ -4,7 +4,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ReceiptIcon from '@mui/icons-material/ReceiptLong';
 import { useNavigate } from 'react-router-dom';
 import data from '../../data/expenses.json';
-import { loadVisibleCategories, renderHighlighted as highlightParts, formatCurrency } from '../../utils/expenses';
+import { loadVisibleCategories, renderHighlighted as highlightParts, formatCurrency, getDummyPayslips } from '../../utils/expenses';
 import { loadUserFromLocalStorage } from '../../utils/storage';
 import { is_admin } from '../../utils/permissions';
 import Button from '@mui/material/Button';
@@ -16,6 +16,14 @@ export default function ExpensesPage() {
   // categories list is available from data but we compute visible counts via helpers
 
   const currentUser = loadUserFromLocalStorage();
+  const payslipCount = React.useMemo(() => {
+    try {
+      const uid = (currentUser && (currentUser.user || currentUser).id) || (currentUser && currentUser.id) || null;
+      if (!uid) return 0;
+      const slips = getDummyPayslips(uid) || [];
+      return slips.length;
+    } catch (e) { return 0; }
+  }, [currentUser]);
   const results = useMemo(() => loadVisibleCategories(data, currentUser, q), [currentUser, q]);
   const visibleAll = useMemo(() => loadVisibleCategories(data, currentUser, ''), [currentUser]);
   const userIsAdmin = is_admin(currentUser);
@@ -40,9 +48,23 @@ export default function ExpensesPage() {
             </IconButton>
           </Box>
           <Chip label={q ? `Showing ${results.length} of ${visibleAll.length} categories` : `Total categories: ${visibleAll.length}`} color="primary" />
-          {/* Public My Account button so users can always navigate to their account */}
-          <Button variant="text" onClick={() => navigate('/taskcircuit/user/expenses/my-account')}>My Account</Button>
         </Box>
+      </Box>
+
+      {/* My Account section (visible to all) */}
+      <Box sx={{ mb: 3 }}>
+        <Card variant="outlined">
+          <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6">My Account</Typography>
+              <Typography variant="body2" color="text.secondary">View your personal account details and payslips.</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Button variant="contained" onClick={() => navigate('/taskcircuit/user/expenses/my-account')}>Open My Account</Button>
+              <Chip label={`${payslipCount} payslips`} size="small" color={payslipCount>0? 'primary' : 'default'} />
+            </Box>
+          </CardContent>
+        </Card>
       </Box>
 
       {/* Admin-only analysis container */}
@@ -67,10 +89,6 @@ export default function ExpensesPage() {
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                 <Button variant="contained" onClick={() => navigate('/taskcircuit/user/expenses/company-account')}>{(loadUserFromLocalStorage() || {}).companyName || 'Company'} Account</Button>
                 <Button variant="outlined" onClick={() => navigate('/taskcircuit/user/expenses/passbook')}>Passbook</Button>
-                {/* Public actions visible to all users (moved My Account to header) */}
-                <Box>
-                  {/* Intentionally left empty; My Account page contains payslip selectors */}
-                </Box>
               </Box>
             </CardContent>
           </Card>

@@ -26,6 +26,7 @@ import CompanyAccount from './pages/user/expenses/CompanyAccount';
 import Passbook from './pages/user/expenses/Passbook';
 import MyAccount from './pages/user/expenses/MyAccount';
 import UserPaySlips from './pages/user/expenses/UserPaySlips';
+import TreeUserView from './pages/user/TreeUserView';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -75,6 +76,7 @@ function AppRoutes() {
         <Route path="expenses/passbook" element={<Passbook />} />
         <Route path="expenses/my-account" element={<MyAccount />} />
         <Route path="expenses/payslips" element={<UserPaySlips />} />
+        <Route path="tree-user/:id" element={<TreeUserView />} />
         {/* Add other user routes here */}
       </Route>
     </Routes>
