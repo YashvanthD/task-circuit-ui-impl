@@ -20,6 +20,8 @@ import SignupForm from './forms/SignupForm';
 import RegisterCompanyForm from './forms/RegisterCompanyForm';
 import FishPage from './pages/user/FishPage';
 import SamplingPage from './pages/user/SamplingPage';
+import WaterTestPage from './pages/user/WaterTestPage';
+import TransformPage from './pages/user/TransformPage';
 import CategoryList from './pages/user/expenses/CategoryList';
 import TypeDetail from './pages/user/expenses/TypeDetail';
 import CompanyAccount from './pages/user/expenses/CompanyAccount';
@@ -72,6 +74,8 @@ function AppRoutes() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="fish" element={<FishPage />} />
         <Route path="sampling" element={<SamplingPage />} />
+        <Route path="water-test" element={<WaterTestPage />} />
+        <Route path="transform" element={<TransformPage />} />
         <Route path="expenses/:category" element={<CategoryList />} />
         <Route path="expenses/:category/:type" element={<TypeDetail />} />
         <Route path="expenses/company-account" element={<CompanyAccount />} />
