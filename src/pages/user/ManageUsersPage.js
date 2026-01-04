@@ -7,8 +7,10 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AddUserForm from '../../forms/AddUserForm';
 import userUtil from '../../utils/user';
+import Unauthorized from '../../components/error/Unauthorized';
+import { is_admin } from '../../utils/permissions';
 
-export default function ManageUsersPage() {
+function ManageUsersPageContent() {
   const [open, setOpen] = useState(false);
   const [allRows, setAllRows] = useState([]);
   const [rows, setRows] = useState([]);
@@ -23,7 +25,7 @@ export default function ManageUsersPage() {
 
   const [snack, setSnack] = useState({ open: false, message: '', severity: 'info' });
 
-  const loadUsers = useCallback(async ({ force = false } = {}) => {
+  const loadUsers = useCallback(async ({ force: _force = false } = {}) => {
     setLoading(true);
     try {
       const users = await userUtil.fetchUsers();
@@ -223,4 +225,28 @@ export default function ManageUsersPage() {
       </Snackbar>
     </Paper>
   );
+}
+
+export default function ManageUsersPage() {
+  const [isAdmin, setIsAdmin] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const cu = await userUtil.getCurrentUser();
+        if (!mounted) return;
+        setIsAdmin(!!is_admin(cu));
+      } catch (e) {
+        // fallback to non-admin
+        if (!mounted) return;
+        setIsAdmin(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  if (isAdmin === null) return (<div style={{ textAlign: 'center', marginTop: 60 }}><CircularProgress /></div>);
+  if (isAdmin === false) return (<Unauthorized />);
+  return <ManageUsersPageContent />;
 }

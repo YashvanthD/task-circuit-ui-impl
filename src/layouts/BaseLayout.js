@@ -28,6 +28,8 @@ import ScienceIcon from '@mui/icons-material/Science';
 
 // Import storage utilities to clear tokens/user data on logout
 import { clearAccessTokenManagement, removeUserFromLocalStorage, removeFromLocalStorage, clearTasksFromLocalStorage } from '../utils/storage';
+// use centralized permissions helper
+import { is_admin } from '../utils/permissions';
 
 /**
  * BaseLayout is the base model for all pages in the Task Circuit project.
@@ -114,6 +116,9 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
       window.location.href = '/taskcircuit/login';
     }
   };
+
+  // delegate admin detection to shared util
+  const APP_USER_IS_ADMIN = is_admin(user);
 
   return (
     <Box sx={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -226,7 +231,9 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
           }}
         >
           <List sx={{ p: 0, m: 0 }}>
-            {navItems.map(item => (
+            {navItems
+              .filter(i => !(i.to === '/taskcircuit/user/manage-users' && !APP_USER_IS_ADMIN))
+              .map(item => (
               <ListItemButton
                 key={item.to}
                 component={NavLink}
