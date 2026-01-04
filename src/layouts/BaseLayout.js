@@ -25,6 +25,7 @@ import ReceiptIcon from '@mui/icons-material/Receipt';
 import LocalAtmIcon from '@mui/icons-material/LocalAtm';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ScienceIcon from '@mui/icons-material/Science';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 
 // Import storage utilities to clear tokens/user data on logout
 import { clearAccessTokenManagement, removeUserFromLocalStorage, removeFromLocalStorage, clearTasksFromLocalStorage } from '../utils/storage';
@@ -60,6 +61,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
     { label: 'Pond', to: '/taskcircuit/user/pond', icon: <PoolIcon /> }, // Fish icon (PoolIcon as substitute)
     { label: 'Sampling', to: '/taskcircuit/user/sampling', icon: <ScienceIcon /> },
     { label: 'Reports', to: '/taskcircuit/user/reports', icon: <AnalyticsIcon /> }, // Analytics icon
+    { label: 'Ask AI', to: '/taskcircuit/user/ai', icon: <SmartToyIcon /> },
     { label: 'Invoice', to: '/taskcircuit/user/invoice', icon: <ReceiptIcon /> },
     { label: 'Expenses', to: '/taskcircuit/user/expenses', icon: <LocalAtmIcon /> },
     { label: 'Chat', to: '/taskcircuit/user/chat', icon: <ChatIcon /> },

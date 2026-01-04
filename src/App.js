@@ -27,6 +27,7 @@ import Passbook from './pages/user/expenses/Passbook';
 import MyAccount from './pages/user/expenses/MyAccount';
 import UserPaySlips from './pages/user/expenses/UserPaySlips';
 import TreeUserView from './pages/user/TreeUserView';
+import AiPage from './pages/user/AiPage';
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -62,6 +63,7 @@ function AppRoutes() {
         <Route path="tasks" element={<TasksPage />} />
         <Route path="pond" element={<PondPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="ai" element={<AiPage />} />
         <Route path="invoice" element={<InvoicePage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="chat" element={<ChatPage />} />
