@@ -1,4 +1,5 @@
 import * as apiUser from './apis/api_user';
+import { apiFetch } from './api';
 
 const USERS_CACHE_KEY = 'tc_cache_users';
 
@@ -123,6 +124,59 @@ export async function listAccountUsers(accountKey, params = {}) {
   }
 }
 
+// CRUD helpers for account users (create/update/delete)
+export async function addUser(payload) {
+  try {
+    const res = await apiFetch('/auth/account/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    let data = res;
+    if (res && res.json) data = await res.json();
+    // clear cache so listing will refresh
+    clearUsersCache();
+    return data;
+  } catch (e) {
+    console.error('addUser failed', e);
+    throw e;
+  }
+}
+
+export async function updateUser(userId, payload) {
+  if (!userId) throw new Error('userId is required for update');
+  try {
+    const res = await apiFetch(`/auth/account/users/${encodeURIComponent(userId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    let data = res;
+    if (res && res.json) data = await res.json();
+    clearUsersCache();
+    return data;
+  } catch (e) {
+    console.error('updateUser failed', e);
+    throw e;
+  }
+}
+
+export async function deleteUser(userId) {
+  if (!userId) throw new Error('userId is required for delete');
+  try {
+    const res = await apiFetch(`/auth/account/users/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    });
+    let data = res;
+    if (res && res.json) data = await res.json();
+    clearUsersCache();
+    return data;
+  } catch (e) {
+    console.error('deleteUser failed', e);
+    throw e;
+  }
+}
+
 // Update helpers - reuse apiUser.updateProfile which updates current user's profile.
 // These functions are convenience wrappers used by forms.
 export async function updateUserEmail(newEmail) {
@@ -174,6 +228,6 @@ export async function updateUsername(newUsername) {
   }
 }
 
-const userUtil = { fetchUsers, getUserByKey, getUserName, clearUsersCache, getCurrentUser, getUserInfo, listAccountUsers, updateUserEmail, updateUserMobile, updateUserPassword, updateUsername };
+const userUtil = { fetchUsers, getUserByKey, getUserName, clearUsersCache, getCurrentUser, getUserInfo, listAccountUsers, addUser, updateUser, deleteUser, updateUserEmail, updateUserMobile, updateUserPassword, updateUsername };
 export default userUtil;
 
