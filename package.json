@@ -2,7 +2,7 @@
   "name": "task-circuit",
   "version": "0.1.0",
   "private": true,
-  "homepage": "/",
+  "homepage": "https://YashvanthD.github.io/task-circuit-ui-impl",
   "proxy": "http://localhost:5000",
   "dependencies": {
     "@emotion/react": "^11.14.0",
