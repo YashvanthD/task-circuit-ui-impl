@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, matchPath, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import HomePage from './pages/HomePage';
@@ -34,8 +34,32 @@ import AiPage from './pages/user/AiPage';
 function AppRoutes() {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = useMemo(() => loadUserFromLocalStorage(), []);
-  const loggedIn = useMemo(() => !!getRefreshToken() && !!user, [user]);
+  // Track auth state in React state so UI updates when localStorage changes (login/logout) without page reload
+  const [user, setUser] = useState(() => loadUserFromLocalStorage());
+  const [loggedIn, setLoggedIn] = useState(() => !!getRefreshToken() && !!loadUserFromLocalStorage());
+
+  useEffect(() => {
+    const onAuthChanged = () => {
+      setUser(loadUserFromLocalStorage());
+      setLoggedIn(!!getRefreshToken() && !!loadUserFromLocalStorage());
+    };
+
+    // Listen for custom auth change events dispatched by storage helpers
+    window.addEventListener('authChanged', onAuthChanged);
+
+    // Also listen to storage events (cross-tab logout/login)
+    const onStorage = (e) => {
+      if (e.key === 'user' || e.key === 'refresh_token' || e.key === 'access_token') {
+        onAuthChanged();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      window.removeEventListener('authChanged', onAuthChanged);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
 
   useEffect(() => {
     const isUserRoute = matchPath('/taskcircuit/user/*', location.pathname);
@@ -45,14 +69,24 @@ function AppRoutes() {
   }, [location, navigate]);
 
   const handleLogout = () => {
+    // Clear tokens and user info from storage (these functions will also trigger authChanged event)
     removeFromLocalStorage('refresh_token');
+    removeFromLocalStorage('access_token');
+    removeFromLocalStorage('access_token_expiry');
     removeUserFromLocalStorage();
+    // Update local state immediately so UI (top nav) refreshes without reload
+    setUser(null);
+    setLoggedIn(false);
+    // Navigate to login
     navigate('/taskcircuit/login');
+    // Dispatch authChanged so any other listeners update
+    try { window.dispatchEvent(new Event('authChanged')); } catch (e) {}
   };
 
   return (
     <Routes>
-      <Route path="" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LoginPage /></BaseLayout>} />
+      {/* Make `/` render the LandingPage (same as `/taskcircuit/`) */}
+      <Route path="/" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
       <Route path="/home" element={<Navigate to="/taskcircuit/" replace />} />
       <Route path="/taskcircuit/" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
       <Route path="/taskcircuit/home" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><HomePage /></BaseLayout>} />

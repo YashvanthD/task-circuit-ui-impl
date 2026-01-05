@@ -1,5 +1,4 @@
 import { BASE_URL } from '../config';
-import { LOGIN_ENDPOINT, GET_USER_ENDPOINT } from '../endpoints';
 
 /**
  * Utility functions for localStorage and sessionStorage.
@@ -296,6 +295,13 @@ export function processLoginResponse(loginResponse) {
   saveAccessToken(loginResponse.data.accessToken, expiresIn);
   saveToLocalStorage('refresh_token', loginResponse.data.refreshToken);
   saveUserToLocalStorage(loginResponse.data);
+
+  // Notify the rest of the app that authentication state changed (login)
+  try {
+    window.dispatchEvent(new Event('authChanged'));
+  } catch (e) {
+    // ignore when window is not available (SSR)
+  }
 }
 
 /**
@@ -345,7 +351,7 @@ function debugLog(msg, ...args) {
  */
 export async function handle401(forceLogout) {
   debugLog('401 detected: validating access token');
-  const { valid, expiry } = await validateAccessToken();
+  const { valid } = await validateAccessToken();
   if (valid) {
     debugLog('Access token is valid after validation');
     return true;
