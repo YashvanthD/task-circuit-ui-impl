@@ -146,8 +146,22 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
+  // Ensure routes match when app is hosted under a subpath (GitHub Pages project site)
+  // Accept either a full URL (https://user.github.io/repo) or a path (/repo) in PACKAGE_JSON `homepage`.
+  // If PUBLIC_URL is a full URL, extract the pathname so BrowserRouter receives a proper basename.
+  let basename = '/';
+  if (process.env.PUBLIC_URL) {
+    try {
+      // If PUBLIC_URL is a full URL, this will extract just the path part (e.g. '/repo')
+      const parsed = new URL(process.env.PUBLIC_URL);
+      basename = parsed.pathname.replace(/\/$/, '') || '/';
+    } catch (e) {
+      // If PUBLIC_URL is not a full URL (e.g. '/repo'), use it directly (trim trailing slash)
+      basename = process.env.PUBLIC_URL.replace(/\/$/, '') || '/';
+    }
+  }
   return (
-    <Router>
+    <Router basename={basename}>
       <ErrorBoundary>
         <AppRoutes />
       </ErrorBoundary>
