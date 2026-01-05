@@ -6,7 +6,7 @@ import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import Box from '@mui/material/Box';
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Menu from '@mui/material/Menu';
@@ -56,6 +56,7 @@ import { is_admin } from '../utils/permissions';
  */
 export default function BaseLayout({ children, loggedIn, user, onLogout, showSidebar = false }) {
   const [collapsed, setCollapsed] = useState(false);
+  const navigate = useNavigate();
   const navItems = [
     { label: 'Dashboard', to: '/taskcircuit/user/dashboard', icon: <DashboardIcon /> },
     { label: 'Tasks', to: '/taskcircuit/user/tasks', icon: <AssignmentIcon /> },
@@ -195,7 +196,17 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                     sx={{ minHeight: 48, fontSize: 16, py: 2, display: 'flex', alignItems: 'center', gap: 1 }}
                     onClick={() => {
                       handleProfileMenuClose();
-                      window.location.href = '/taskcircuit/user/settings';
+                      navigate('/taskcircuit/user/dashboard');
+                    }}
+                  >
+                    <DashboardIcon fontSize="small" />
+                    Dashboard
+                  </MenuItem>
+                  <MenuItem
+                    sx={{ minHeight: 48, fontSize: 16, py: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                    onClick={() => {
+                      handleProfileMenuClose();
+                      navigate('/taskcircuit/user/settings');
                     }}
                   >
                     <SettingsIcon fontSize="small" />
