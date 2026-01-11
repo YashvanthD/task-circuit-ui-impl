@@ -1,4 +1,4 @@
-import { apiFetch } from '../api';
+import { apiFetch } from '../api/client';
 import { getAuthHeaders } from './api_auth';
 
 export async function createSampling(payload) {

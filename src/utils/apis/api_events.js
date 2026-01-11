@@ -1,4 +1,4 @@
-import { apiFetch } from '../api';
+import { apiFetch } from '../api/client';
 
 export async function listEventsForAccount(params = {}) {
   // generic events listing; build query string
