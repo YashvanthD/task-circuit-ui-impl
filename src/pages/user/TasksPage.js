@@ -85,75 +85,199 @@ function computeTaskStats(tasks) {
 
 function TaskCard({ task, onEdit, onNextAction, onDelete, getUsername }) {
   const isCompleted = task.status === 'completed';
+  const isInProgress = task.status === 'inprogress';
+  const isPending = task.status === 'pending';
+
+  // Check if task is overdue
+  const isOverdue = !isCompleted && task.end_date && new Date(task.end_date.replace(' ', 'T')) < new Date();
+
+  // Status colors
+  const statusConfig = {
+    pending: { bg: '#fff3e0', color: '#e65100', label: 'Pending' },
+    inprogress: { bg: '#e3f2fd', color: '#1565c0', label: 'In Progress' },
+    completed: { bg: '#e8f5e9', color: '#2e7d32', label: 'Completed' },
+  };
+  const status = statusConfig[task.status] || statusConfig.pending;
 
   return (
     <Paper
-      elevation={1}
+      elevation={2}
       sx={{
-        p: 2,
-        borderRadius: 2,
-        border: '1px solid rgba(0,0,0,0.06)',
-        ...getPriorityStyle(task.priority, task.status),
+        p: 2.5,
+        borderRadius: 3,
+        border: isOverdue ? '2px solid #f44336' : `2px solid ${status.color}30`,
+        backgroundColor: isCompleted ? '#fafafa' : '#fff',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        gap: 0.75,
+        gap: 1.5,
+        transition: 'all 0.2s ease-in-out',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: 4,
+        },
+        opacity: isCompleted ? 0.85 : 1,
       }}
     >
-      {/* Header */}
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 600, flex: 1 }} noWrap>
-          {task.title}
-        </Typography>
+      {/* Header: Status + Priority + Edit */}
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          {/* Status Badge */}
+          <Chip
+            label={status.label}
+            size="small"
+            sx={{
+              backgroundColor: status.bg,
+              color: status.color,
+              fontWeight: 600,
+              fontSize: '0.7rem',
+            }}
+          />
+          {/* Overdue Badge */}
+          {isOverdue && (
+            <Chip
+              label="OVERDUE"
+              size="small"
+              sx={{
+                backgroundColor: '#ffebee',
+                color: '#c62828',
+                fontWeight: 700,
+                fontSize: '0.65rem',
+                animation: 'pulse 1.5s infinite',
+                '@keyframes pulse': {
+                  '0%, 100%': { opacity: 1 },
+                  '50%': { opacity: 0.6 },
+                },
+              }}
+            />
+          )}
+        </Stack>
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <Chip label={getPriorityLabel(task.priority)} color={getPriorityColor(task.priority)} size="small" />
-          <IconButton size="small" onClick={() => onEdit(task)}>
+          {/* Priority Badge */}
+          <Chip
+            label={`P${task.priority}`}
+            size="small"
+            color={getPriorityColor(task.priority)}
+            sx={{ fontWeight: 700, minWidth: 40 }}
+          />
+          <IconButton
+            size="small"
+            onClick={() => onEdit(task)}
+            sx={{
+              '&:hover': { backgroundColor: 'primary.light', color: 'white' },
+            }}
+          >
             <EditIcon fontSize="small" />
           </IconButton>
         </Stack>
       </Stack>
 
+      {/* Title */}
+      <Typography
+        variant="h6"
+        sx={{
+          fontWeight: 600,
+          fontSize: '1rem',
+          lineHeight: 1.3,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          textDecoration: isCompleted ? 'line-through' : 'none',
+          color: isCompleted ? 'text.secondary' : 'text.primary',
+        }}
+        title={task.title}
+      >
+        {task.title}
+      </Typography>
+
       {/* Description */}
       {task.description && (
-        <Typography variant="body2" color="text.secondary" noWrap>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            lineHeight: 1.4,
+          }}
+          title={task.description}
+        >
           {task.description}
         </Typography>
       )}
 
       {/* Meta info */}
-      <Stack spacing={0.25} sx={{ mt: 0.5 }}>
+      <Stack
+        spacing={0.75}
+        sx={{
+          mt: 'auto',
+          pt: 1.5,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="caption" color="text.secondary">
+            📅 Due: <strong>{task.end_date || 'No date'}</strong>
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{
+              color: isOverdue ? 'error.main' : 'text.secondary',
+              fontWeight: isOverdue ? 700 : 400,
+            }}
+          >
+            ⏰ {getTimeLeft(task.end_date)}
+          </Typography>
+        </Stack>
         <Typography variant="caption" color="text.secondary">
-          <strong>End:</strong> {task.end_date}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          <strong>Time Left:</strong> {getTimeLeft(task.end_date)}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          <strong>Assigned:</strong> {getUsername(task.assigned_to)}
+          👤 {getUsername(task.assigned_to)}
         </Typography>
       </Stack>
 
       {/* Footer actions */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 'auto', pt: 1 }} spacing={1}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ pt: 1 }}>
         <Stack direction="row" spacing={1}>
-          <Button
-            variant="contained"
-            size="small"
-            color={isCompleted ? 'success' : (task.status === 'inprogress' ? 'warning' : getNextActionColor(task.status))}
-            sx={task.status === 'inprogress' ? { backgroundColor: 'orange', '&:hover': { backgroundColor: '#ff9800' } } : {}}
-            onClick={() => onNextAction(task)}
-            disabled={isCompleted}
-          >
-            {getNextAction(task.status)}
-          </Button>
+          {!isCompleted && (
+            <Button
+              variant="contained"
+              size="small"
+              color={isPending ? 'primary' : 'success'}
+              onClick={() => onNextAction(task)}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 2,
+                px: 2,
+              }}
+            >
+              {getNextAction(task.status)}
+            </Button>
+          )}
           {isCompleted && (
-            <Button variant="outlined" color="error" size="small" onClick={() => onDelete(task)}>
-              Delete
+            <Button
+              variant="outlined"
+              size="small"
+              color="error"
+              onClick={() => onDelete(task)}
+              sx={{ textTransform: 'none', borderRadius: 2 }}
+            >
+              🗑️ Delete
             </Button>
           )}
         </Stack>
-        <Typography variant="caption" color="text.disabled" noWrap>
-          {task.task_id}
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.disabled',
+            fontSize: '0.65rem',
+            fontFamily: 'monospace',
+          }}
+        >
+          #{task.task_id?.slice(-6) || 'N/A'}
         </Typography>
       </Stack>
     </Paper>
