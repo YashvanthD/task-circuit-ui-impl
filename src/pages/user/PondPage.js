@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Paper, Typography, Grid, Button, TextField, Stack, CircularProgress, InputAdornment, Dialog, Box } from '@mui/material';
-import Pond from '../../components/Pond';
+import { Paper, Typography, Grid, Button, TextField, Stack, CircularProgress, InputAdornment, Dialog, Box, useMediaQuery, useTheme, Chip } from '@mui/material';
+import PondCard from '../../components/PondCard';
 import PondForm from '../../forms/PondForm';
 import PondDailyUpdateForm from '../../forms/PondDailyUpdateForm';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import pondUtil, { pondEvents } from '../../utils/pond';
 import { parsePondList, parsePond } from '../../utils/parsePond';
+import { ConfirmDialog } from '../../components/common';
 
 
 export default function PondPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const [selectedPond, setSelectedPond] = useState(null);
   const [editPondDialogOpen, setEditPondDialogOpen] = useState(false);
   const [pondDialogOpen, setPondDialogOpen] = useState(false);
@@ -151,72 +156,159 @@ export default function PondPage() {
 
   const filteredPondList = pondList.filter(pond =>
     (pond.farm_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (pond.pond_location || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (pond.pond_location || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (pond.pond_id || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  return (
-    <Paper sx={{ padding: 4, maxWidth: 1000, margin: '40px auto' }}>
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        Pond Management
-      </Typography>
-      <Typography variant="body1" sx={{ mb: 2 }}>
-        View, edit, and add pond records. Daily updates supported.
-      </Typography>
+  // Calculate stats
+  const totalPonds = pondList.length;
+  const totalFish = pondList.reduce((acc, p) => {
+    const stock = p.currentStock || p.current_stock || [];
+    return acc + (Array.isArray(stock) ? stock.reduce((a, s) => a + Number(s.count || 0), 0) : 0);
+  }, 0);
+  const totalValue = pondList.reduce((acc, p) => acc + Number(p.current_stock_value || p.stock_value || 0), 0);
 
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }} justifyContent="space-between" alignItems="center">
+  return (
+    <Paper sx={{ padding: { xs: 2, sm: 4 }, maxWidth: 1280, margin: '40px auto' }}>
+      {/* Header */}
+      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={2} sx={{ mb: 3 }}>
+        <Box>
+          <Typography variant="h4" fontWeight={700}>Pond Management</Typography>
+          <Typography variant="body2" color="text.secondary">
+            View, edit, and manage your pond records
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleOpenAddPond}
+          startIcon={<AddCircleIcon />}
+          sx={{ borderRadius: 2 }}
+        >
+          Add Pond
+        </Button>
+      </Stack>
+
+      {/* Stats Bar */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
+        <Chip label={`${totalPonds} Ponds`} color="primary" size="small" />
+        <Chip label={`🐟 ${totalFish.toLocaleString()} Fish`} color="info" size="small" />
+        <Chip label={`₹${totalValue.toLocaleString()} Value`} color="success" size="small" />
+      </Stack>
+
+      {/* Search and Refresh */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }} alignItems="center">
         <TextField
-          label="Search by Name/Location"
+          label="Search by Name, Location or ID"
           variant="outlined"
           size="small"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          sx={{ minWidth: 220 }}
-          InputProps={{ startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon sx={{ mr: 1, color: 'grey.500' }} />
-            </InputAdornment>
-          ) }}
+          sx={{ flex: 1, maxWidth: 400 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: 'grey.500' }} />
+              </InputAdornment>
+            )
+          }}
         />
-        <Button variant="contained" color="primary" onClick={handleOpenAddPond} startIcon={<AddCircleIcon />}>Add Pond</Button>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<RefreshIcon />}
+          onClick={() => fetchPonds({ force: true })}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
       </Stack>
 
-      {loading ? <CircularProgress /> : null}
-      {error && <Typography color="error">{error}</Typography>}
+      {/* Loading */}
+      {loading && (
+        <Stack alignItems="center" sx={{ py: 4 }}>
+          <CircularProgress />
+          <Typography color="text.secondary" sx={{ mt: 2 }}>Loading ponds...</Typography>
+        </Stack>
+      )}
 
-      {filteredPondList.length === 0 && !loading ? (
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>No ponds available.</Typography>
-      ) : (
-        <Grid container spacing={2}>
+      {/* Error */}
+      {error && (
+        <Paper sx={{ p: 2, mb: 2, backgroundColor: '#ffebee', border: '1px solid #f44336' }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography color="error">{error}</Typography>
+            <Button size="small" onClick={() => fetchPonds({ force: true })}>Retry</Button>
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Empty State */}
+      {filteredPondList.length === 0 && !loading && !error && (
+        <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: '#f5f5f5' }}>
+          <Typography variant="body1" color="text.secondary">No ponds found.</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Click "Add Pond" to create your first pond!
+          </Typography>
+        </Paper>
+      )}
+
+      {/* Ponds Grid - Larger cards since ponds are fewer */}
+      {!loading && !error && filteredPondList.length > 0 && (
+        <Grid container spacing={isMobile ? 2 : 3}>
           {filteredPondList.map(pond => (
-            <Grid item xs={12} sm={6} md={4} key={pond.pond_id || pond.id}>
-              <Pond initialData={pond} onOpen={handleOpenPond} onDailyUpdate={(p) => handleOpenDailyUpdate(p)} onEdit={handleEditPond} onDelete={handleDeletePond} />
+            <Grid item xs={12} md={6} lg={6} key={pond.pond_id || pond.id}>
+              <PondCard
+                pond={pond}
+                onOpen={handleOpenPond}
+                onEdit={handleEditPond}
+                onDelete={handleDeletePond}
+                onDailyUpdate={handleOpenDailyUpdate}
+                compact={isMobile}
+                expanded={!isMobile}
+              />
             </Grid>
           ))}
         </Grid>
       )}
 
-      <Dialog open={pondDialogOpen} onClose={handleClosePond} maxWidth="lg" fullWidth>
-        {selectedPond && <Pond initialData={selectedPond} />}
+      {/* View Pond Dialog */}
+      <Dialog open={pondDialogOpen} onClose={handleClosePond} maxWidth="md" fullWidth>
+        {selectedPond && (
+          <Box sx={{ p: 3 }}>
+            <PondCard pond={selectedPond} onEdit={handleEditPond} onDailyUpdate={handleOpenDailyUpdate} />
+          </Box>
+        )}
       </Dialog>
+
+      {/* Add Pond Dialog */}
       <Dialog open={addPondDialogOpen} onClose={handleCloseAddPond} maxWidth="lg" fullWidth>
         <PondForm onSubmit={handleAddPond} onCancel={handleCloseAddPond} />
       </Dialog>
+
+      {/* Edit Pond Dialog */}
       <Dialog open={editPondDialogOpen} onClose={handleCloseEditPond} maxWidth="lg" fullWidth>
         <PondForm initialData={selectedPond} onSubmit={submitEditPond} onCancel={handleCloseEditPond} />
       </Dialog>
+
+      {/* Daily Update Dialog */}
       <Dialog open={dailyUpdateDialogOpen} onClose={handleCloseDailyUpdate} maxWidth="sm" fullWidth>
-        <PondDailyUpdateForm initialData={{ pond_id: selectedPond?.pond_id || '', date: new Date().toISOString().slice(0,10) }} onSubmit={handleDailyUpdate} onCancel={handleCloseDailyUpdate} />
+        <PondDailyUpdateForm
+          initialData={{ pond_id: selectedPond?.pond_id || '', date: new Date().toISOString().slice(0,10) }}
+          onSubmit={handleDailyUpdate}
+          onCancel={handleCloseDailyUpdate}
+        />
       </Dialog>
-      <Dialog open={deleteDialogOpen} onClose={cancelDeletePond} maxWidth="xs" fullWidth>
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6">Confirm delete</Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>Are you sure you want to delete pond <strong>{deleteCandidate?.pond_id || deleteCandidate?.id}</strong>? This action cannot be undone.</Typography>
-          <Stack direction="row" spacing={2} sx={{ mt: 3, justifyContent: 'flex-end' }}>
-            <Button variant="outlined" onClick={cancelDeletePond}>Cancel</Button>
-            <Button variant="contained" color="error" onClick={confirmDeletePond}>Delete</Button>
-          </Stack>
-        </Box>
-      </Dialog>
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Delete Pond"
+        message={`Are you sure you want to delete pond "${deleteCandidate?.farm_name || deleteCandidate?.pond_id}"? This action cannot be undone.`}
+        onConfirm={confirmDeletePond}
+        onCancel={cancelDeletePond}
+        confirmText="Delete"
+        confirmColor="error"
+      />
     </Paper>
   );
 }
