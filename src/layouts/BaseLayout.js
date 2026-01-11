@@ -29,9 +29,9 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import RoamingAssistant from '../components/RoamingAssistant';
 
 // Import storage utilities to clear tokens/user data on logout
-import { clearAccessTokenManagement, removeUserFromLocalStorage, removeFromLocalStorage, clearTasksFromLocalStorage } from '../utils/storage';
+import { clearAccessTokenManagement, removeUserFromLocalStorage, removeFromLocalStorage, clearTasksFromLocalStorage } from '../utils/auth/storage';
 // use centralized permissions helper
-import { is_admin } from '../utils/permissions';
+import { is_admin } from '../utils/auth/permissions';
 
 /**
  * BaseLayout is the base model for all pages in the Task Circuit project.

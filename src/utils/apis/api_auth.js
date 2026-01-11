@@ -1,5 +1,5 @@
-import { apiFetch } from '../api';
-import { getAccessToken } from '../storage';
+import { apiFetch } from '../api/client';
+import { getAccessToken } from '../auth/storage';
 
 export async function login(credentials) {
   return apiFetch('/auth/login', {

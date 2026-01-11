@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Paper, Typography, Box, TextField, MenuItem, Button, Table, TableHead, TableRow, TableCell, TableBody, TableContainer } from '@mui/material';
 import { getDummyPayslips, formatCurrency } from '../../../utils/expenses';
-import { loadUserFromLocalStorage } from '../../../utils/storage';
+import { loadUserFromLocalStorage } from '../../../utils/auth/storage';
 import { useLocation } from 'react-router-dom';
 
 const months = [

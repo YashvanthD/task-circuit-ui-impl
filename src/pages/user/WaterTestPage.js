@@ -8,7 +8,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import * as apiPond from '../../utils/apis/api_pond';
 import userUtil from '../../utils/user';
-import { loadUserFromLocalStorage } from '../../utils/storage';
+import { loadUserFromLocalStorage } from '../../utils/auth/storage';
 
 // Simple local-storage backed water tests utility inside the page for now
 const STORAGE_KEY = 'water_tests_v1';

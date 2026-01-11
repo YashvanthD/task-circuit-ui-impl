@@ -6,11 +6,11 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import EditIcon from '@mui/icons-material/Edit';
-import { apiFetch } from '../../utils/api';
+import { apiFetch } from '../../utils/api/client';
 import { getUserInfo, listAccountUsers } from '../../utils/user';
 import { fetchAllTasks, saveTask, deleteTask, saveTasks, getTasks, updateTask } from '../../utils/tasks';
-import { getPriorityColor, getPriorityLabel, getPriorityStyle, getNextActionColor } from '../../utils/common';
-import { getDefaultEndDate, getTimeLeft } from '../../utils/date';
+import { getPriorityColor, getPriorityLabel, getPriorityStyle, getNextActionColor } from '../../utils/helpers/common';
+import { getDefaultEndDate, getTimeLeft } from '../../utils/helpers/date';
 
 const initialForm = {
   title: '',

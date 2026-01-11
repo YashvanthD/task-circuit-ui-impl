@@ -4,11 +4,11 @@ import {
   Select, MenuItem, FormControl, InputLabel, CircularProgress
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { getAccessToken, loadTasksFromLocalStorage, saveTasksToLocalStorage, getTasksLastFetched } from '../../utils/storage';
+import { getAccessToken, loadTasksFromLocalStorage, saveTasksToLocalStorage, getTasksLastFetched } from '../../utils/auth/storage';
 import { BASE_URL } from '../../config';
-import { apiFetch } from '../../utils/api';
+import { apiFetch } from '../../utils/api/client';
 import { getTasks, updateTask as updateTaskInCache } from '../../utils/tasks';
-import { getPriorityStyle } from '../../utils/common';
+import { getPriorityStyle } from '../../utils/helpers/common';
 
 /**
  * Dashboard page for logged-in users in Task Circuit.

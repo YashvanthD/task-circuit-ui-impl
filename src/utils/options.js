@@ -1,7 +1,7 @@
 import pondUtil from './pond';
 import fishUtil from './fish';
 import { listPublicFish } from './apis/api_public';
-import { loadFromLocalStorage, saveToLocalStorage } from './storage';
+import { loadFromLocalStorage, saveToLocalStorage } from './auth/storage';
 import { parseFishList } from './parseFish';
 
 function extractArray(maybe) {

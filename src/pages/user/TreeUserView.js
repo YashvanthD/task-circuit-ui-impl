@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Paper, Typography, Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
 import { getUserAnalytics } from '../../utils/expenses';
 import { useParams } from 'react-router-dom';
-import { loadUserFromLocalStorage } from '../../utils/storage';
-import { is_admin } from '../../utils/permissions';
+import { loadUserFromLocalStorage } from '../../utils/auth/storage';
+import { is_admin } from '../../utils/auth/permissions';
 
 function loadProfile(id) {
   try {

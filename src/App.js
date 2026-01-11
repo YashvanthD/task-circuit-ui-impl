@@ -15,7 +15,7 @@ import ChatPage from './pages/user/ChatPage';
 import ExpensesPage from './pages/user/ExpensesPage';
 import InvoicePage from './pages/user/InvoicePage';
 import SettingsPage from './pages/user/SettingsPage';
-import { getRefreshToken, loadUserFromLocalStorage, removeFromLocalStorage, removeUserFromLocalStorage } from './utils/storage';
+import { getRefreshToken, loadUserFromLocalStorage, removeFromLocalStorage, removeUserFromLocalStorage } from './utils/auth/storage';
 import SignupForm from './forms/SignupForm';
 import RegisterCompanyForm from './forms/RegisterCompanyForm';
 import FishPage from './pages/user/FishPage';

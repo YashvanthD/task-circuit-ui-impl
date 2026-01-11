@@ -1,4 +1,4 @@
-import { apiFetch } from './api';
+import { apiFetch } from './api/client';
 import { BASE_URL } from '../config';
 
 // Task utility functions

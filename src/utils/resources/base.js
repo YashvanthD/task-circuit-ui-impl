@@ -1,31 +1,56 @@
-import { apiStore } from './apis/api_store';
+/**
+ * Base Resource Utility
+ * Generic factory for creating CRUD resource utilities with caching and events.
+ *
+ * @module utils/resources/base
+ */
 
-// Detect whether the page was reloaded (full refresh). We'll force an API fetch once after reload.
-let PAGE_WAS_RELOADED = false;
-try {
-  if (typeof performance !== 'undefined') {
-    const navEntries = performance.getEntriesByType && performance.getEntriesByType('navigation');
-    if (navEntries && navEntries.length) {
-      PAGE_WAS_RELOADED = navEntries[0].type === 'reload';
-    } else if (performance.navigation) {
-      PAGE_WAS_RELOADED = performance.navigation.type === 1; // TYPE_RELOAD
+import { apiStore } from '../api/store';
+
+/**
+ * Detect if page was reloaded.
+ */
+function detectPageReload() {
+  try {
+    if (typeof performance !== 'undefined') {
+      const navEntries = performance.getEntriesByType && performance.getEntriesByType('navigation');
+      if (navEntries && navEntries.length) {
+        return navEntries[0].type === 'reload';
+      } else if (performance.navigation) {
+        return performance.navigation.type === 1;
+      }
     }
-  }
-} catch (e) {
-  PAGE_WAS_RELOADED = false;
+  } catch (e) {}
+  return false;
 }
 
+const reloadedResources = new Set();
+const PAGE_WAS_RELOADED = detectPageReload();
+
+function shouldForceFetchOnReload(cacheKey) {
+  if (!PAGE_WAS_RELOADED) return false;
+  if (reloadedResources.has(cacheKey)) return false;
+  reloadedResources.add(cacheKey);
+  return true;
+}
+
+/**
+ * Simple EventEmitter for resource events.
+ */
 class EventEmitter {
   constructor() { this.listeners = {}; }
+
   on(event, cb) {
     if (!this.listeners[event]) this.listeners[event] = new Set();
     this.listeners[event].add(cb);
     return () => this.off(event, cb);
   }
+
   off(event, cb) {
     if (!this.listeners[event]) return;
     this.listeners[event].delete(cb);
   }
+
   emit(event, payload) {
     if (!this.listeners[event]) return;
     for (const cb of Array.from(this.listeners[event])) {
@@ -34,10 +59,16 @@ class EventEmitter {
   }
 }
 
+async function safeJson(res) {
+  try { return await res.json(); } catch (e) { return null; }
+}
+
 /**
- * Create a generic resource util for a domain.
- * apiFns: { listFn, getFn, addFn, updateFn, deleteFn, extraFns? }
- * options: { cacheKey, idField = 'id', normalizeList(resData) }
+ * Create a generic resource utility for a domain.
+ *
+ * @param {object} apiFns - API functions { listFn, getFn, addFn, updateFn, deleteFn, extraFns? }
+ * @param {object} options - Options { cacheKey, idField, normalizeList }
+ * @returns {object} Resource utility
  */
 export function createResourceUtil(apiFns, options = {}) {
   const { listFn, getFn, addFn, updateFn, deleteFn, extraFns = {} } = apiFns;
@@ -47,9 +78,7 @@ export function createResourceUtil(apiFns, options = {}) {
   const events = new EventEmitter();
 
   async function getList({ force = false, ttl } = {}) {
-    // If the page was reloaded, force API fetch once across all resources.
-    const shouldFetchApi = force || PAGE_WAS_RELOADED;
-    PAGE_WAS_RELOADED = false;
+    const shouldFetchApi = force || shouldForceFetchOnReload(cacheKey);
     const res = await apiStore.fetchOrCache(cacheKey, () => listFn(), { fetchApi: shouldFetchApi, ttl, requireNonEmpty: true });
     const data = normalizeList(res.data);
     if (res.source === 'api') events.emit('refreshed', data);
@@ -57,7 +86,6 @@ export function createResourceUtil(apiFns, options = {}) {
   }
 
   async function getById(id) {
-    // try cache first
     const cached = apiStore.readCache(cacheKey) || [];
     const found = cached.find(x => (x[idField] === id || x.id === id));
     if (found) return { source: 'cache', data: found };
@@ -72,12 +100,11 @@ export function createResourceUtil(apiFns, options = {}) {
     const result = await apiStore.mutateAndSync(cacheKey, () => addFn(item), (cached, apiResult) => {
       const existing = Array.isArray(cached) ? cached : [];
       const created = apiResult || item;
-      const next = [...existing, created];
       events.emit('added', created);
-      return next;
+      return [...existing, created];
     }, { fetchApi });
 
-    try { const latest = apiStore.readCache(cacheKey) || []; events.emit('refreshed', latest); } catch (e) {}
+    try { events.emit('refreshed', apiStore.readCache(cacheKey) || []); } catch (e) {}
     return result && result.data ? result.data : null;
   }
 
@@ -85,36 +112,31 @@ export function createResourceUtil(apiFns, options = {}) {
     const result = await apiStore.mutateAndSync(cacheKey, () => updateFn(id, patch), (cached, apiResult) => {
       const existing = Array.isArray(cached) ? cached : [];
       const updated = apiResult || { ...patch, [idField]: id };
-      const next = existing.map(x => (x[idField] === id || x.id === id ? { ...x, ...updated } : x));
       events.emit('updated', updated);
-      return next;
+      return existing.map(x => (x[idField] === id || x.id === id ? { ...x, ...updated } : x));
     }, { fetchApi });
 
-    try { const latest = apiStore.readCache(cacheKey) || []; events.emit('refreshed', latest); } catch (e) {}
+    try { events.emit('refreshed', apiStore.readCache(cacheKey) || []); } catch (e) {}
     return result && result.data ? result.data : null;
   }
 
   async function remove(id, { fetchApi = true } = {}) {
-    const result = await apiStore.mutateAndSync(cacheKey, () => deleteFn(id), (cached/*, apiResult*/) => {
+    const result = await apiStore.mutateAndSync(cacheKey, () => deleteFn(id), (cached) => {
       const existing = Array.isArray(cached) ? cached : [];
-      const next = existing.filter(x => !(x[idField] === id || x.id === id));
       events.emit('deleted', { id });
-      return next;
+      return existing.filter(x => !(x[idField] === id || x.id === id));
     }, { fetchApi });
 
-    try { const latest = apiStore.readCache(cacheKey) || []; events.emit('refreshed', latest); } catch (e) {}
+    try { events.emit('refreshed', apiStore.readCache(cacheKey) || []); } catch (e) {}
     return result && result.data ? result.data : null;
   }
 
-  // expose extra fns if present (like addDailyUpdate)
+  // Extra functions
   const extra = {};
   for (const k of Object.keys(extraFns)) {
     extra[k] = async function(...args) {
-      const fn = extraFns[k];
-      // optimistic update not handled generically; caller should subscribe to events or update cache separately
-      const res = await fn(...args);
-      // after exec, emit refreshed cache
-      try { const latest = apiStore.readCache(cacheKey) || []; events.emit('refreshed', latest); } catch (e) {}
+      const res = await extraFns[k](...args);
+      try { events.emit('refreshed', apiStore.readCache(cacheKey) || []); } catch (e) {}
       return res && res.json ? await res.json() : res;
     };
   }
@@ -137,8 +159,3 @@ export function createResourceUtil(apiFns, options = {}) {
   };
 }
 
-async function safeJson(res) {
-  try { return await res.json(); } catch (e) { return null; }
-}
-
-export const resourceUtil = { createResourceUtil };

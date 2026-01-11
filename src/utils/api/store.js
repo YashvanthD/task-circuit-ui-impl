@@ -1,4 +1,11 @@
-import { saveToLocalStorage, loadFromLocalStorage, removeFromLocalStorage } from '../storage';
+/**
+ * API Store - Caching and State Management
+ * Provides caching utilities for API responses with TTL and optimistic updates.
+ *
+ * @module utils/api/store
+ */
+
+import { saveToLocalStorage, loadFromLocalStorage, removeFromLocalStorage } from '../auth/storage';
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const TS_SUFFIX = '_last_fetched';
@@ -7,8 +14,11 @@ function tsKeyFor(cacheKey) {
   return `${cacheKey}${TS_SUFFIX}`;
 }
 
+/**
+ * Get all activity timestamps from localStorage.
+ * @returns {object} Map of cacheKey -> timestamp
+ */
 export function getActivityTimestamps() {
-  // Scan localStorage for keys that end with the TS_SUFFIX and return a map { cacheKey: timestamp }
   try {
     const out = {};
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -23,7 +33,6 @@ export function getActivityTimestamps() {
     }
     return out;
   } catch (e) {
-    // Fallback: try to read a few common keys
     const candidates = ['ponds', 'fish', 'tasks', 'user', 'settings'];
     const out = {};
     for (const k of candidates) {
@@ -34,6 +43,9 @@ export function getActivityTimestamps() {
   }
 }
 
+/**
+ * Clear all activity timestamps from localStorage.
+ */
 export function clearActivityTimestamps() {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -48,35 +60,64 @@ export function clearActivityTimestamps() {
   } catch (e) {
     // ignore
   }
-  // fallback for some common keys
   const candidates = ['ponds', 'fish', 'tasks', 'user', 'settings'];
   for (const k of candidates) removeFromLocalStorage(tsKeyFor(k));
 }
 
+/**
+ * Read data from cache.
+ * @param {string} cacheKey - Cache key
+ * @returns {*} Cached data or null
+ */
 export function readCache(cacheKey) {
   const v = loadFromLocalStorage(cacheKey);
   return v === null ? null : v;
 }
 
+/**
+ * Write data to cache with timestamp.
+ * @param {string} cacheKey - Cache key
+ * @param {*} data - Data to cache
+ */
 export function writeCache(cacheKey, data) {
   saveToLocalStorage(cacheKey, data);
   saveToLocalStorage(tsKeyFor(cacheKey), Date.now());
 }
 
+/**
+ * Clear a specific cache entry.
+ * @param {string} cacheKey - Cache key
+ */
 export function clearCache(cacheKey) {
   removeFromLocalStorage(cacheKey);
   removeFromLocalStorage(tsKeyFor(cacheKey));
 }
 
+/**
+ * Read cache timestamp.
+ * @param {string} cacheKey - Cache key
+ * @returns {number|null} Timestamp or null
+ */
 export function readCacheTimestamp(cacheKey) {
   const raw = loadFromLocalStorage(tsKeyFor(cacheKey));
   if (!raw) return null;
   return typeof raw === 'number' ? raw : parseInt(raw, 10) || null;
 }
 
+async function safeJson(res) {
+  try {
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
 /**
- * Fetch-on-demand helper. If cached and fresh (and non-empty when requireNonEmpty=true) and fetchApi is false, returns cache.
- * Otherwise calls fetchFn() (should return a fetch Response), parses JSON, stores to cache and returns object { source, data }.
+ * Fetch-on-demand helper with caching.
+ * @param {string} cacheKey - Cache key
+ * @param {function} fetchFn - Function that returns a fetch Response
+ * @param {object} options - Options { fetchApi, ttl, requireNonEmpty }
+ * @returns {Promise<{source: string, data: *}>}
  */
 export async function fetchOrCache(cacheKey, fetchFn, { fetchApi = false, ttl = DEFAULT_TTL_MS, requireNonEmpty = true } = {}) {
   const cached = readCache(cacheKey);
@@ -90,7 +131,6 @@ export async function fetchOrCache(cacheKey, fetchFn, { fetchApi = false, ttl = 
     return { source: 'cache', data: cached };
   }
 
-  // attempt fetch
   try {
     const res = await fetchFn();
     if (!res || !res.ok) {
@@ -99,7 +139,6 @@ export async function fetchOrCache(cacheKey, fetchFn, { fetchApi = false, ttl = 
       throw new Error(body.error || `Failed to fetch (status ${res && res.status})`);
     }
     const data = await safeJson(res);
-    // store
     writeCache(cacheKey, data);
     return { source: 'api', data };
   } catch (err) {
@@ -108,37 +147,29 @@ export async function fetchOrCache(cacheKey, fetchFn, { fetchApi = false, ttl = 
   }
 }
 
-async function safeJson(res) {
-  try {
-    return await res.json();
-  } catch (e) {
-    return null;
-  }
-}
-
 /**
- * Perform a mutation (POST/PUT/PATCH/DELETE). By default, calls mutateFn which should perform the API call and return Response.
- * On success, applies updateCacheFn(existingCache, apiResult) to compute next cache and writes it.
- * If fetchApi===false, it will skip calling the API and only update local cache using updateCacheFn (optimistic local update).
+ * Perform a mutation with optimistic updates and cache sync.
+ * @param {string} cacheKey - Cache key
+ * @param {function} mutateFn - Function that performs the mutation
+ * @param {function} updateCacheFn - Function to update cache: (existingCache, apiResult) => newCache
+ * @param {object} options - Options { fetchApi }
+ * @returns {Promise<{source: string, data: *}>}
  */
 export async function mutateAndSync(cacheKey, mutateFn, updateCacheFn, { fetchApi = true } = {}) {
   const cached = readCache(cacheKey) || null;
 
-  // First, perform an optimistic local update (store before calling API)
+  // Optimistic local update
   const optimistic = updateCacheFn(cached, null);
   writeCache(cacheKey, optimistic);
 
   if (!fetchApi) {
-    // caller opted out of API call; return optimistic result
     return { source: 'local', data: optimistic };
   }
 
-  // Call API and reconcile
   try {
     const res = await mutateFn();
     if (!res || !res.ok) {
-      // revert to previous cache on failure
-      writeCache(cacheKey, cached);
+      writeCache(cacheKey, cached); // Revert
       const body = res ? await safeJson(res) : {};
       throw new Error(body && body.error ? body.error : `Mutation failed (status ${res && res.status})`);
     }
@@ -147,13 +178,12 @@ export async function mutateAndSync(cacheKey, mutateFn, updateCacheFn, { fetchAp
     writeCache(cacheKey, finalCache);
     return { source: 'api', data: result, cache: finalCache };
   } catch (err) {
-    // revert optimistic state and rethrow
-    writeCache(cacheKey, cached);
+    writeCache(cacheKey, cached); // Revert
     throw err;
   }
 }
 
-const apiStore = {
+export const apiStore = {
   fetchOrCache,
   mutateAndSync,
   readCache,
@@ -164,5 +194,3 @@ const apiStore = {
   clearActivityTimestamps,
 };
 
-export { apiStore };
-export default apiStore;

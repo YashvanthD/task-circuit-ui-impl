@@ -1,7 +1,7 @@
 import React from 'react';
 import { Paper, Typography, Stack, Box, Avatar } from '@mui/material';
 import PoolIcon from '@mui/icons-material/Pool';
-import { formatDate } from '../utils/formatters';
+import { formatDate } from '../utils/helpers/formatters';
 
 export default function Fish({ initialData = {} }) {
   const name = initialData.common_name || initialData.name || 'Fish';

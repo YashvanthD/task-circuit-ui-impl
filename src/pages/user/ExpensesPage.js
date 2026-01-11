@@ -5,8 +5,8 @@ import ReceiptIcon from '@mui/icons-material/ReceiptLong';
 import { useNavigate } from 'react-router-dom';
 import data from '../../data/expenses.json';
 import { loadVisibleCategories, renderHighlighted as highlightParts, formatCurrency, getDummyPayslips } from '../../utils/expenses';
-import { loadUserFromLocalStorage } from '../../utils/storage';
-import { is_admin } from '../../utils/permissions';
+import { loadUserFromLocalStorage } from '../../utils/auth/storage';
+import { is_admin } from '../../utils/auth/permissions';
 import Button from '@mui/material/Button';
 
 export default function ExpensesPage() {

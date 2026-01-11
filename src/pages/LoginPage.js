@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Paper } from '@mui/material';
-import { processLoginResponse } from '../utils/storage';
-import { login } from '../utils/api';
+import { processLoginResponse } from '../utils/auth/storage';
+import { login } from '../utils/api/client';
 
 /**
  * Login page component for Task Circuit.

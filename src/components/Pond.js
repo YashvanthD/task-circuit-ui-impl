@@ -6,7 +6,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { getCardFields, resolveFieldValue } from '../types/fields';
-import { formatDate, formatNumber, formatCurrency } from '../utils/formatters';
+import { formatDate, formatNumber, formatCurrency } from '../utils/helpers/formatters';
 
 /**
  * Pond card with an expenses overview, stacks breakdown and basic fields.

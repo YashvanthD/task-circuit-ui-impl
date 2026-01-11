@@ -1,5 +1,5 @@
 import * as apiFish from './apis/api_fish';
-import { createResourceUtil } from './resourceUtil';
+import { createResourceUtil } from './resources/base';
 import { parseFishList, parseFish } from './parseFish';
 
 const fishResource = createResourceUtil({

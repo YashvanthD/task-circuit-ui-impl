@@ -1,6 +1,6 @@
 import React, { createContext, useCallback } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { getAccessToken, getRefreshToken, handle401, loadUserFromLocalStorage } from '../utils/storage';
+import { getAccessToken, getRefreshToken, handle401, loadUserFromLocalStorage } from '../utils/auth/storage';
 import BaseLayout from './BaseLayout';
 
 export const ApiErrorContext = createContext({ handleApiError: async () => {} });

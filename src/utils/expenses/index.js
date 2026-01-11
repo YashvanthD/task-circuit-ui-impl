@@ -1,6 +1,6 @@
 // Utility helpers for expenses search, rendering and formatting.
 // Keep these generic and flexible so role/setting-based controls can be applied later.
-import { is_admin } from '../permissions';
+import { is_admin } from '../auth/permissions';
 
 /**
  * Permission model

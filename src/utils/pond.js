@@ -1,8 +1,34 @@
 import * as api from './apis/api_pond';
-import { createResourceUtil } from './resourceUtil';
+import { createResourceUtil } from './resources/base';
 import { parsePondList, parsePond } from './parsePond';
+import { extractResponseData } from './api/client';
 
-// Create a pond resource util using the generic factory. Use cacheKey 'ponds' and pond_id as id field
+/**
+ * Normalize pond list from various API response shapes.
+ * Uses centralized extractResponseData helper with pond-specific fallbacks.
+ * @param {object} d - API response data
+ * @returns {Array} Array of pond objects
+ */
+function normalizePondList(d) {
+  if (!d) return [];
+  if (Array.isArray(d)) return d;
+
+  // Check common pond-specific keys
+  if (Array.isArray(d.ponds)) return d.ponds;
+  if (d.data && Array.isArray(d.data.ponds)) return d.data.ponds;
+
+  // Use centralized extractor for common patterns
+  const extracted = extractResponseData(d, 'ponds');
+  if (Array.isArray(extracted)) return extracted;
+
+  // Last resort: check results key
+  if (Array.isArray(d.results)) return d.results;
+  if (d.data && Array.isArray(d.data.results)) return d.data.results;
+
+  return [];
+}
+
+// Create a pond resource util using the generic factory
 const pondResource = createResourceUtil({
   listFn: api.listPonds,
   getFn: api.getPond,
@@ -13,42 +39,7 @@ const pondResource = createResourceUtil({
 }, {
   cacheKey: 'ponds',
   idField: 'pond_id',
-  normalizeList: (d) => {
-    // Accept several shapes and try to find array of ponds in nested structures.
-    if (!d) return [];
-    if (Array.isArray(d)) return d;
-    if (Array.isArray(d.ponds)) return d.ponds;
-    if (d.data && Array.isArray(d.data.ponds)) return d.data.ponds;
-    if (d.data && Array.isArray(d.data)) return d.data;
-    if (d.data && Array.isArray(d.data.results)) return d.data.results;
-    if (Array.isArray(d.results)) return d.results;
-
-    // Recursive scan: find first array of objects where elements look like ponds (have pondId/pond_id/id/farmName)
-    const looksLikePondArray = (arr) => {
-      if (!Array.isArray(arr) || arr.length === 0) return false;
-      const sample = arr[0];
-      if (typeof sample !== 'object' || sample === null) return false;
-      const keys = Object.keys(sample).map(k => k.toLowerCase());
-      return keys.includes('pondid') || keys.includes('pond_id') || keys.includes('id') || keys.includes('farmname');
-    };
-
-    const queue = [d];
-    const seen = new Set();
-    while (queue.length) {
-      const cur = queue.shift();
-      if (!cur || typeof cur !== 'object') continue;
-      if (seen.has(cur)) continue;
-      seen.add(cur);
-      for (const k of Object.keys(cur)) {
-        try {
-          const v = cur[k];
-          if (Array.isArray(v) && looksLikePondArray(v)) return v;
-          if (v && typeof v === 'object') queue.push(v);
-        } catch (e) { /* ignore */ }
-      }
-    }
-    return [];
-  },
+  normalizeList: normalizePondList,
 });
 
 // Proxy events so we emit parsed payloads (normalized shapes) to consumers

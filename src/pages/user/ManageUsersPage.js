@@ -8,8 +8,8 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import AddUserForm from '../../forms/AddUserForm';
 import userUtil from '../../utils/user';
 import Unauthorized from '../../components/error/Unauthorized';
-import { is_admin } from '../../utils/permissions';
-import { loadUserFromLocalStorage, getAccessToken } from '../../utils/storage';
+import { is_admin } from '../../utils/auth/permissions';
+import { loadUserFromLocalStorage, getAccessToken } from '../../utils/auth/storage';
 
 function ManageUsersPageContent() {
   const [open, setOpen] = useState(false);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Paper, Typography, TextField, Button, Box, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, MenuItem, Stack, Divider } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import { loadUserFromLocalStorage } from '../../../utils/storage';
+import { loadUserFromLocalStorage } from '../../../utils/auth/storage';
 import { useNavigate } from 'react-router-dom';
 import { getDummyPayslips } from '../../../utils/expenses';
 
