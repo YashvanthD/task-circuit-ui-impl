@@ -110,3 +110,47 @@ export function toISODateString(date) {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Format timestamp (seconds since epoch) to locale string.
+ * @param {number} timestamp - Unix timestamp in seconds
+ * @returns {string}
+ */
+export function formatTimestamp(timestamp) {
+  if (!timestamp) return 'N/A';
+  try {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleString();
+  } catch {
+    return 'Invalid date';
+  }
+}
+
+/**
+ * Format date for display.
+ * @param {Date|string|number} date
+ * @returns {string}
+ */
+export function formatDate(date) {
+  if (!date) return 'N/A';
+  try {
+    const d = new Date(date);
+    return d.toLocaleDateString();
+  } catch {
+    return 'Invalid date';
+  }
+}
+
+/**
+ * Format date and time for display.
+ * @param {Date|string|number} date
+ * @returns {string}
+ */
+export function formatDateTime(date) {
+  if (!date) return 'N/A';
+  try {
+    const d = new Date(date);
+    return d.toLocaleString();
+  } catch {
+    return 'Invalid date';
+  }
+}

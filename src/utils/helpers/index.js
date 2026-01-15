@@ -30,6 +30,8 @@ export {
   endOfDay,
   addDays,
   toISODateString,
+  formatTimestamp,
+  formatDateTime,
 } from './date';
 
 // Common utilities
@@ -45,3 +47,16 @@ export {
   sortTasksByPriority,
 } from './common';
 
+// Task helpers
+export {
+  resolveTaskId,
+  getNextAction,
+  getNextStatus,
+  getStatusConfig,
+  getPriorityConfig,
+  computeTaskStats,
+  countActiveTasks,
+  countCriticalTasks,
+  filterTasks,
+  getTaskAlerts,
+} from './tasks';
