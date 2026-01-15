@@ -8,6 +8,7 @@
 import { getAccessToken, handle401 } from '../auth/storage';
 import { BASE_URL } from '../../config';
 import { ApiError, NetworkError, logError } from './errors';
+import { showApiErrorAlert, showErrorAlert } from '../alertManager';
 
 /**
  * Safely parse JSON from a response.
@@ -71,6 +72,7 @@ export async function apiFetch(url, options = {}, forceLogout) {
     res = await fetch(fullUrl, opts);
   } catch (err) {
     logError('apiFetch', err, { url: fullUrl });
+    showErrorAlert('Failed to connect to server. Please check your internet connection.', 'Network Error');
     throw new NetworkError('Failed to connect to server', err);
   }
 
@@ -87,6 +89,7 @@ export async function apiFetch(url, options = {}, forceLogout) {
         console.log('[apiFetch Debug] Retried response status:', res.status);
       } catch (err) {
         logError('apiFetch retry', err, { url: fullUrl });
+        showErrorAlert('Failed to connect to server on retry.', 'Network Error');
         throw new NetworkError('Failed to connect to server on retry', err);
       }
     }
@@ -127,7 +130,15 @@ export async function apiJsonFetch(url, options = {}, forceLogout) {
   const data = await safeJsonParse(res);
 
   if (!res.ok) {
-    throw ApiError.fromResponse(res, data);
+    const error = ApiError.fromResponse(res, data);
+    // Show global alert for API errors
+    showApiErrorAlert({
+      response: {
+        status: res.status,
+        data: data || { message: error.message }
+      }
+    });
+    throw error;
   }
 
   return data;

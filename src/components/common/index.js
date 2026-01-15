@@ -112,3 +112,7 @@ export { default as PageHeader } from './PageHeader';
 export { default as FilterBar } from './FilterBar';
 export { default as StatsGrid } from './StatsGrid';
 export { default as DataGrid } from './DataGrid';
+
+// Alert Components
+export { default as AlertPopup, useAlert, getApiErrorMessage, getApiErrorTitle } from './AlertPopup';
+

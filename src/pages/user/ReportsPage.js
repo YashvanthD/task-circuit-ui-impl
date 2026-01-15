@@ -11,8 +11,6 @@ import {
   Paper,
   Box,
   Grid,
-  Snackbar,
-  Alert,
 } from '@mui/material';
 
 // Components
@@ -27,6 +25,9 @@ import {
   ReportChart,
 } from '../../components/reports';
 
+// Contexts
+import { useGlobalAlert } from '../../contexts/AlertContext';
+
 // Utils
 import { getReportPeriodLabel } from '../../utils/helpers/reports';
 
@@ -34,6 +35,9 @@ import { getReportPeriodLabel } from '../../utils/helpers/reports';
 import { REPORT_TYPES, REPORT_CATEGORIES } from '../../constants';
 
 export default function ReportsPage() {
+  // Global alert hook - can be used for manual alerts if needed
+  const { showInfo, showSuccess } = useGlobalAlert();
+
   // State - will be used when API is connected
   const [loading] = useState(false);
 
@@ -43,8 +47,6 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Snackbar
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'info' });
 
   // Mock data for demonstration
   const mockReports = useMemo(() => [
@@ -113,24 +115,20 @@ export default function ReportsPage() {
 
   // Handlers
   const handleGenerateReport = useCallback(() => {
-    setSnack({ open: true, message: 'Report generation feature coming soon!', severity: 'info' });
-  }, []);
+    showInfo('Report generation feature coming soon!');
+  }, [showInfo]);
 
   const handleExport = useCallback(() => {
-    setSnack({ open: true, message: 'Export feature coming soon!', severity: 'info' });
-  }, []);
+    showInfo('Export feature coming soon!');
+  }, [showInfo]);
 
   const handleViewReport = useCallback((report) => {
-    setSnack({ open: true, message: `Viewing: ${report.title}`, severity: 'info' });
-  }, []);
+    showInfo(`Viewing: ${report.title}`);
+  }, [showInfo]);
 
   const handleDownloadReport = useCallback((report) => {
-    setSnack({ open: true, message: `Downloading: ${report.title}`, severity: 'info' });
-  }, []);
-
-  const handleSnackClose = useCallback(() => {
-    setSnack((s) => ({ ...s, open: false }));
-  }, []);
+    showSuccess(`Downloading: ${report.title}`);
+  }, [showSuccess]);
 
   return (
     <Paper sx={{ p: 4, maxWidth: 1200, margin: '24px auto' }}>
@@ -195,13 +193,6 @@ export default function ReportsPage() {
         onView={handleViewReport}
         onDownload={handleDownloadReport}
       />
-
-      {/* Snackbar */}
-      <Snackbar open={snack.open} autoHideDuration={4000} onClose={handleSnackClose}>
-        <Alert onClose={handleSnackClose} severity={snack.severity} sx={{ width: '100%' }}>
-          {snack.message}
-        </Alert>
-      </Snackbar>
     </Paper>
   );
 }

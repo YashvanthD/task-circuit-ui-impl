@@ -11,7 +11,8 @@ import {
   clearTasksFromLocalStorage
 } from '../utils/auth/storage';
 import BaseLayout from './BaseLayout';
-import {BASE_APP_PATH_LOGIN} from "../config";
+import { BASE_APP_PATH_LOGIN } from "../config";
+import { AlertProvider } from '../contexts/AlertContext';
 
 export const ApiErrorContext = createContext({ handleApiError: async () => {} });
 
@@ -65,12 +66,14 @@ export default function UserLayout() {
     return <Navigate to={BASE_APP_PATH_LOGIN} state={{ from: location }} replace />;
   }
 
-  // Wrap all user pages with BaseLayout and enable sidebar
+  // Wrap all user pages with BaseLayout, AlertProvider, and enable sidebar
   return (
-    <ApiErrorContext.Provider value={{ handleApiError }}>
-      <BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={true}>
-        <Outlet context={{ user }} />
-      </BaseLayout>
-    </ApiErrorContext.Provider>
+    <AlertProvider>
+      <ApiErrorContext.Provider value={{ handleApiError }}>
+        <BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={true}>
+          <Outlet context={{ user }} />
+        </BaseLayout>
+      </ApiErrorContext.Provider>
+    </AlertProvider>
   );
 }
