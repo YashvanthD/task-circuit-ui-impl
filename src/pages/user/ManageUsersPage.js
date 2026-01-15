@@ -10,8 +10,6 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Paper,
   Typography,
-  Snackbar,
-  Alert,
   CircularProgress,
   Box,
 } from '@mui/material';
@@ -26,6 +24,7 @@ import userUtil from '../../utils/user';
 import { filterUsers, resolveUserId } from '../../utils/helpers/users';
 import { is_admin } from '../../utils/auth/permissions';
 import { loadUserFromLocalStorage, getAccessToken } from '../../utils/auth/storage';
+import { showSuccessAlert, showErrorAlert } from '../../utils/alertManager';
 
 // Constants
 import { INITIAL_USER_FORM } from '../../constants';
@@ -55,9 +54,6 @@ function ManageUsersPageContent() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Snackbar
-  const [snack, setSnack] = useState({ open: false, message: '', severity: 'info' });
-
   // Load users
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -68,7 +64,6 @@ function ManageUsersPageContent() {
     } catch (e) {
       console.error('Failed to load users', e);
       setError('Failed to load users');
-      setSnack({ open: true, message: 'Failed to load users', severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -131,17 +126,17 @@ function ManageUsersPageContent() {
       if (isEdit) {
         const id = form.user_id || form.user_key;
         await userUtil.updateUser(id, form);
-        setSnack({ open: true, message: 'User updated successfully', severity: 'success' });
+        showSuccessAlert('User updated successfully');
       } else {
         await userUtil.addUser(form);
-        setSnack({ open: true, message: 'User created successfully', severity: 'success' });
+        showSuccessAlert('User created successfully');
       }
 
       handleDialogClose();
       await loadUsers();
     } catch (e) {
       console.error('Failed to save user', e);
-      setSnack({ open: true, message: 'Failed to save user: ' + (e.message || e), severity: 'error' });
+      showErrorAlert('Failed to save user: ' + (e.message || e));
     }
   }, [form, handleDialogClose, loadUsers]);
 
@@ -156,10 +151,10 @@ function ManageUsersPageContent() {
     const id = resolveUserId(userToDelete);
     try {
       await userUtil.deleteUser(id);
-      setSnack({ open: true, message: 'User deleted successfully', severity: 'success' });
+      showSuccessAlert('User deleted successfully');
       await loadUsers();
     } catch (e) {
-      setSnack({ open: true, message: 'Failed to delete user: ' + (e.message || e), severity: 'error' });
+      showErrorAlert('Failed to delete user: ' + (e.message || e));
     } finally {
       setDeleteDialogOpen(false);
       setUserToDelete(null);
@@ -171,10 +166,6 @@ function ManageUsersPageContent() {
     setUserToDelete(null);
   }, []);
 
-  const handleSnackClose = useCallback((event, reason) => {
-    if (reason === 'clickaway') return;
-    setSnack((s) => ({ ...s, open: false }));
-  }, []);
 
   return (
     <Paper sx={{ p: 4, maxWidth: 1200, margin: '24px auto' }}>
@@ -239,13 +230,6 @@ function ManageUsersPageContent() {
         confirmText="Delete"
         confirmColor="error"
       />
-
-      {/* Snackbar */}
-      <Snackbar open={snack.open} autoHideDuration={6000} onClose={handleSnackClose}>
-        <Alert onClose={handleSnackClose} severity={snack.severity} sx={{ width: '100%' }}>
-          {snack.message}
-        </Alert>
-      </Snackbar>
     </Paper>
   );
 }

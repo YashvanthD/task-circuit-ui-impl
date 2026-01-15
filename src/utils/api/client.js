@@ -8,7 +8,7 @@
 import { getAccessToken, handle401 } from '../auth/storage';
 import { BASE_URL } from '../../config';
 import { ApiError, NetworkError, logError } from './errors';
-import { showApiErrorAlert, showErrorAlert } from '../alertManager';
+import { showApiErrorAlert, showErrorAlert, showSuccessAlert } from '../alertManager';
 
 /**
  * Safely parse JSON from a response.
@@ -139,6 +139,26 @@ export async function apiJsonFetch(url, options = {}, forceLogout) {
       }
     });
     throw error;
+  }
+
+  return data;
+}
+
+/**
+ * API fetch with automatic success/error alerts.
+ * Shows success message on successful completion, error on failure.
+ * @param {string} url - endpoint URL
+ * @param {object} options - fetch options
+ * @param {string} successMessage - Message to show on success (optional)
+ * @param {function} forceLogout - callback to force logout (optional)
+ * @returns {Promise<object>} Parsed JSON response
+ */
+export async function apiJsonFetchWithAlert(url, options = {}, successMessage = '', forceLogout) {
+  const data = await apiJsonFetch(url, options, forceLogout);
+
+  // Show success alert if message provided
+  if (successMessage) {
+    showSuccessAlert(successMessage, 'Success');
   }
 
   return data;

@@ -16,6 +16,7 @@
 export {
   apiFetch,
   apiJsonFetch,
+  apiJsonFetchWithAlert,
   safeJsonParse,
   buildApiUrl,
   extractResponseData,

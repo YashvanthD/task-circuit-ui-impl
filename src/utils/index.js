@@ -22,6 +22,7 @@
 export {
   apiFetch,
   apiJsonFetch,
+  apiJsonFetchWithAlert,
   safeJsonParse,
   buildApiUrl,
   extractResponseData,
@@ -119,4 +120,17 @@ export {
 // Resource Utilities
 // ============================================================================
 export { createResourceUtil } from './resources';
+
+// ============================================================================
+// Alert Manager - Global alerts from anywhere
+// ============================================================================
+export {
+  showGlobalAlert,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+  showInfoAlert,
+  showApiErrorAlert,
+  AlertType,
+} from './alertManager';
 
