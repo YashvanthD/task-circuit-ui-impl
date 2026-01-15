@@ -60,3 +60,71 @@ export {
   filterTasks,
   getTaskAlerts,
 } from './tasks';
+
+// Pond helpers
+export {
+  resolvePondId,
+  getPondStatusConfig,
+  getPondStatusStyle,
+  isPondActive,
+  pondNeedsAttention,
+  computePondStats,
+  countActivePonds,
+  countPondsNeedingAttention,
+  calculateTotalFish,
+  filterPonds,
+  sortPonds,
+  validatePondForm,
+  formatPondSize,
+  formatFishCount,
+} from './pond';
+
+// User helpers
+export {
+  resolveUserId,
+  getUserRoleConfig,
+  getUserRoleStyle,
+  isUserAdmin,
+  isUserManagerOrAbove,
+  canEditUser,
+  computeUserStats,
+  countActiveUsers,
+  countUsersByRole,
+  filterUsers,
+  sortUsers,
+  validateUserForm,
+  getUserDisplayName,
+  getUserInitials,
+  formatUserRole,
+} from './users';
+
+// Sampling helpers
+export {
+  resolveSamplingId,
+  getSamplingStatusConfig,
+  getSamplingStatusStyle,
+  isSamplingUpcoming,
+  isSamplingOverdue,
+  computeSamplingStats,
+  countUpcomingSamplings,
+  filterSamplings,
+  sortSamplingsByDate,
+  validateSamplingForm,
+  getSamplingSummary,
+  getTimeUntilSampling,
+} from './sampling';
+
+// Report helpers
+export {
+  getReportDateRange,
+  formatDateRange,
+  aggregateByDate,
+  calculateTotal,
+  calculateAverage,
+  generateReportSummary,
+  calculateGrowth,
+  filterReportData,
+  formatReportType,
+  formatReportCategory,
+  getReportPeriodLabel,
+} from './reports';
