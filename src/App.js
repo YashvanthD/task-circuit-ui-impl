@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, matchPath, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, matchPath } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -31,11 +31,11 @@ import UserPaySlips from './pages/user/expenses/UserPaySlips';
 import TreeUserView from './pages/user/TreeUserView';
 import AiPage from './pages/user/AiPage';
 import {
-    BASE_APP_PATH,
     BASE_APP_PATH_HOME,
     BASE_APP_PATH_LOGIN,
     BASE_APP_PATH_REGISTER_COMPANY,
-    BASE_APP_PATH_SIGNUP, BASE_APP_PATH_USER
+    BASE_APP_PATH_SIGNUP,
+    BASE_APP_PATH_USER
 } from "./config";
 
 function AppRoutes() {
@@ -92,15 +92,13 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Make `/` render the LandingPage (same as `/basepath/`) */}
+      {/* Make `/` render the LandingPage */}
       <Route path="/" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
-      <Route path="/home" element={<Navigate to={BASE_APP_PATH} replace />} />
-      <Route path={BASE_APP_PATH} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
       <Route path={BASE_APP_PATH_HOME} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><HomePage /></BaseLayout>} />
       <Route path={BASE_APP_PATH_LOGIN} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LoginPage /></BaseLayout>} />
       <Route path={BASE_APP_PATH_SIGNUP} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><SignupForm /></BaseLayout>} />
       <Route path={BASE_APP_PATH_REGISTER_COMPANY} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><RegisterCompanyForm /></BaseLayout>} />
-        <Route path={`${BASE_APP_PATH_USER}/*`} element={<UserLayout />} >
+      <Route path={`${BASE_APP_PATH_USER}/*`} element={<UserLayout />} >
         <Route index element={<DashboardPage />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="tasks" element={<TasksPage />} />

@@ -1,18 +1,17 @@
 // App configuration for Task Circuit
 export const BASE_URL = 'http://localhost:5000';
 
+// Base path for the application - use empty string since router handles basename
+export const BASE_APP_PATH = '';
 
-
-export const BASE_APP_PATH = '/taskcircuit';
-
-export const BASE_APP_PATH_USER = BASE_APP_PATH +  '/user';
-export const BASE_APP_PATH_HOME = BASE_APP_PATH +  '/home';
-export const BASE_APP_PATH_LOGIN = BASE_APP_PATH + '/login';
-export const BASE_APP_PATH_SIGNUP = BASE_APP_PATH + '/signup';
-export const BASE_APP_PATH_REGISTER_COMPANY = BASE_APP_PATH + '/register-company';
+export const BASE_APP_PATH_USER = '/user';
+export const BASE_APP_PATH_HOME = '/home';
+export const BASE_APP_PATH_LOGIN = '/login';
+export const BASE_APP_PATH_SIGNUP = '/signup';
+export const BASE_APP_PATH_REGISTER_COMPANY = '/register-company';
 
 // USER Endpoints
-export const BASE_APP_PATH_USER_WATER_TEST = BASE_APP_PATH_USER + '/register-company';
+export const BASE_APP_PATH_USER_WATER_TEST = BASE_APP_PATH_USER + '/water-test';
 export const BASE_APP_PATH_USER_SAMPLING = BASE_APP_PATH_USER + '/sampling';
 export const BASE_APP_PATH_USER_FISH = BASE_APP_PATH_USER + '/fish';
 export const BASE_APP_PATH_USER_TRANSFORM = BASE_APP_PATH_USER + '/transform';

@@ -1,6 +1,15 @@
 import React, { createContext, useCallback } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { getAccessToken, getRefreshToken, handle401, loadUserFromLocalStorage } from '../utils/auth/storage';
+import {
+  getAccessToken,
+  getRefreshToken,
+  handle401,
+  loadUserFromLocalStorage,
+  removeFromLocalStorage,
+  removeUserFromLocalStorage,
+  clearAccessTokenManagement,
+  clearTasksFromLocalStorage
+} from '../utils/auth/storage';
 import BaseLayout from './BaseLayout';
 import {BASE_APP_PATH_LOGIN} from "../config";
 
@@ -30,6 +39,28 @@ export default function UserLayout() {
     return false;
   }, [navigate]);
 
+  // Handle logout: clear all tokens, user data, and navigate to login
+  const handleLogout = useCallback(() => {
+    try {
+      clearAccessTokenManagement();
+    } catch (e) {
+      console.warn('clearAccessTokenManagement failed', e);
+    }
+    try {
+      removeFromLocalStorage('refresh_token');
+      removeFromLocalStorage('access_token');
+      removeFromLocalStorage('access_token_expiry');
+      removeUserFromLocalStorage();
+      clearTasksFromLocalStorage();
+    } catch (e) {
+      console.warn('Clearing local storage failed', e);
+    }
+    // Navigate to login
+    navigate(BASE_APP_PATH_LOGIN, { replace: true });
+    // Dispatch authChanged so App.js and other listeners update
+    try { window.dispatchEvent(new Event('authChanged')); } catch (e) {}
+  }, [navigate]);
+
   if (!loggedIn) {
     return <Navigate to={BASE_APP_PATH_LOGIN} state={{ from: location }} replace />;
   }
@@ -37,7 +68,7 @@ export default function UserLayout() {
   // Wrap all user pages with BaseLayout and enable sidebar
   return (
     <ApiErrorContext.Provider value={{ handleApiError }}>
-      <BaseLayout loggedIn={loggedIn} user={user} showSidebar={true}>
+      <BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={true}>
         <Outlet context={{ user }} />
       </BaseLayout>
     </ApiErrorContext.Provider>

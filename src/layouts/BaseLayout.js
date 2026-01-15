@@ -138,8 +138,8 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
         console.warn('onLogout callback threw', e);
       }
     } else {
-      // otherwise redirect to login
-      window.location.href = BASE_APP_PATH_LOGIN;
+      // otherwise redirect to login using navigate (respects router basename)
+      navigate(BASE_APP_PATH_LOGIN);
     }
   };
 
