@@ -3,6 +3,7 @@ import { Paper, Typography, Grid, Card, CardActionArea, CardContent, Stack } fro
 import { useNavigate } from 'react-router-dom';
 import ReceiptIcon from '@mui/icons-material/ReceiptLong';
 import data from '../../../data/expenses.json';
+import { BASE_APP_PATH_USER_EXPENSES } from '../../../config';
 
 export default function ExpensesIndex() {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function ExpensesIndex() {
         {categories.map(cat => (
           <Grid key={cat} item xs={12} sm={6} md={4} lg={3}>
             <Card variant="outlined">
-              <CardActionArea onClick={() => navigate(`/taskcircuit/user/expenses/${encodeURIComponent(cat)}`)}>
+              <CardActionArea onClick={() => navigate(`${BASE_APP_PATH_USER_EXPENSES}/${encodeURIComponent(cat)}`)}>
                 <CardContent sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                   <Stack sx={{ width: 64 }} alignItems="center" justifyContent="center">
                     <ReceiptIcon sx={{ fontSize: 40, color: 'primary.main' }} />
@@ -35,4 +36,3 @@ export default function ExpensesIndex() {
     </Paper>
   );
 }
-

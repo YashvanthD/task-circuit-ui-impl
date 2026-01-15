@@ -28,10 +28,32 @@ import ScienceIcon from '@mui/icons-material/Science';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import RoamingAssistant from '../components/RoamingAssistant';
 
-// Import storage utilities to clear tokens/user data on logout
-import { clearAccessTokenManagement, removeUserFromLocalStorage, removeFromLocalStorage, clearTasksFromLocalStorage } from '../utils/auth/storage';
-// use centralized permissions helper
-import { is_admin } from '../utils/auth/permissions';
+// Shortened imports for better readability
+import {
+  clearAccessTokenManagement,
+  removeUserFromLocalStorage,
+  removeFromLocalStorage,
+  clearTasksFromLocalStorage,
+  is_admin
+} from '../utils/auth';
+
+// Import centralized paths from config.js
+import {
+    BASE_APP_PATH_USER_DASHBOARD,
+    BASE_APP_PATH_USER_TASKS,
+    BASE_APP_PATH_USER_POND,
+    BASE_APP_PATH_USER_SAMPLING,
+    BASE_APP_PATH_USER_REPORTS,
+    BASE_APP_PATH_USER_AI,
+    BASE_APP_PATH_USER_INVOICE,
+    BASE_APP_PATH_USER_EXPENSES,
+    BASE_APP_PATH_USER_CHAT,
+    BASE_APP_PATH_USER_DATASET,
+    BASE_APP_PATH_USER_MANAGE_USERS,
+    BASE_APP_PATH_LOGIN,
+    BASE_APP_PATH_REGISTER_COMPANY,
+    BASE_APP_PATH_USER_SETTINGS, BASE_APP_PATH_SIGNUP
+} from '../config';
 
 /**
  * BaseLayout is the base model for all pages in the Task Circuit project.
@@ -57,19 +79,19 @@ import { is_admin } from '../utils/auth/permissions';
 export default function BaseLayout({ children, loggedIn, user, onLogout, showSidebar = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
+  // Updated navItems to use centralized paths from config.js
   const navItems = [
-    { label: 'Dashboard', to: '/taskcircuit/user/dashboard', icon: <DashboardIcon /> },
-    { label: 'Tasks', to: '/taskcircuit/user/tasks', icon: <AssignmentIcon /> },
-    { label: 'Pond', to: '/taskcircuit/user/pond', icon: <PoolIcon /> }, // Fish icon (PoolIcon as substitute)
-    { label: 'Sampling', to: '/taskcircuit/user/sampling', icon: <ScienceIcon /> },
-    { label: 'Reports', to: '/taskcircuit/user/reports', icon: <AnalyticsIcon /> }, // Analytics icon
-    { label: 'Ask AI', to: '/taskcircuit/user/ai', icon: <SmartToyIcon /> },
-    { label: 'Invoice', to: '/taskcircuit/user/invoice', icon: <ReceiptIcon /> },
-    { label: 'Expenses', to: '/taskcircuit/user/expenses', icon: <LocalAtmIcon /> },
-    { label: 'Chat', to: '/taskcircuit/user/chat', icon: <ChatIcon /> },
-    { label: 'Dataset', to: '/taskcircuit/user/dataset', icon: <StorageIcon /> }, // Database icon
-    { label: 'Manage Users', to: '/taskcircuit/user/manage-users', icon: <AccountCircleIcon /> },
-    // Removed Settings from sidebar
+    { label: 'Dashboard', to: BASE_APP_PATH_USER_DASHBOARD, icon: <DashboardIcon /> },
+    { label: 'Tasks', to: BASE_APP_PATH_USER_TASKS, icon: <AssignmentIcon /> },
+    { label: 'Pond', to: BASE_APP_PATH_USER_POND, icon: <PoolIcon /> },
+    { label: 'Sampling', to: BASE_APP_PATH_USER_SAMPLING, icon: <ScienceIcon /> },
+    { label: 'Reports', to: BASE_APP_PATH_USER_REPORTS, icon: <AnalyticsIcon /> },
+    { label: 'Ask AI', to: BASE_APP_PATH_USER_AI, icon: <SmartToyIcon /> },
+    { label: 'Invoice', to: BASE_APP_PATH_USER_INVOICE, icon: <ReceiptIcon /> },
+    { label: 'Expenses', to: BASE_APP_PATH_USER_EXPENSES, icon: <LocalAtmIcon /> },
+    { label: 'Chat', to: BASE_APP_PATH_USER_CHAT, icon: <ChatIcon /> },
+    { label: 'Dataset', to: BASE_APP_PATH_USER_DATASET, icon: <StorageIcon /> },
+    { label: 'Manage Users', to: BASE_APP_PATH_USER_MANAGE_USERS, icon: <AccountCircleIcon /> },
   ];
 
   const APPBAR_HEIGHT = 56;
@@ -117,7 +139,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
       }
     } else {
       // otherwise redirect to login
-      window.location.href = '/taskcircuit/login';
+      window.location.href = {BASE_APP_PATH_LOGIN};
     }
   };
 
@@ -137,7 +159,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
               <>
                 <Button
                   component={Link}
-                  to="/taskcircuit/login"
+                  to={BASE_APP_PATH_LOGIN}
                   variant="contained"
                   color="info"
                   sx={{ color: 'common.white', bgcolor: 'info.main', boxShadow: 2, '&:hover': { bgcolor: 'info.dark' } }}
@@ -148,14 +170,14 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                   color="primary"
                   variant="contained"
                   sx={{ ml: 2, boxShadow: 2, textTransform: 'none', fontWeight: 500, minWidth: 120 }}
-                  to="/taskcircuit/register-company"
+                  to={BASE_APP_PATH_REGISTER_COMPANY}
                   component={Link}
                 >
                   Register Company
                 </Button>
                 <Button
                   component={Link}
-                  to="/taskcircuit/signup"
+                  to={BASE_APP_PATH_SIGNUP}
                   variant="contained"
                   color="warning"
                   sx={{ color: 'common.black', bgcolor: 'warning.main', boxShadow: 2, '&:hover': { bgcolor: 'warning.dark', color: 'common.white' } }}
@@ -181,12 +203,10 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                   onClose={handleProfileMenuClose}
                   anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                   transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                  PaperProps={{
-                    sx: {
-                      minWidth: 220,
-                      p: 1.5,
-                      boxShadow: 4,
-                    }
+                  sx={{
+                    minWidth: 220,
+                    p: 1.5,
+                    boxShadow: 4,
                   }}
                 >
                   <MenuItem disabled sx={{ minHeight: 48, fontSize: 16, py: 2 }}>
@@ -196,7 +216,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                     sx={{ minHeight: 48, fontSize: 16, py: 2, display: 'flex', alignItems: 'center', gap: 1 }}
                     onClick={() => {
                       handleProfileMenuClose();
-                      navigate('/taskcircuit/user/dashboard');
+                      navigate({BASE_APP_PATH_USER_DASHBOARD});
                     }}
                   >
                     <DashboardIcon fontSize="small" />
@@ -206,7 +226,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                     sx={{ minHeight: 48, fontSize: 16, py: 2, display: 'flex', alignItems: 'center', gap: 1 }}
                     onClick={() => {
                       handleProfileMenuClose();
-                      navigate('/taskcircuit/user/settings');
+                      navigate(BASE_APP_PATH_USER_SETTINGS);
                     }}
                   >
                     <SettingsIcon fontSize="small" />
@@ -246,7 +266,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
         >
           <List sx={{ p: 0, m: 0 }}>
             {navItems
-              .filter(i => !(i.to === '/taskcircuit/user/manage-users' && !APP_USER_IS_ADMIN))
+              .filter(i => !(i.to === BASE_APP_PATH_USER_MANAGE_USERS && !APP_USER_IS_ADMIN))
               .map(item => (
               <ListItemButton
                 key={item.to}

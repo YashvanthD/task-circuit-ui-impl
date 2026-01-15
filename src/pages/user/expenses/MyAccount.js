@@ -4,6 +4,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import { loadUserFromLocalStorage } from '../../../utils/auth/storage';
 import { useNavigate } from 'react-router-dom';
 import { getDummyPayslips } from '../../../utils/expenses';
+import { BASE_APP_PATH_USER_EXPENSES_PAYSLIPS } from '../../../config';
 
 const STORAGE_KEY = 'user_account_details';
 function loadUserAccount() {
@@ -58,7 +59,7 @@ export default function MyAccount() {
     if (!selectedMonthYear) return;
     const [m, y] = selectedMonthYear.split('-').map(Number);
     // note: options stored as month-year; navigate with month & year
-    navigate(`/taskcircuit/user/expenses/payslips?month=${m}&year=${y}`);
+    navigate(`${BASE_APP_PATH_USER_EXPENSES_PAYSLIPS}?month=${m}&year=${y}`);
   };
 
   return (

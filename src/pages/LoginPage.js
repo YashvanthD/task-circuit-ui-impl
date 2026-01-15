@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Paper } from '@mui/material';
 import { processLoginResponse } from '../utils/auth/storage';
 import { login } from '../utils/api/client';
+import {BASE_APP_PATH_USER_DASHBOARD} from "../config";
 
 /**
  * Login page component for Task Circuit.
@@ -34,7 +35,7 @@ export default function LoginPage() {
       const data = await response.json();
       if (data.data && data.data.refreshToken && data.data.accessToken) {
         processLoginResponse(data);
-        navigate('/taskcircuit/user/dashboard', { replace: true });
+        navigate({BASE_APP_PATH_USER_DASHBOARD}, { replace: true });
       } else {
         setError('Login failed: No access or refresh token received.');
       }

@@ -220,7 +220,7 @@ export async function listAccountUsers(accountKey, params = {}) {
  */
 export async function addUser(payload) {
   try {
-    const res = await apiFetch('/auth/account/users', {
+    const res = await apiFetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

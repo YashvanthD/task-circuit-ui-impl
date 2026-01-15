@@ -5,9 +5,14 @@ import ReceiptIcon from '@mui/icons-material/ReceiptLong';
 import { useNavigate } from 'react-router-dom';
 import data from '../../data/expenses.json';
 import { loadVisibleCategories, renderHighlighted as highlightParts, formatCurrency, getDummyPayslips } from '../../utils/expenses';
-import { loadUserFromLocalStorage } from '../../utils/auth/storage';
-import { is_admin } from '../../utils/auth/permissions';
+import { loadUserFromLocalStorage } from '../../utils';
+import { is_admin } from '../../utils';
 import Button from '@mui/material/Button';
+import {
+    BASE_APP_PATH_USER_EXPENSES,
+    BASE_APP_PATH_USER_EXPENSES_COMPANY_ACCOUNT,
+    BASE_APP_PATH_USER_EXPENSES_MY_ACCOUNT, BASE_APP_PATH_USER_EXPENSES_PASSBOOK
+} from "../../config";
 
 export default function ExpensesPage() {
   const navigate = useNavigate();
@@ -60,7 +65,7 @@ export default function ExpensesPage() {
               <Typography variant="body2" color="text.secondary">View your personal account details and payslips.</Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Button variant="contained" onClick={() => navigate('/taskcircuit/user/expenses/my-account')}>Open My Account</Button>
+              <Button variant="contained" onClick={() => navigate(BASE_APP_PATH_USER_EXPENSES_MY_ACCOUNT)}>Open My Account</Button>
               <Chip label={`${payslipCount} payslips`} size="small" color={payslipCount>0? 'primary' : 'default'} />
             </Box>
           </CardContent>
@@ -87,8 +92,8 @@ export default function ExpensesPage() {
                 </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Button variant="contained" onClick={() => navigate('/taskcircuit/user/expenses/company-account')}>{(loadUserFromLocalStorage() || {}).companyName || 'Company'} Account</Button>
-                <Button variant="outlined" onClick={() => navigate('/taskcircuit/user/expenses/passbook')}>Passbook</Button>
+                <Button variant="contained" onClick={() => navigate(BASE_APP_PATH_USER_EXPENSES_COMPANY_ACCOUNT)}>{(loadUserFromLocalStorage() || {}).companyName || 'Company'} Account</Button>
+                <Button variant="outlined" onClick={() => navigate(BASE_APP_PATH_USER_EXPENSES_PASSBOOK)}>Passbook</Button>
               </Box>
             </CardContent>
           </Card>
@@ -119,7 +124,7 @@ export default function ExpensesPage() {
           return (
             <Grid key={cat} item xs={12} sm={6} md={4} lg={3}>
               <Card variant="outlined" sx={{ height: '100%' }}>
-                <CardActionArea onClick={() => navigate(`/taskcircuit/user/expenses/${encodeURIComponent(cat)}`)} sx={{ height: '100%', display: 'flex', alignItems: 'stretch' }}>
+                <CardActionArea onClick={() => navigate(`${BASE_APP_PATH_USER_EXPENSES}/${encodeURIComponent(cat)}`)} sx={{ height: '100%', display: 'flex', alignItems: 'stretch' }}>
                   <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Stack alignItems="center" justifyContent="center" sx={{ width: 72 }}>
                       <ReceiptIcon sx={{ fontSize: 40, color: 'primary.main' }} />

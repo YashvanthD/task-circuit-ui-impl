@@ -30,6 +30,13 @@ import MyAccount from './pages/user/expenses/MyAccount';
 import UserPaySlips from './pages/user/expenses/UserPaySlips';
 import TreeUserView from './pages/user/TreeUserView';
 import AiPage from './pages/user/AiPage';
+import {
+    BASE_APP_PATH,
+    BASE_APP_PATH_HOME,
+    BASE_APP_PATH_LOGIN,
+    BASE_APP_PATH_REGISTER_COMPANY,
+    BASE_APP_PATH_SIGNUP, BASE_APP_PATH_USER
+} from "./config";
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -62,9 +69,9 @@ function AppRoutes() {
   }, []);
 
   useEffect(() => {
-    const isUserRoute = matchPath('/taskcircuit/user/*', location.pathname);
-    if (!getRefreshToken() && isUserRoute && location.pathname !== '/taskcircuit/login') {
-      navigate('/taskcircuit/login', { replace: true });
+    const isUserRoute = matchPath(`${BASE_APP_PATH_USER}/*`, location.pathname);
+    if (!getRefreshToken() && isUserRoute && location.pathname !== BASE_APP_PATH_LOGIN) {
+      navigate(BASE_APP_PATH_LOGIN, { replace: true });
     }
   }, [location, navigate]);
 
@@ -78,22 +85,22 @@ function AppRoutes() {
     setUser(null);
     setLoggedIn(false);
     // Navigate to login
-    navigate('/taskcircuit/login');
+    navigate(BASE_APP_PATH_LOGIN);
     // Dispatch authChanged so any other listeners update
     try { window.dispatchEvent(new Event('authChanged')); } catch (e) {}
   };
 
   return (
     <Routes>
-      {/* Make `/` render the LandingPage (same as `/taskcircuit/`) */}
+      {/* Make `/` render the LandingPage (same as `/basepath/`) */}
       <Route path="/" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
-      <Route path="/home" element={<Navigate to="/taskcircuit/" replace />} />
-      <Route path="/taskcircuit/" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
-      <Route path="/taskcircuit/home" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><HomePage /></BaseLayout>} />
-      <Route path="/taskcircuit/login" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LoginPage /></BaseLayout>} />
-      <Route path="/taskcircuit/signup" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><SignupForm /></BaseLayout>} />
-      <Route path="/taskcircuit/register-company" element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><RegisterCompanyForm /></BaseLayout>} />
-      <Route path="/taskcircuit/user/*" element={<UserLayout />}>
+      <Route path="/home" element={<Navigate to={BASE_APP_PATH} replace />} />
+      <Route path={BASE_APP_PATH} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LandingPage /></BaseLayout>} />
+      <Route path={BASE_APP_PATH_HOME} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><HomePage /></BaseLayout>} />
+      <Route path={BASE_APP_PATH_LOGIN} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><LoginPage /></BaseLayout>} />
+      <Route path={BASE_APP_PATH_SIGNUP} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><SignupForm /></BaseLayout>} />
+      <Route path={BASE_APP_PATH_REGISTER_COMPANY} element={<BaseLayout loggedIn={loggedIn} user={user} onLogout={handleLogout} showSidebar={false}><RegisterCompanyForm /></BaseLayout>} />
+        <Route path={`${BASE_APP_PATH_USER}/*`} element={<UserLayout />} >
         <Route index element={<DashboardPage />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="tasks" element={<TasksPage />} />

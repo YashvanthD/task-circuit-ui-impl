@@ -1,18 +1,25 @@
 import React from 'react';
-import { Paper, Typography, Button, Stack, Card, CardContent, CardActionArea, Grid } from '@mui/material';
+import { Paper, Typography, Stack, Card, CardContent, CardActionArea, Grid } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import PoolIcon from '@mui/icons-material/Pool';
 import FishIcon from '@mui/icons-material/EmojiNature';
 import PersonIcon from '@mui/icons-material/Person';
 import ReceiptIcon from '@mui/icons-material/ReceiptLong';
 import TaskIcon from '@mui/icons-material/ListAlt';
+import {
+  BASE_APP_PATH_USER_FISH,
+  BASE_APP_PATH_USER_POND,
+  BASE_APP_PATH_USER_MANAGE_USERS,
+  BASE_APP_PATH_USER_EXPENSES,
+  BASE_APP_PATH_USER_TASKS
+} from '../../config';
 
 const datasets = [
-  { key: 'fish', title: 'Fish', desc: 'View, edit and add fish records', to: '/taskcircuit/user/fish', icon: <FishIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
-  { key: 'ponds', title: 'Ponds', desc: 'View, edit and add pond records', to: '/taskcircuit/user/pond', icon: <PoolIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
-  { key: 'users', title: 'Users', desc: 'Manage application users and roles', to: '/taskcircuit/user/manage-users', icon: <PersonIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
-  { key: 'expenses', title: 'Expenses', desc: 'Manage expenses and cost items', to: '/taskcircuit/user/expenses', icon: <ReceiptIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
-  { key: 'tasks', title: 'Tasks', desc: 'Manage tasks and schedules', to: '/taskcircuit/user/tasks', icon: <TaskIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
+  { key: 'fish', title: 'Fish', desc: 'View, edit and add fish records', to: BASE_APP_PATH_USER_FISH, icon: <FishIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
+  { key: 'ponds', title: 'Ponds', desc: 'View, edit and add pond records', to: BASE_APP_PATH_USER_POND, icon: <PoolIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
+  { key: 'users', title: 'Users', desc: 'Manage application users and roles', to: BASE_APP_PATH_USER_MANAGE_USERS, icon: <PersonIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
+  { key: 'expenses', title: 'Expenses', desc: 'Manage expenses and cost items', to: BASE_APP_PATH_USER_EXPENSES, icon: <ReceiptIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
+  { key: 'tasks', title: 'Tasks', desc: 'Manage tasks and schedules', to: BASE_APP_PATH_USER_TASKS, icon: <TaskIcon sx={{ fontSize: 40, color: 'primary.main' }} /> },
 ];
 
 export default function DatasetPage() {

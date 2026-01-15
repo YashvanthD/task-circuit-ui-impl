@@ -3,29 +3,36 @@
 // annotate existing DOM elements with data-next-action / data-critical
 // attributes so the roaming assistant can discover them during scans.
 
+import {
+  BASE_APP_PATH_USER_REPORTS,
+  BASE_APP_PATH_USER_EXPENSES,
+  BASE_APP_PATH_USER_AI,
+  BASE_APP_PATH_USER_CHAT
+} from '../../config';
+
 export const dummyItems = [
   {
     key: 'reports-link',
-    selector: 'a[href="/taskcircuit/user/reports"]',
+    selector: `a[href="${BASE_APP_PATH_USER_REPORTS}"]`,
     text: 'New financial reports are available — review now.',
     type: 'next-action',
-    link: '/taskcircuit/user/reports',
+    link: BASE_APP_PATH_USER_REPORTS,
     severity: 'medium',
   },
   {
     key: 'expenses-link',
-    selector: 'a[href="/taskcircuit/user/expenses"]',
+    selector: `a[href="${BASE_APP_PATH_USER_EXPENSES}"]`,
     text: 'Expense reports overdue — investigate immediately.',
     type: 'critical',
-    link: '/taskcircuit/user/expenses',
+    link: BASE_APP_PATH_USER_EXPENSES,
     severity: 'high',
   },
   {
     key: 'ai-link',
-    selector: 'a[href="/taskcircuit/user/ai"]',
+    selector: `a[href="${BASE_APP_PATH_USER_AI}"]`,
     text: 'Open the AI chat assistant to ask for help.',
     type: 'next-action',
-    link: '/taskcircuit/user/ai',
+    link: BASE_APP_PATH_USER_AI,
     severity: 'low',
   },
   {
@@ -34,7 +41,7 @@ export const dummyItems = [
     selector: 'h3',
     text: 'You have 3 unread messages. Open the chat to respond.',
     type: 'next-action',
-    link: '/taskcircuit/user/chat',
+    link: BASE_APP_PATH_USER_CHAT,
     severity: 'low',
   }
 ];
@@ -72,4 +79,3 @@ export function annotateImportantItems() {
   }
   return count;
 }
-
