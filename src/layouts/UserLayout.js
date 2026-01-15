@@ -24,7 +24,7 @@ export default function UserLayout() {
   // Wrapper to handle 401 errors from API calls
   const handleApiError = useCallback(async (error) => {
     if (error?.status === 401) {
-      await handle401(() => navigate({BASE_APP_PATH_LOGIN}, { replace: true }));
+      await handle401(() => navigate(BASE_APP_PATH_LOGIN, { replace: true }));
       return true;
     }
     return false;

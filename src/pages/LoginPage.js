@@ -35,7 +35,7 @@ export default function LoginPage() {
       const data = await response.json();
       if (data.data && data.data.refreshToken && data.data.accessToken) {
         processLoginResponse(data);
-        navigate({BASE_APP_PATH_USER_DASHBOARD}, { replace: true });
+        navigate(BASE_APP_PATH_USER_DASHBOARD, { replace: true });
       } else {
         setError('Login failed: No access or refresh token received.');
       }

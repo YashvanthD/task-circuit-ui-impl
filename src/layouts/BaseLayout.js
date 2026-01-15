@@ -139,7 +139,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
       }
     } else {
       // otherwise redirect to login
-      window.location.href = {BASE_APP_PATH_LOGIN};
+      window.location.href = BASE_APP_PATH_LOGIN;
     }
   };
 
@@ -216,7 +216,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                     sx={{ minHeight: 48, fontSize: 16, py: 2, display: 'flex', alignItems: 'center', gap: 1 }}
                     onClick={() => {
                       handleProfileMenuClose();
-                      navigate({BASE_APP_PATH_USER_DASHBOARD});
+                      navigate(BASE_APP_PATH_USER_DASHBOARD);
                     }}
                   >
                     <DashboardIcon fontSize="small" />
