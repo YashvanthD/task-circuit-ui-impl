@@ -306,3 +306,25 @@ export function FormDialog({
   );
 }
 
+// ============================================================================
+// Export new reusable components
+// ============================================================================
+
+// Styles
+export * from './styles';
+
+// UI Components - New modular components
+export { default as FilterSelect } from './FilterSelect';
+export { default as SearchInput } from './SearchInput';
+export { default as DateRangeFilter } from './DateRangeFilter';
+export { default as StatusChipNew } from './StatusChip';
+export { default as BaseCard } from './BaseCard';
+export { default as StatCard } from './StatCard';
+export { default as ActionButton } from './ActionButton';
+export { default as EmptyStateNew } from './EmptyState';
+export { default as LoadingStateNew } from './LoadingState';
+export { default as ErrorState } from './ErrorState';
+export { default as PageHeaderNew } from './PageHeader';
+export { default as FilterBar } from './FilterBar';
+export { default as StatsGrid } from './StatsGrid';
+export { default as DataGrid } from './DataGrid';
