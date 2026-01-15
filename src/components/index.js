@@ -26,11 +26,15 @@ export * from './reports';
 // Expense components
 export * from './expenses';
 
+// Assistant components
+export * from './assistant';
+
 // Common components
 export * from './common';
 
 // Legacy single-file components (for backward compatibility)
-export { default as TaskCard } from './TaskCard';
-export { default as PondCard } from './PondCard';
-export { default as RoamingAssistant } from './RoamingAssistant';
+export { default as TaskCardLegacy } from './TaskCard';
+export { default as PondCardLegacy } from './PondCard';
+export { default as RoamingAssistantLegacy } from './RoamingAssistant';
+
 
