@@ -34,9 +34,8 @@ import { getReportPeriodLabel } from '../../utils/helpers/reports';
 import { REPORT_TYPES, REPORT_CATEGORIES } from '../../constants';
 
 export default function ReportsPage() {
-  // State
-  const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // State - will be used when API is connected
+  const [loading] = useState(false);
 
   // Filters
   const [typeFilter, setTypeFilter] = useState('all');

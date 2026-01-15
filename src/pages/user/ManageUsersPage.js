@@ -10,7 +10,6 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Paper,
   Typography,
-  Dialog,
   Snackbar,
   Alert,
   CircularProgress,

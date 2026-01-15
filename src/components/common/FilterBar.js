@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Stack, Button } from '@mui/material';
+import { Stack } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchInput from './SearchInput';

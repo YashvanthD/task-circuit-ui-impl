@@ -5,19 +5,23 @@
  * @module components
  */
 
+// ============================================================================
+// NEW MODULAR COMPONENTS (Preferred - use these)
+// ============================================================================
+
 // Dashboard components
 export * from './dashboard';
 
 // Task components
 export * from './tasks';
 
-// Pond components
+// Pond components (use PondCard, PondList, PondStats, etc. from here)
 export * from './pond';
 
 // User management components
 export * from './users';
 
-// Sampling components
+// Sampling components (use SamplingCard, SamplingList, SamplingStats from here)
 export * from './sampling';
 
 // Report components
@@ -26,15 +30,18 @@ export * from './reports';
 // Expense components
 export * from './expenses';
 
-// Assistant components
+// Assistant components (new modular RoamingAssistant)
 export * from './assistant';
 
-// Common components
+// Common/shared components
 export * from './common';
 
-// Legacy single-file components (for backward compatibility)
+// ============================================================================
+// LEGACY COMPONENTS (Deprecated - for backward compatibility only)
+// These will be removed in future versions
+// ============================================================================
+
 export { default as TaskCardLegacy } from './TaskCard';
 export { default as PondCardLegacy } from './PondCard';
 export { default as RoamingAssistantLegacy } from './RoamingAssistant';
-
-
+// Note: SamplingLegacy and PondLegacy renamed to avoid folder conflicts

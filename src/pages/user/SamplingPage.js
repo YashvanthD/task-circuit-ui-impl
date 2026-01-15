@@ -29,7 +29,7 @@ import {
   FilterBar,
   LoadingState,
   EmptyState,
-  ErrorAlert,
+  ErrorState,
 } from '../../components/common';
 // Import from sampling folder (note: folder name must match exactly)
 import SamplingStats from '../../components/sampling/SamplingStats';
@@ -305,7 +305,7 @@ export default function SamplingPage() {
       />
 
       {/* Error */}
-      <ErrorAlert error={error} onRetry={() => loadSamplings({ force: true })} />
+      {error && <ErrorState message={error} onRetry={() => loadSamplings({ force: true })} compact />}
 
       {/* Loading */}
       {loading ? (
