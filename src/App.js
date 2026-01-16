@@ -15,7 +15,6 @@ import ChatPage from './pages/user/ChatPage';
 import ExpensesPage from './pages/user/ExpensesPage';
 import InvoicePage from './pages/user/InvoicePage';
 import SettingsPage from './pages/user/SettingsPage';
-import { getRefreshToken, loadUserFromLocalStorage, removeFromLocalStorage, removeUserFromLocalStorage } from './utils/auth/storage';
 import { userSession } from './utils/auth/userSession';
 import { UserProvider } from './contexts/UserContext';
 import { SignupForm } from './components/users/forms';
@@ -43,55 +42,45 @@ import {
 function AppRoutes() {
   const navigate = useNavigate();
   const location = useLocation();
-  // Track auth state in React state so UI updates when localStorage changes (login/logout) without page reload
-  const [user, setUser] = useState(() => loadUserFromLocalStorage());
-  const [loggedIn, setLoggedIn] = useState(() => !!getRefreshToken() && !!loadUserFromLocalStorage());
+
+  // Track auth state using userSession singleton
+  const [user, setUser] = useState(() => userSession.user);
+  const [loggedIn, setLoggedIn] = useState(() => userSession.isAuthenticated);
 
   useEffect(() => {
-    const onAuthChanged = () => {
-      setUser(loadUserFromLocalStorage());
-      setLoggedIn(!!getRefreshToken() && !!loadUserFromLocalStorage());
-    };
-
-    // Listen for custom auth change events dispatched by storage helpers
-    window.addEventListener('authChanged', onAuthChanged);
+    // Subscribe to userSession changes
+    const unsubscribe = userSession.on('change', () => {
+      setUser(userSession.user);
+      setLoggedIn(userSession.isAuthenticated);
+    });
 
     // Also listen to storage events (cross-tab logout/login)
     const onStorage = (e) => {
-      if (e.key === 'user' || e.key === 'refresh_token' || e.key === 'access_token') {
-        onAuthChanged();
+      if (['user', 'refresh_token', 'access_token', 'tc_user_session'].includes(e.key)) {
+        setUser(userSession.user);
+        setLoggedIn(userSession.isAuthenticated);
       }
     };
     window.addEventListener('storage', onStorage);
 
     return () => {
-      window.removeEventListener('authChanged', onAuthChanged);
+      unsubscribe();
       window.removeEventListener('storage', onStorage);
     };
   }, []);
 
+  // Redirect to login if not authenticated on protected routes
   useEffect(() => {
     const isUserRoute = matchPath(`${BASE_APP_PATH_USER}/*`, location.pathname);
-    if (!getRefreshToken() && isUserRoute && location.pathname !== BASE_APP_PATH_LOGIN) {
+    if (!userSession.isAuthenticated && isUserRoute && location.pathname !== BASE_APP_PATH_LOGIN) {
       navigate(BASE_APP_PATH_LOGIN, { replace: true });
     }
   }, [location, navigate]);
 
+  // Simplified logout handler - userSession.logout() handles everything
   const handleLogout = () => {
-    // Use userSession singleton for logout (clears all session data)
     userSession.logout();
-    // Also clear legacy storage keys
-    removeFromLocalStorage('refresh_token');
-    removeFromLocalStorage('access_token');
-    removeFromLocalStorage('access_token_expiry');
-    removeUserFromLocalStorage();
-    // Update local state immediately so UI (top nav) refreshes without reload
-    setUser(null);
-    setLoggedIn(false);
-    // Navigate to login
     navigate(BASE_APP_PATH_LOGIN);
-    // Dispatch authChanged so any other listeners update
-    try { window.dispatchEvent(new Event('authChanged')); } catch (e) {}
   };
 
   return (

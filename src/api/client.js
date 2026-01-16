@@ -8,19 +8,50 @@
 import { BASE_URL } from '../config';
 
 // ============================================================================
-// Local Storage Helpers (to avoid circular imports)
+// Local Storage Helpers (synced with userSession)
 // ============================================================================
 
 function getAccessToken() {
-  return localStorage.getItem('accessToken');
+  // Try userSession first
+  try {
+    const { userSession } = require('../utils/auth/userSession');
+    if (userSession.accessToken) {
+      return userSession.accessToken;
+    }
+  } catch (e) { /* userSession not ready */ }
+
+  // Fallback to localStorage (check both keys for compatibility)
+  return localStorage.getItem('access_token') || localStorage.getItem('accessToken') || null;
 }
 
 function getRefreshToken() {
-  return localStorage.getItem('refreshToken');
+  // Try userSession first
+  try {
+    const { userSession } = require('../utils/auth/userSession');
+    if (userSession.refreshToken) {
+      return userSession.refreshToken;
+    }
+  } catch (e) { /* userSession not ready */ }
+
+  // Fallback to localStorage (check both keys for compatibility)
+  const token = localStorage.getItem('refresh_token') || localStorage.getItem('refreshToken');
+  if (!token) return null;
+  try {
+    return JSON.parse(token);
+  } catch {
+    return token;
+  }
 }
 
 function setAccessToken(token) {
-  localStorage.setItem('accessToken', token);
+  localStorage.setItem('access_token', token);
+  localStorage.setItem('accessToken', token); // Keep both for compatibility
+
+  // Also update userSession
+  try {
+    const { userSession } = require('../utils/auth/userSession');
+    userSession.updateAccessToken(token);
+  } catch (e) { /* userSession not ready */ }
 }
 
 // ============================================================================
@@ -156,7 +187,6 @@ export async function apiFetch(url, options = {}) {
   // Add auth token (unless skipAuth is true)
   if (!skipAuth) {
     const token = getAccessToken();
-      console.log("[API] Fetching:", fullUrl, opts, skipAuth, token);
 
     if (token) {
       opts.headers['Authorization'] = `Bearer ${token}`;

@@ -16,8 +16,18 @@ export function getAuthHeaders({ contentType = 'application/json', accept = 'app
   if (contentType) headers['Content-Type'] = contentType;
   if (accept) headers['Accept'] = accept;
 
-  // Import dynamically to avoid circular dependencies
-  const token = localStorage.getItem('accessToken');
+  // Try userSession first
+  let token = null;
+  try {
+    const { userSession } = require('../utils/auth/userSession');
+    token = userSession.accessToken;
+  } catch (e) { /* userSession not ready */ }
+
+  // Fallback to localStorage (check both keys)
+  if (!token) {
+    token = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
+  }
+
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
 }

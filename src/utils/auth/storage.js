@@ -50,34 +50,68 @@ export function removeFromLocalStorage(key) {
 // ============================================================================
 
 /**
- * Get the refresh token from localStorage.
+ * Get the refresh token from localStorage or userSession.
  * @returns {string|null}
  */
 export function getRefreshToken() {
-  return localStorage.getItem('refresh_token') || null;
+  // Try userSession first (if initialized)
+  try {
+    const { userSession } = require('./userSession');
+    if (userSession.refreshToken) {
+      return userSession.refreshToken;
+    }
+  } catch (e) { /* userSession not ready */ }
+
+  // Fallback to localStorage
+  const token = localStorage.getItem('refresh_token');
+  if (!token) return null;
+  // Handle both raw string and JSON-stringified token
+  try {
+    return JSON.parse(token);
+  } catch {
+    return token;
+  }
 }
 
 /**
- * Get the access token from localStorage.
+ * Get the access token from localStorage or userSession.
  * @returns {string|null}
  */
 export function getAccessToken() {
+  // Try userSession first (if initialized)
+  try {
+    const { userSession } = require('./userSession');
+    if (userSession.accessToken) {
+      return userSession.accessToken;
+    }
+  } catch (e) { /* userSession not ready */ }
+
+  // Fallback to localStorage
   const token = localStorage.getItem('access_token') || null;
   debugLog('Access token accessed', token ? '[present]' : '[missing]');
   return token;
 }
 
 /**
- * Get access token expiry timestamp (ms).
+ * Get access token expiry timestamp (ms) from localStorage or userSession.
  * @returns {number|null}
  */
 export function getAccessTokenExpiry() {
+  // Try userSession first (if initialized)
+  try {
+    const { userSession } = require('./userSession');
+    if (userSession.tokenExpiry) {
+      return userSession.tokenExpiry;
+    }
+  } catch (e) { /* userSession not ready */ }
+
+  // Fallback to localStorage
   const expiry = localStorage.getItem('access_token_expiry');
   return expiry ? parseInt(expiry, 10) : null;
 }
 
 /**
- * Save access token and expiry to localStorage.
+ * Save access token and expiry to localStorage and userSession.
  * @param {string} accessToken
  * @param {number} expiresIn - seconds until expiry
  */
@@ -86,6 +120,13 @@ export function saveAccessToken(accessToken, expiresIn) {
   const expiry = Date.now() + expiresIn * 1000;
   localStorage.setItem('access_token_expiry', expiry.toString());
   debugLog('Access token saved', { expiresIn, expiry });
+
+  // Also update userSession singleton
+  try {
+    const { userSession } = require('./userSession');
+    userSession.updateAccessToken(accessToken, expiresIn);
+  } catch (e) { /* userSession not ready */ }
+
   startAccessTokenManagement();
 }
 
@@ -104,6 +145,15 @@ export function setAccessTokenExpiry(expiryTimestampMs) {
  * @returns {boolean}
  */
 export function isAccessTokenExpiringSoon() {
+  // Try userSession first (if initialized)
+  try {
+    const { userSession } = require('./userSession');
+    if (userSession.isAuthenticated) {
+      return userSession.isTokenExpiringSoon;
+    }
+  } catch (e) { /* userSession not ready */ }
+
+  // Fallback to localStorage check
   const expiry = getAccessTokenExpiry();
   if (!expiry) return true;
   return Date.now() > (expiry - 2 * 60 * 1000);
@@ -122,10 +172,19 @@ export function saveUserToLocalStorage(userInfo) {
 }
 
 /**
- * Load user data from localStorage.
+ * Load user data from localStorage or userSession.
  * @returns {object|null}
  */
 export function loadUserFromLocalStorage() {
+  // Try userSession first (if initialized)
+  try {
+    const { userSession } = require('./userSession');
+    if (userSession.user) {
+      return userSession.user;
+    }
+  } catch (e) { /* userSession not ready */ }
+
+  // Fallback to localStorage
   return loadFromLocalStorage('user');
 }
 
@@ -240,6 +299,7 @@ export function stopPeriodicAccessTokenRefresh() {
 
 /**
  * Refresh access token using refresh token API.
+ * Also updates userSession singleton.
  * @returns {Promise<boolean>}
  */
 export async function refreshAccessToken() {
@@ -259,9 +319,12 @@ export async function refreshAccessToken() {
 
     const data = await res.json();
     if (res.ok && data.access_token && data.expires_in) {
+      // saveAccessToken already syncs with userSession
       saveAccessToken(data.access_token, data.expires_in);
+      debugLog('Access token refreshed successfully');
       return true;
     }
+    debugLog('Token refresh response invalid', data);
     return false;
   } catch (err) {
     debugLog('Token refresh failed', err);
@@ -400,6 +463,14 @@ export async function handle401(forceLogout) {
   debugLog('Refresh failed, forcing logout');
   clearAccessTokenManagement();
   stopPeriodicAccessTokenRefresh();
+
+  // Clear userSession singleton
+  try {
+    const { userSession } = require('./userSession');
+    userSession.logout();
+  } catch (e) { /* userSession not ready */ }
+
+  // Also clear legacy storage keys
   removeUserFromLocalStorage();
   removeFromLocalStorage('access_token');
   removeFromLocalStorage('refresh_token');
