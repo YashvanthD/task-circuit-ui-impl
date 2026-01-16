@@ -1,4 +1,5 @@
 import { userApi, apiFetch, safeJsonParse, extractResponseData, API_USER } from '../api';
+import {ADD_USER_ENDPOINT} from "../endpoints";
 
 // Create alias for backward compatibility
 const apiUser = userApi;
@@ -229,7 +230,7 @@ export async function listAccountUsers(accountKey, params = {}) {
  */
 export async function addUser(payload) {
   try {
-    const res = await apiFetch('/api/users', {
+    const res = await apiFetch(API_USER.CREATE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
