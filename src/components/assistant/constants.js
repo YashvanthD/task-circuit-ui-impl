@@ -20,7 +20,7 @@ export const FAB_SIZE = 56;
 export const FAB_SIZE_SMALL = 40;
 
 // Colors
-export const COLORS = {
+export const ASSISTANT_COLORS = {
   primary: '#1976d2',
   success: '#4caf50',
   warning: '#ff9800',

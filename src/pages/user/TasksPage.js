@@ -10,13 +10,13 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useDialog, useConfirmDialog } from '../../hooks';
 
 // Common components
-import { ConfirmDialog } from '../../components/common';
+import { ConfirmDialog } from '../../components';
 import TaskCard from '../../components/TaskCard';
 
 // Utils
 import { getUserInfo, listAccountUsers } from '../../utils/user';
 import { fetchAllTasks, saveTask, deleteTask, saveTasks, getTasks, updateTask } from '../../utils/tasks';
-import { getDefaultEndDate } from '../../utils/helpers/date';
+import { getDefaultEndDate } from '../../utils';
 
 // ============================================================================
 // Constants

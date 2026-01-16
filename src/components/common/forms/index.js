@@ -5,7 +5,12 @@
  * @module components/common/forms
  */
 
-export { default as FishForm } from './FishForm';
 export { default as RegisterCompanyForm } from './RegisterCompanyForm';
-export { default as TransformForm } from './TransformForm';
+
+// Re-export TransformForm from pond/forms for backward compatibility
+// TransformForm has been moved to components/pond/forms as it's part of pond activities
+export { TransformForm } from '../../pond/forms';
+
+// Note: FishForm has been moved to components/fish/forms
+// Import it from there: import { FishForm } from '../fish/forms' or from '../fish'
 

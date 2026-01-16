@@ -24,6 +24,9 @@ export * from './users';
 // Sampling components (use SamplingCard, SamplingList, SamplingStats from here)
 export * from './sampling';
 
+// Fish components (use FishCard, FishList, FishStats, etc. from here)
+export * from './fish';
+
 // Report components
 export * from './reports';
 
@@ -43,6 +46,6 @@ export * from './common';
 export { default as TaskCard } from './TaskCard';
 export { default as PondCard } from './PondCard';
 export { default as RoamingAssistant } from './RoamingAssistant';
-export { default as Fish } from './Fish';
+// Fish component has been migrated to ./fish/ folder - use FishCard, FishList, FishStats from there
 export { default as Profile } from './Profile';
 export { default as OrganizationTree } from './OrganizationTree';

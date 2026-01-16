@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Paper, Typography, Grid, Card, CardContent, CardActionArea, Dialog, Button, TextField, Stack, CircularProgress } from '@mui/material';
-import Fish from '../../components/Fish';
-import { FishForm } from '../../components/common/forms';
+import { FishDetailDialog, FishFormDialog } from '../../components/fish';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PoolIcon from '@mui/icons-material/Pool';
@@ -158,12 +157,17 @@ export default function FishPage() {
         ))}
       </Grid>
 
-      <Dialog open={fishDialogOpen} onClose={handleCloseFish} maxWidth="lg" fullWidth>
-        {selectedFish && <Fish initialData={selectedFish} />}
-      </Dialog>
-      <Dialog open={addFishDialogOpen} onClose={handleCloseAddFish} maxWidth="lg" fullWidth>
-        <FishForm onSubmit={handleAddFish} onCancel={handleCloseAddFish} />
-      </Dialog>
+      <FishDetailDialog
+        open={fishDialogOpen}
+        onClose={handleCloseFish}
+        fish={selectedFish}
+      />
+      <FishFormDialog
+        open={addFishDialogOpen}
+        onClose={handleCloseAddFish}
+        onSubmit={handleAddFish}
+        mode="add"
+      />
       <Dialog open={samplingDialogOpen} onClose={handleCloseSampling} maxWidth="sm" fullWidth>
         <SamplingForm onSubmit={handleSubmitSampling} onCancel={handleCloseSampling} />
       </Dialog>
