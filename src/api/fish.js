@@ -28,6 +28,7 @@ export async function listPublicFish(accountKey = null) {
   return apiFetch(`${API_PUBLIC.BASE}/fish${params}`, {
     method: 'GET',
     headers: { 'Accept': 'application/json' },
+    skipAuth: true,
   });
 }
 

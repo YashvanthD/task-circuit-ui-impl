@@ -15,8 +15,9 @@ import { API_COMPANY } from './constants';
 export async function registerCompany(data) {
   return apiFetch(API_COMPANY.REGISTER, {
     method: 'POST',
-    headers: getAuthHeaders(),
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    skipAuth: true,
   });
 }
 

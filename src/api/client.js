@@ -138,12 +138,14 @@ async function handleTokenRefresh() {
  * Main API fetch wrapper with auth handling.
  * @param {string} url - endpoint URL
  * @param {object} options - fetch options
+ * @param {boolean} options.skipAuth - Skip adding auth header (for public APIs)
  * @returns {Promise<Response>} fetch response
  */
 export async function apiFetch(url, options = {}) {
   const fullUrl = buildApiUrl(url);
 
-  const opts = { ...options };
+  const { skipAuth, ...restOptions } = options;
+  const opts = { ...restOptions };
   opts.headers = { ...opts.headers };
 
   // Default to JSON accept
@@ -151,10 +153,12 @@ export async function apiFetch(url, options = {}) {
     opts.headers['Accept'] = 'application/json';
   }
 
-  // Add auth token
-  const token = getAccessToken();
-  if (token) {
-    opts.headers['Authorization'] = `Bearer ${token}`;
+  // Add auth token (unless skipAuth is true)
+  if (!skipAuth) {
+    const token = getAccessToken();
+    if (token) {
+      opts.headers['Authorization'] = `Bearer ${token}`;
+    }
   }
 
   let res;

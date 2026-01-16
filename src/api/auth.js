@@ -30,6 +30,7 @@ export async function login(credentials) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
+    skipAuth: true,
   });
 }
 
@@ -61,6 +62,7 @@ export async function refreshToken(refreshToken) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'refresh_token', token: refreshToken }),
+    skipAuth: true,
   });
 }
 
@@ -72,6 +74,7 @@ export async function signup(data) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    skipAuth: true,
   });
 }
 
