@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Paper, Typography, Button, Dialog, DialogTitle, DialogContent, Stack, Table, TableHead, TableRow, TableCell, TableBody, TableContainer, IconButton } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
-import TransformForm from '../../forms/TransformForm';
+import { TransformForm } from '../../components/common/forms';
 
 const STORAGE_KEY = 'transforms_v1';
 

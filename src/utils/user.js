@@ -1,6 +1,7 @@
 import * as apiUser from './apis/api_user';
 import { apiFetch, safeJsonParse, extractResponseData } from './api/client';
 import { logError } from './api/errors';
+import {PATH_USER_LIST} from "./apis/constants";
 
 const USERS_CACHE_KEY = 'tc_cache_users';
 
@@ -245,7 +246,7 @@ export async function updateUser(userId, payload) {
   if (!userId) throw new Error('userId is required for update');
 
   try {
-    const res = await apiFetch(`/auth/account/users/${encodeURIComponent(userId)}`, {
+    const res = await apiFetch(`${PATH_USER_LIST}${encodeURIComponent(userId)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

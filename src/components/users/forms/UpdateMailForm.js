@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { updateUserEmail } from '../utils/user';
+import { updateUserEmail } from '../../../utils/user';
 
 /**
  * UpdateMailForm - Form to update user email

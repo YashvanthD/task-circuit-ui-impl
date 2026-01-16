@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Paper, Typography, Grid, Button, TextField, Stack, CircularProgress, InputAdornment, Dialog, Box, useMediaQuery, useTheme, Chip } from '@mui/material';
 import PondCard from '../../components/PondCard';
-import PondForm from '../../forms/PondForm';
-import PondDailyUpdateForm from '../../forms/PondDailyUpdateForm';
+import { PondForm, PondDailyUpdateForm } from '../../components/pond/forms';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import RefreshIcon from '@mui/icons-material/Refresh';

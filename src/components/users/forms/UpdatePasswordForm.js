@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { updateUserPassword } from '../utils/user';
+import { updateUserPassword } from '../../../utils/user';
 
 /**
  * UpdatePasswordForm - Form to update user password

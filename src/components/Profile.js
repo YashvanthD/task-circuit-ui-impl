@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Card, CardContent, Typography, Avatar, IconButton, Button, Stack, Divider, TextField, Radio, FormControlLabel, FormGroup, Switch } from '@mui/material';
+import { Box, Card, CardContent, Typography, Avatar, IconButton, Button, Stack, Divider, TextField, FormControlLabel, Switch } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 import { getCurrentUser } from '../utils/user';
-import UpdateMobileForm from '../forms/UpdateMobileForm';
-import UpdateMailForm from '../forms/UpdateMailForm';
-import UpdatePasswordForm from '../forms/UpdatePasswordForm';
-import UpdateUsernameForm from '../forms/UpdateUsernameForm';
+import { UpdateMobileForm, UpdateMailForm, UpdatePasswordForm, UpdateUsernameForm } from './users/forms';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';

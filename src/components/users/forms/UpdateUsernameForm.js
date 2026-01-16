@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { updateUsername } from '../utils/user';
+import { updateUsername } from '../../../utils/user';
 
 /**
  * UpdateUsernameForm - Form to update user username

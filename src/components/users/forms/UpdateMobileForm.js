@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { updateUserMobile } from '../utils/user';
+import { updateUserMobile } from '../../../utils/user';
 
 /**
  * UpdateMobileForm - Form to update user mobile number

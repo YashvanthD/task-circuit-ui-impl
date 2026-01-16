@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { apiFetch } from '../utils/api';
-import { SIGNUP_ENDPOINT } from '../endpoints';
+import { apiFetch } from '../../../utils/api';
+import { SIGNUP_ENDPOINT } from '../../../endpoints';
 
 /**
  * SignupForm - User registration form for TaskCircuit

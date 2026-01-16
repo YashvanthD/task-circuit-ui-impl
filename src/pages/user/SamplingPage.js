@@ -33,9 +33,7 @@ import {
 } from '../../components/common';
 // Import from sampling folder (note: folder name must match exactly)
 import SamplingStats from '../../components/sampling/SamplingStats';
-
-// Forms
-import SamplingForm from '../../forms/SamplingForm';
+import { SamplingForm } from '../../components/sampling';
 
 // Utils
 import samplingUtil from '../../utils/sampling';

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Paper, Typography, Grid, Card, CardContent, CardActionArea, Dialog, Button, TextField, Stack, CircularProgress } from '@mui/material';
 import Fish from '../../components/Fish';
-import FishForm from '../../forms/FishForm';
+import { FishForm } from '../../components/common/forms';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import PoolIcon from '@mui/icons-material/Pool';
 import fishUtil, { fishEvents } from '../../utils/fish';
 import { parseFishList } from '../../utils/parseFish';
-import SamplingForm from '../../forms/SamplingForm';
+import { SamplingForm } from '../../components/sampling/forms';
 import samplingUtil from '../../utils/sampling';
 
 export default function FishPage() {
