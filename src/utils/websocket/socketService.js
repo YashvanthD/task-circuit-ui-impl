@@ -63,6 +63,7 @@ export const WS_EVENTS = {
   CONVERSATION_ADD_PARTICIPANTS: 'conversation:add_participants',
   CONVERSATION_REMOVE_PARTICIPANT: 'conversation:remove_participant',
   CONVERSATION_LEAVE: 'conversation:leave',
+  CONVERSATION_OPEN: 'conversation:open',
 
   // Conversation events (server -> client)
   CONVERSATION_CREATED: 'conversation:created',
@@ -488,6 +489,17 @@ class SocketService {
    */
   createConversation(participants, name = null, type = 'direct') {
     return this.emit(WS_EVENTS.CONVERSATION_CREATE, { participants, name, type });
+  }
+
+  /**
+   * Track when user opens a conversation (updates last activity)
+   * @param {string} conversationId - Conversation ID
+   */
+  openConversation(conversationId) {
+    return this.emit(WS_EVENTS.CONVERSATION_OPEN, {
+      conversationId,
+      timestamp: new Date().toISOString()
+    });
   }
 }
 

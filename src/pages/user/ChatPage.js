@@ -21,6 +21,7 @@ import {
   onConversationsChange,
   subscribeToChatWebSocket,
   startDirectConversation,
+  trackConversationOpen,
 } from '../../utils/cache/chatCache';
 import { getCurrentUserKey } from '../../api/chat';
 
@@ -69,6 +70,10 @@ export default function ChatPage() {
   // Handlers
   const handleSelectConversation = useCallback((conversation) => {
     setSelectedConversation(conversation);
+    // Track conversation open via WebSocket
+    if (conversation?.conversation_id) {
+      trackConversationOpen(conversation.conversation_id);
+    }
     if (isMobile) {
       setMobileDrawerOpen(false);
     }
@@ -97,6 +102,8 @@ export default function ChatPage() {
       const conversation = await startDirectConversation(userKey, userInfo);
       if (conversation) {
         setSelectedConversation(conversation);
+        // Track conversation open via WebSocket
+        trackConversationOpen(conversation.conversation_id);
         if (isMobile) {
           setMobileDrawerOpen(false);
         }

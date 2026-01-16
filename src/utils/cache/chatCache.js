@@ -555,6 +555,25 @@ export function getTypingUsers(conversationId) {
 }
 
 /**
+ * Track when user opens a conversation (sends to server via WebSocket)
+ * @param {string} conversationId - Conversation ID
+ */
+export function trackConversationOpen(conversationId) {
+  if (!conversationId) return;
+
+  // Update local last activity
+  const conv = conversationsCache.byId.get(String(conversationId));
+  if (conv) {
+    conv.last_opened = new Date().toISOString();
+  }
+
+  // Send to server via WebSocket
+  if (socketService.isConnected()) {
+    socketService.openConversation(conversationId);
+  }
+}
+
+/**
  * Add reaction to a message
  */
 export async function addReaction(conversationId, messageId, emoji) {
@@ -739,10 +758,11 @@ export const chatCache = {
   startTyping,
   stopTyping,
   getTypingUsers,
+  trackConversationOpen,
   addReaction,
   subscribeToChatWebSocket,
-  createConversation, // Add this
-  startDirectConversation, // Add this
+  createConversation,
+  startDirectConversation,
 };
 
 export default chatCache;
