@@ -1,9 +1,9 @@
 import { apiFetch } from '../api/client';
 import { getAuthHeaders } from './api_auth';
-import { API_POND } from './constants';
+import { API_POND, API_POND_EVENT } from './constants';
 
 export async function listPonds() {
-  return apiFetch(API_POND.BASE, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
+  return apiFetch(API_POND.LIST, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export async function getPond(pondId) {
@@ -11,7 +11,7 @@ export async function getPond(pondId) {
 }
 
 export async function addPond(pondData) {
-  return apiFetch('/pond/create', {
+  return apiFetch(API_POND.CREATE, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(pondData),
@@ -19,20 +19,11 @@ export async function addPond(pondData) {
 }
 
 export async function updatePond(pondId, pondData) {
-  // prefer /pond/update/:id
-  const res = await apiFetch(`/pond/update/${pondId}`, {
+  return apiFetch(API_POND.UPDATE(pondId), {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(pondData),
   });
-  if (res && (res.status === 404 || res.status === 405)) {
-    return apiFetch(API_POND.UPDATE(pondId), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(pondData),
-    });
-  }
-  return res;
 }
 
 export async function deletePond(pondId) {
@@ -47,24 +38,24 @@ export async function addPondDailyUpdate(pondId, updateData) {
   });
 }
 
-export async function addPondEvent(pondId, eventType, eventData) {
-  return apiFetch(`/pond_event/${pondId}/event/${eventType}`, {
+export async function addPondEvent(pondId, eventData) {
+  return apiFetch(API_POND_EVENT.CREATE, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify(eventData),
+    body: JSON.stringify({ pond_id: pondId, ...eventData }),
   });
 }
 
 export async function listPondEvents(pondId) {
-  return apiFetch(`/pond_event/${pondId}/events`, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
+  return apiFetch(API_POND_EVENT.BY_POND(pondId), { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
-export async function deletePondEvent(pondId, eventId) {
-  return apiFetch(`/pond_event/${pondId}/events/${eventId}`, { method: 'DELETE', headers: getAuthHeaders({ contentType: null }) });
+export async function deletePondEvent(eventId) {
+  return apiFetch(API_POND_EVENT.DELETE(eventId), { method: 'DELETE', headers: getAuthHeaders({ contentType: null }) });
 }
 
-export async function updatePondEvent(pondId, eventId, data) {
-  return apiFetch(`/pond_event/${pondId}/events/${eventId}`, {
+export async function updatePondEvent(eventId, data) {
+  return apiFetch(API_POND_EVENT.UPDATE(eventId), {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(data),

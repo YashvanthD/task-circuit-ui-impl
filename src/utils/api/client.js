@@ -230,7 +230,7 @@ export async function login(credentials) {
  * @returns {Promise<Response>} The validation response.
  */
 export async function validateToken(token) {
-  return apiFetch(API_AUTH.VALIDATE_TOKEN, {
+  return apiFetch(API_AUTH.VALIDATE, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
   });
@@ -242,7 +242,7 @@ export async function validateToken(token) {
  * @returns {Promise<Response>} The new access token.
  */
 export async function refreshToken(refreshToken) {
-  return apiFetch(API_AUTH.REFRESH_TOKEN, {
+  return apiFetch(API_AUTH.REFRESH, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'refresh_token', token: refreshToken }),

@@ -3,7 +3,7 @@ import { getAuthHeaders } from './api_auth';
 import { API_FISH } from './constants';
 
 export async function listFish() {
-  return apiFetch(API_FISH.BASE, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
+  return apiFetch(API_FISH.LIST, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export async function getFish(fishId) {
@@ -27,7 +27,8 @@ export async function updateFish(fishId, fishData) {
 }
 
 export async function deleteFish(fishId) {
-  return apiFetch(API_FISH.DELETE(fishId), { method: 'DELETE', headers: getAuthHeaders({ contentType: null }) });
+  // Use DETAIL path with DELETE method
+  return apiFetch(API_FISH.DETAIL(fishId), { method: 'DELETE', headers: getAuthHeaders({ contentType: null }) });
 }
 
 const fishApi = { listFish, getFish, addFish, updateFish, deleteFish };
