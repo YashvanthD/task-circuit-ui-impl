@@ -145,7 +145,7 @@ let mockNotifications = [...MOCK_NOTIFICATIONS];
 let mockAlerts = [...MOCK_ALERTS];
 
 // Flag to use mock data (set to false when API is ready)
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // ============================================================================
 // NOTIFICATION API Functions
@@ -192,11 +192,20 @@ export async function listNotifications(params = {}) {
   if (params.skip) qs.append('skip', params.skip);
 
   const queryString = qs.toString();
-  const response = await apiFetch(`${API_NOTIFICATION.LIST}${queryString ? '?' + queryString : ''}`, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(`${API_NOTIFICATION.LIST}${queryString ? '?' + queryString : ''}`, {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to fetch notifications:', error);
+    return {
+      success: false,
+      data: { notifications: [], count: 0, meta: { limit: params.limit || 50, skip: params.skip || 0 } },
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -211,11 +220,16 @@ export async function getNotification(notificationId) {
     return { success: true, data: notif || null };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.DETAIL(notificationId), {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.DETAIL(notificationId), {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to get notification:', error);
+    return { success: false, data: null, error: error.message };
+  }
 }
 
 /**
@@ -236,12 +250,17 @@ export async function createNotification(data) {
     return { success: true, data: { notification_id: newNotif.notification_id, message: 'Notification created successfully' } };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.CREATE, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.CREATE, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to create notification:', error);
+    return { success: false, data: null, error: error.message };
+  }
 }
 
 /**
@@ -260,11 +279,16 @@ export async function markNotificationAsRead(notificationId) {
     return { success: false, error: 'Notification not found' };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.MARK_READ(notificationId), {
-    method: 'PUT',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.MARK_READ(notificationId), {
+      method: 'PUT',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to mark notification as read:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 /**
@@ -285,11 +309,16 @@ export async function markAllNotificationsAsRead() {
     return { success: true, data: { message: 'All notifications marked as read', updated_count: count } };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.MARK_ALL_READ, {
-    method: 'PUT',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.MARK_ALL_READ, {
+      method: 'PUT',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to mark all notifications as read:', error);
+    return { success: false, data: { message: 'Failed', updated_count: 0 }, error: error.message };
+  }
 }
 
 /**
@@ -308,11 +337,16 @@ export async function deleteNotification(notificationId) {
     return { success: false, error: 'Notification not found' };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.DELETE(notificationId), {
-    method: 'DELETE',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.DELETE(notificationId), {
+      method: 'DELETE',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to delete notification:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 /**
@@ -326,12 +360,17 @@ export async function broadcastNotification(data) {
     return { success: true, data: { message: 'Broadcast notification sent', recipients_count: 10 } };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.BROADCAST, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.BROADCAST, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to broadcast notification:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 // ============================================================================
@@ -388,11 +427,20 @@ export async function listAlerts(params = {}) {
   if (params.skip) qs.append('skip', params.skip);
 
   const queryString = qs.toString();
-  const response = await apiFetch(`${API_NOTIFICATION.ALERT_LIST}${queryString ? '?' + queryString : ''}`, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(`${API_NOTIFICATION.ALERT_LIST}${queryString ? '?' + queryString : ''}`, {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to fetch alerts:', error);
+    return {
+      success: false,
+      data: { alerts: [], count: 0 },
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -407,11 +455,16 @@ export async function getAlert(alertId) {
     return { success: true, data: alert || null };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.ALERT_DETAIL(alertId), {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.ALERT_DETAIL(alertId), {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to get alert:', error);
+    return { success: false, data: null, error: error.message };
+  }
 }
 
 /**
@@ -438,12 +491,17 @@ export async function createAlert(data) {
     return { success: true, data: { alert_id: newAlert.alert_id, message: 'Alert created successfully' } };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.ALERT_CREATE, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.ALERT_CREATE, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to create alert:', error);
+    return { success: false, data: null, error: error.message };
+  }
 }
 
 /**
@@ -467,11 +525,16 @@ export async function acknowledgeAlert(alertId) {
     return { success: false, error: 'Alert not found' };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.ALERT_ACKNOWLEDGE(alertId), {
-    method: 'PUT',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.ALERT_ACKNOWLEDGE(alertId), {
+      method: 'PUT',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to acknowledge alert:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 /**
@@ -490,11 +553,16 @@ export async function deleteAlert(alertId) {
     return { success: false, error: 'Alert not found' };
   }
 
-  const response = await apiFetch(API_NOTIFICATION.ALERT_DELETE(alertId), {
-    method: 'DELETE',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_NOTIFICATION.ALERT_DELETE(alertId), {
+      method: 'DELETE',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to delete alert:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 // ============================================================================
