@@ -3,9 +3,8 @@
  * @returns {JSX.Element}
  */
 import React from 'react';
-import Button from '../components/Button';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Button } from '@mui/material';
 
 export default function LandingPage() {
   const navigate = useNavigate();

@@ -37,11 +37,12 @@ export * from './assistant';
 export * from './common';
 
 // ============================================================================
-// LEGACY COMPONENTS (Deprecated - for backward compatibility only)
-// These will be removed in future versions
+// LEGACY COMPONENTS (Still in use - will migrate to modular later)
 // ============================================================================
 
-export { default as TaskCardLegacy } from './TaskCard';
-export { default as PondCardLegacy } from './PondCard';
-export { default as RoamingAssistantLegacy } from './RoamingAssistant';
-// Note: SamplingLegacy and PondLegacy renamed to avoid folder conflicts
+export { default as TaskCard } from './TaskCard';
+export { default as PondCard } from './PondCard';
+export { default as RoamingAssistant } from './RoamingAssistant';
+export { default as Fish } from './Fish';
+export { default as Profile } from './Profile';
+export { default as OrganizationTree } from './OrganizationTree';

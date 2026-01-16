@@ -1,5 +1,5 @@
 import { apiFetch } from './api/client';
-import { BASE_URL } from '../config';
+import { API_TASK } from './apis/constants';
 
 // Task utility functions
 
@@ -57,7 +57,7 @@ export async function getTasks(forceApiCall = false) {
   }
 
   try {
-    const res = await apiFetch('/task/', { method: 'GET' });
+    const res = await apiFetch(API_TASK.LIST, { method: 'GET' });
     const data = await res.json();
     if (!res.ok || data.success === false) {
       throw new Error(data.error || 'Failed to fetch tasks');
@@ -104,7 +104,7 @@ export async function updateTask(taskId, updates) {
   const updatedTasks = tasks.map(t => (t.task_id === taskId ? { ...t, ...updates } : t));
   await saveTasks(updatedTasks);
   try {
-    await apiFetch(`/task/${taskId}`, {
+    await apiFetch(API_TASK.UPDATE(taskId), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -127,7 +127,7 @@ export function getTasksLastFetched() {
  * Fetch all tasks from API (no cache), using /task/.
  */
 export async function fetchAllTasks() {
-  const res = await apiFetch('/task/', { method: 'GET' });
+  const res = await apiFetch(API_TASK.LIST, { method: 'GET' });
   const data = await res.json();
   if (!res.ok || data.success === false) {
     throw new Error(data.error || 'Failed to fetch tasks');
@@ -139,7 +139,7 @@ export async function fetchAllTasks() {
  * Save a task (create or update) using /task/ endpoints.
  */
 export async function saveTask(task, isEdit = false) {
-  const path = isEdit && task.task_id ? `/task/${task.task_id}` : '/task/';
+  const path = isEdit && task.task_id ? API_TASK.UPDATE(task.task_id) : API_TASK.CREATE;
   const method = isEdit && task.task_id ? 'PUT' : 'POST';
   const res = await apiFetch(path, {
     method,
@@ -157,7 +157,7 @@ export async function saveTask(task, isEdit = false) {
  * Delete a task using /task/<task_id>.
  */
 export async function deleteTask(taskId) {
-  const res = await apiFetch(`/task/${taskId}`, { method: 'DELETE' });
+  const res = await apiFetch(API_TASK.DELETE(taskId), { method: 'DELETE' });
   const data = await res.json();
   if (!res.ok || data.success === false) {
     throw new Error(data.error || 'Failed to delete task');

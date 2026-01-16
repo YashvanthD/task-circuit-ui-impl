@@ -1,29 +1,63 @@
+/**
+ * API Endpoints
+ * Full URL endpoints for API calls.
+ *
+ * NOTE: These include BASE_URL for backward compatibility.
+ * New code should use API_* constants from utils/apis/constants.js
+ * with apiFetch() which adds BASE_URL automatically.
+ *
+ * @module endpoints
+ * @deprecated Use API_* constants from utils/apis/constants.js instead
+ */
+
 import { BASE_URL } from '../config';
+import {
+  API_AUTH,
+  API_USER,
+  API_TASK,
+  API_POND,
+  API_COMPANY,
+} from '../utils/apis/constants';
 
-// Auth endpoints
-export const LOGIN_ENDPOINT = `${BASE_URL}/auth/login`;
-export const REFRESH_TOKEN_ENDPOINT = `${BASE_URL}/auth/token`;
-export const VALIDATE_TOKEN_ENDPOINT = `${BASE_URL}/auth/validate`;
-export const SIGNUP_ENDPOINT = `${BASE_URL}/auth/signup`;
+// ============================================================================
+// Auth endpoints (with full URL - legacy)
+// ============================================================================
+export const LOGIN_ENDPOINT = `${BASE_URL}${API_AUTH.LOGIN}`;
+export const REFRESH_TOKEN_ENDPOINT = `${BASE_URL}${API_AUTH.REFRESH_TOKEN}`;
+export const VALIDATE_TOKEN_ENDPOINT = `${BASE_URL}${API_AUTH.VALIDATE_TOKEN}`;
+export const SIGNUP_ENDPOINT = `${BASE_URL}${API_AUTH.SIGNUP}`;
+export const REGISTER_COMPANY_ENDPOINT = `${BASE_URL}${API_COMPANY.REGISTER}`;
 
-// User endpoints
-export const GET_USER_ENDPOINT = `${BASE_URL}/user/me`;
-export const USER_DASHBOARD_ENDPOINT = `${BASE_URL}/user/dashboard`;
-export const USER_BASE_ENDPOINT = `${BASE_URL}/user`;
-export const UPDATE_PASSWORD_ENDPOINT = `${BASE_URL}/user/password`;
-export const UPDATE_MOBILE_ENDPOINT = `${BASE_URL}/user/mobile`;
-export const UPDATE_MAIL_ENDPOINT = `${BASE_URL}/user/email`;
-export const ADD_USER_ENDPOINT = `${BASE_URL}/user/add`;
-export const UPDATE_USERNAME_ENDPOINT = `${BASE_URL}/user/username`;
+// ============================================================================
+// User endpoints (with full URL - legacy)
+// ============================================================================
+export const GET_USER_ENDPOINT = `${BASE_URL}${API_USER.ME}`;
+export const USER_DASHBOARD_ENDPOINT = `${BASE_URL}${API_USER.DASHBOARD}`;
+export const USER_BASE_ENDPOINT = `${BASE_URL}${API_USER.BASE}`;
+export const UPDATE_PASSWORD_ENDPOINT = `${BASE_URL}${API_USER.PASSWORD}`;
+export const UPDATE_MOBILE_ENDPOINT = `${BASE_URL}${API_USER.MOBILE}`;
+export const UPDATE_MAIL_ENDPOINT = `${BASE_URL}${API_USER.EMAIL}`;
+export const ADD_USER_ENDPOINT = `${BASE_URL}${API_USER.ADD}`;
+export const UPDATE_USERNAME_ENDPOINT = `${BASE_URL}${API_USER.USERNAME}`;
 
-// Task endpoints
-export const TASKS_ENDPOINT = `${BASE_URL}/task/`;
-export const TASK_DETAIL_ENDPOINT = (taskId) => `${BASE_URL}/task/${taskId}`;
+// ============================================================================
+// Task endpoints (with full URL - legacy)
+// ============================================================================
+export const TASKS_ENDPOINT = `${BASE_URL}${API_TASK.LIST}`;
+export const TASK_DETAIL_ENDPOINT = (taskId) => `${BASE_URL}${API_TASK.DETAIL(taskId)}`;
 
-// Company endpoints
-export const REGISTER_COMPANY_ENDPOINT = `${BASE_URL}/company/register`;
+// ============================================================================
+// Pond endpoints (with full URL - legacy)
+// ============================================================================
+export const ADD_POND_ENDPOINT = `${BASE_URL}${API_POND.ADD}`;
 
-// Pond endpoints
-export const ADD_POND_ENDPOINT = `${BASE_URL}/pond/add`;
-
-// Other endpoints can be added here as needed
+// ============================================================================
+// Re-export API constants for convenience
+// ============================================================================
+export {
+  API_AUTH,
+  API_USER,
+  API_TASK,
+  API_POND,
+  API_COMPANY,
+} from '../utils/apis/constants';

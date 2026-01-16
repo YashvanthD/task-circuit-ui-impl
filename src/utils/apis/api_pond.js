@@ -1,12 +1,13 @@
 import { apiFetch } from '../api/client';
 import { getAuthHeaders } from './api_auth';
+import { API_POND } from './constants';
 
 export async function listPonds() {
-  return apiFetch('/pond', { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
+  return apiFetch(API_POND.BASE, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export async function getPond(pondId) {
-  return apiFetch(`/pond/${pondId}`, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
+  return apiFetch(API_POND.DETAIL(pondId), { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export async function addPond(pondData) {
@@ -25,7 +26,7 @@ export async function updatePond(pondId, pondData) {
     body: JSON.stringify(pondData),
   });
   if (res && (res.status === 404 || res.status === 405)) {
-    return apiFetch(`/pond/${pondId}`, {
+    return apiFetch(API_POND.UPDATE(pondId), {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(pondData),
@@ -35,11 +36,11 @@ export async function updatePond(pondId, pondData) {
 }
 
 export async function deletePond(pondId) {
-  return apiFetch(`/pond/${pondId}`, { method: 'DELETE', headers: getAuthHeaders({ contentType: null }) });
+  return apiFetch(API_POND.DELETE(pondId), { method: 'DELETE', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export async function addPondDailyUpdate(pondId, updateData) {
-  return apiFetch(`/pond/${pondId}/daily`, {
+  return apiFetch(API_POND.DAILY_UPDATE(pondId), {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(updateData),

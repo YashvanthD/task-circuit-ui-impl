@@ -3,8 +3,7 @@
  * @returns {JSX.Element}
  */
 import React from 'react';
-import Card from '../components/Card';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Card } from '@mui/material';
 
 export default function HomePage() {
   return (

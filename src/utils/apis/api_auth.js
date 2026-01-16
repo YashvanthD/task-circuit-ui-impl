@@ -1,8 +1,9 @@
 import { apiFetch } from '../api/client';
 import { getAccessToken } from '../auth/storage';
+import { API_AUTH } from './constants';
 
 export async function login(credentials) {
-  return apiFetch('/auth/login', {
+  return apiFetch(API_AUTH.LOGIN, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
@@ -10,14 +11,14 @@ export async function login(credentials) {
 }
 
 export async function validateToken(token) {
-  return apiFetch('/auth/validate', {
+  return apiFetch(API_AUTH.VALIDATE_TOKEN, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
   });
 }
 
 export async function refreshToken(refreshToken) {
-  return apiFetch('/auth/token', {
+  return apiFetch(API_AUTH.REFRESH_TOKEN, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'refresh_token', token: refreshToken }),

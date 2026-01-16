@@ -1,8 +1,9 @@
 import { apiFetch } from '../api/client';
 import { getAuthHeaders } from './api_auth';
+import { API_COMPANY } from './constants';
 
 export async function registerCompany(payload) {
-  return apiFetch('/company/register', {
+  return apiFetch(API_COMPANY.REGISTER, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
@@ -10,11 +11,11 @@ export async function registerCompany(payload) {
 }
 
 export async function getCompany(accountKey) {
-  return apiFetch(`/company/${accountKey}`, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
+  return apiFetch(`${API_COMPANY.DETAILS}${accountKey}`, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export async function updateCompany(accountKey, data) {
-  return apiFetch(`/company/${accountKey}`, {
+  return apiFetch(`${API_COMPANY.UPDATE}${accountKey}`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(data),

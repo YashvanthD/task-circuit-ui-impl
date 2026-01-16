@@ -1,5 +1,6 @@
 import { apiFetch } from '../api/client';
 import { getAuthHeaders } from './api_auth';
+import { API_SAMPLING } from './constants';
 
 export async function createSampling(payload) {
   // Ensure the server receives a 'type' indicating whether this is a buy (cost calc enabled) or a sample
@@ -7,7 +8,7 @@ export async function createSampling(payload) {
   if (!body.type) {
     body.type = body.cost_enabled ? 'buy' : 'buy';
   }
-  return apiFetch('/sampling', {
+  return apiFetch(API_SAMPLING.CREATE, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(body),
@@ -24,7 +25,7 @@ export async function listSamplings(params = {}) {
   if (limit) qs.append('limit', limit);
   if (skip) qs.append('skip', skip);
 
-  const url = `/sampling${qs.toString() ? ('?' + qs.toString()) : ''}`;
+  const url = `${API_SAMPLING.BASE}${qs.toString() ? ('?' + qs.toString()) : ''}`;
   let res = await apiFetch(url, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
   // if direct sampling list isn't supported, allow higher-level history endpoint as fallback
   if (res && (res.status === 404 || res.status === 405)) {
@@ -60,15 +61,16 @@ export async function getSamplingHistory(params = {}) {
 }
 
 export async function getSamplingById(id) {
-  return apiFetch(`/sampling/${id}`, { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
+  return apiFetch(API_SAMPLING.DETAIL(id), { method: 'GET', headers: getAuthHeaders({ contentType: null }) });
 }
 
 export async function updateSampling(id, payload) {
-  return apiFetch(`/sampling/${id}`, {
+  return apiFetch(API_SAMPLING.UPDATE(id), {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
 }
 
-export default { createSampling, listSamplings, getSamplingHistory, getSamplingById, updateSampling };
+const samplingApi = { createSampling, listSamplings, getSamplingHistory, getSamplingById, updateSampling };
+export default samplingApi;

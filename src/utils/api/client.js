@@ -9,6 +9,7 @@ import { getAccessToken, handle401 } from '../auth/storage';
 import { BASE_URL } from '../../config';
 import { ApiError, NetworkError, logError } from './errors';
 import { showApiErrorAlert, showErrorAlert, showSuccessAlert } from '../alertManager';
+import { API_AUTH } from '../apis/constants';
 
 /**
  * Safely parse JSON from a response.
@@ -143,7 +144,6 @@ export async function apiJsonFetch(url, options = {}, forceLogout) {
 
   return data;
 }
-
 /**
  * API fetch with automatic success/error alerts.
  * Shows success message on successful completion, error on failure.
@@ -217,7 +217,7 @@ export function extractResponseData(response, key = null) {
  * @returns {Promise<Response>} The login response.
  */
 export async function login(credentials) {
-  return apiFetch('/auth/login', {
+  return apiFetch(API_AUTH.LOGIN, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
@@ -230,7 +230,7 @@ export async function login(credentials) {
  * @returns {Promise<Response>} The validation response.
  */
 export async function validateToken(token) {
-  return apiFetch('/auth/validate', {
+  return apiFetch(API_AUTH.VALIDATE_TOKEN, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
   });
@@ -242,7 +242,7 @@ export async function validateToken(token) {
  * @returns {Promise<Response>} The new access token.
  */
 export async function refreshToken(refreshToken) {
-  return apiFetch('/auth/token', {
+  return apiFetch(API_AUTH.REFRESH_TOKEN, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'refresh_token', token: refreshToken }),
