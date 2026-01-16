@@ -10,6 +10,7 @@ import { Box, useMediaQuery, useTheme, Drawer } from '@mui/material';
 import {
   ConversationList,
   ChatWindow,
+  NewConversationDialog,
 } from '../../components/chat';
 import {
   getConversations,
@@ -19,6 +20,7 @@ import {
   getTotalUnreadCount,
   onConversationsChange,
   subscribeToChatWebSocket,
+  startDirectConversation,
 } from '../../utils/cache/chatCache';
 import { getCurrentUserKey } from '../../api/chat';
 
@@ -40,6 +42,7 @@ export default function ChatPage() {
   const [totalUnread, setTotalUnread] = useState(getTotalUnreadCount);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(true);
+  const [newChatDialogOpen, setNewChatDialogOpen] = useState(false);
 
   // Subscribe to cache changes
   useEffect(() => {
@@ -78,8 +81,33 @@ export default function ChatPage() {
   }, [isMobile]);
 
   const handleNewChat = useCallback(() => {
-    // TODO: Implement new chat dialog
-    console.log('New chat clicked');
+    setNewChatDialogOpen(true);
+  }, []);
+
+  const handleSelectContact = useCallback(async (user) => {
+    try {
+      const userKey = user.user_key || user.id;
+      // Pass user info for creating conversation with proper display name
+      const userInfo = {
+        user_key: userKey,
+        name: user.name || user.username || 'Unknown',
+        avatar_url: user.avatar_url || user.profile_picture || null,
+        is_online: user.is_online || false,
+      };
+      const conversation = await startDirectConversation(userKey, userInfo);
+      if (conversation) {
+        setSelectedConversation(conversation);
+        if (isMobile) {
+          setMobileDrawerOpen(false);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to start conversation:', error);
+    }
+  }, [isMobile]);
+
+  const handleCloseNewChatDialog = useCallback(() => {
+    setNewChatDialogOpen(false);
   }, []);
 
   // Conversation list component
@@ -117,6 +145,11 @@ export default function ChatPage() {
           conversation={selectedConversation}
           currentUserId={currentUserId}
           onBack={handleBack}
+        />
+        <NewConversationDialog
+          open={newChatDialogOpen}
+          onClose={handleCloseNewChatDialog}
+          onSelectUser={handleSelectContact}
         />
       </Box>
     );
@@ -161,6 +194,13 @@ export default function ChatPage() {
           currentUserId={currentUserId}
         />
       </Box>
+
+      {/* New Conversation Dialog */}
+      <NewConversationDialog
+        open={newChatDialogOpen}
+        onClose={handleCloseNewChatDialog}
+        onSelectUser={handleSelectContact}
+      />
     </Box>
   );
 }

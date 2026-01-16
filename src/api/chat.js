@@ -20,6 +20,7 @@ const API_CHAT = {
   SEARCH: '/api/chat/search',
   UNREAD: '/api/chat/unread',
   PRESENCE: '/api/chat/presence',
+  CREATE_CONVERSATION: '/api/chat/conversations', // POST endpoint
 };
 
 // Flag to use mock data (set to false for production)
@@ -605,6 +606,109 @@ export async function getUserPresence(userKeys) {
   }
 }
 
+/**
+ * Create a new conversation
+ * @param {object} data - Conversation data
+ * @param {string} data.conversation_type - 'direct' or 'group'
+ * @param {Array<string>} data.participants - Array of user keys
+ * @param {string} [data.name] - Name for group conversations
+ * @param {string} [data.description] - Description for group conversations
+ */
+export async function createConversation(data) {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 200));
+
+    const currentUser = getCurrentUserInfo();
+    const currentUserKey = currentUser.user_key;
+
+    // Ensure current user is in participants
+    const participants = data.participants.includes(currentUserKey)
+      ? data.participants
+      : [currentUserKey, ...data.participants];
+
+    // For direct conversations, check if one already exists
+    if (data.conversation_type === 'direct' && participants.length === 2) {
+      const existingConv = (mockConversationsCache || []).find((c) => {
+        if (c.conversation_type !== 'direct') return false;
+        const convParticipants = c.participants || [];
+        return (
+          convParticipants.length === 2 &&
+          participants.every((p) => convParticipants.includes(p))
+        );
+      });
+
+      if (existingConv) {
+        return {
+          success: true,
+          data: { conversation: existingConv, existing: true },
+        };
+      }
+    }
+
+    // Build participants info
+    const participantsInfo = participants.map((userKey) => {
+      if (userKey === currentUserKey) {
+        return currentUser;
+      }
+      // Try to find in existing conversations
+      for (const conv of mockConversationsCache || []) {
+        const participant = conv.participants_info?.find((p) => p.user_key === userKey);
+        if (participant) return participant;
+      }
+      return {
+        user_key: userKey,
+        name: userKey,
+        avatar_url: null,
+        is_online: false,
+      };
+    });
+
+    const newConversation = {
+      conversation_id: `conv_${Date.now()}`,
+      conversation_type: data.conversation_type,
+      name: data.name || null,
+      description: data.description || null,
+      participants,
+      participants_info: participantsInfo,
+      admins: data.conversation_type === 'group' ? [currentUserKey] : [],
+      last_message: null,
+      unread_count: 0,
+      is_muted: false,
+      is_pinned: false,
+      last_activity: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    };
+
+    // Add to cache
+    if (!mockConversationsCache) {
+      mockConversationsCache = [];
+    }
+    mockConversationsCache.unshift(newConversation);
+    mockMessagesCache[newConversation.conversation_id] = [];
+
+    return {
+      success: true,
+      data: { conversation: newConversation, existing: false },
+    };
+  }
+
+  try {
+    const response = await apiFetch(API_CHAT.CREATE_CONVERSATION, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Chat API] Failed to create conversation:', error);
+    return {
+      success: false,
+      data: { conversation: null },
+      error: error.message,
+    };
+  }
+}
+
 // ============================================================================
 // Mock Message Operations (for testing)
 // ============================================================================
@@ -702,7 +806,7 @@ const chatApi = {
   addMockMessage,
   sendMockMessage,
   markConversationRead,
-  
+  createConversation, // Add this
 };
 
 export default chatApi;

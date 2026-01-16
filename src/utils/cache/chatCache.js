@@ -22,6 +22,7 @@ import {
   markConversationRead as apiMarkConversationRead,
   sendMockMessage,
   getCurrentUserKey,
+  createConversation as apiCreateConversation, // Add this import
 } from '../../api/chat';
 import { getUsers, getUsersSync } from './usersCache';
 import { socketService, WS_EVENTS } from '../websocket';
@@ -53,9 +54,17 @@ let wsSubscribed = false;
 
 /**
  * Subscribe to WebSocket chat events
+ * Also connects to WebSocket if not already connected
  */
 export function subscribeToChatWebSocket() {
   if (wsSubscribed) return;
+
+  // Connect to WebSocket if not already connected
+  if (!socketService.isConnected()) {
+    socketService.connect().catch((err) => {
+      console.warn('[ChatCache] WebSocket connection failed:', err);
+    });
+  }
 
   // New message received
   socketService.on(WS_EVENTS.MESSAGE_NEW, (message) => {
@@ -64,12 +73,16 @@ export function subscribeToChatWebSocket() {
 
     // Add to messages cache
     const msgCache = getOrCreateMessagesCache(conversation_id);
-    msgCache.data.push(message);
-    msgCache.byId.set(String(message.message_id), message);
-    msgCache.events.emit('updated', msgCache.data);
-    msgCache.events.emit('new', message);
 
-    // Update conversation
+    // Check if message already exists (avoid duplicates)
+    if (!msgCache.byId.has(String(message.message_id))) {
+      msgCache.data.push(message);
+      msgCache.byId.set(String(message.message_id), message);
+      msgCache.events.emit('updated', msgCache.data);
+      msgCache.events.emit('new', message);
+    }
+
+    // Update conversation and move to top
     const convIndex = conversationsCache.data.findIndex(
       (c) => c.conversation_id === conversation_id
     );
@@ -85,8 +98,16 @@ export function subscribeToChatWebSocket() {
         conv.unread_count = (conv.unread_count || 0) + 1;
         conversationsCache.totalUnread++;
       }
+
+      // Move conversation to top if not already
+      if (convIndex > 0) {
+        conversationsCache.data.splice(convIndex, 1);
+        conversationsCache.data.unshift(conv);
+      }
+
       conversationsCache.events.emit('updated', conversationsCache.data);
       conversationsCache.events.emit('message', { conversation_id, message });
+      persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
     }
   });
 
@@ -431,16 +452,27 @@ export async function sendMessage(conversationId, content, replyTo = null) {
   cache.byId.set(tempId, optimisticMessage);
   cache.events.emit('updated', cache.data);
 
-  // Update conversation last message
-  const conv = conversationsCache.byId.get(String(conversationId));
-  if (conv) {
+  // Update conversation last message and move to top
+  const convIndex = conversationsCache.data.findIndex(
+    (c) => c.conversation_id === conversationId
+  );
+  if (convIndex !== -1) {
+    const conv = conversationsCache.data[convIndex];
     conv.last_message = {
       content,
       sender_key: currentUserKey,
       created_at: optimisticMessage.created_at,
     };
     conv.last_activity = optimisticMessage.created_at;
+
+    // Move conversation to top if not already
+    if (convIndex > 0) {
+      conversationsCache.data.splice(convIndex, 1);
+      conversationsCache.data.unshift(conv);
+    }
+
     conversationsCache.events.emit('updated', conversationsCache.data);
+    persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
   }
 
   try {
@@ -550,6 +582,139 @@ export async function addReaction(conversationId, messageId, emoji) {
   }
 }
 
+/**
+ * Create a new conversation
+ * @param {object} data - Conversation data
+ * @param {string} data.conversation_type - 'direct' or 'group'
+ * @param {Array<string>} data.participants - Array of user keys
+ * @param {string} [data.name] - Name for group conversations
+ */
+export async function createConversation(data) {
+  try {
+    const response = await apiCreateConversation(data);
+
+    if (response.success && response.data?.conversation) {
+      const conversation = response.data.conversation;
+
+      // Add to cache if it's a new conversation
+      if (!response.data.existing) {
+        conversationsCache.data.unshift(conversation);
+        conversationsCache.byId.set(String(conversation.conversation_id), conversation);
+        conversationsCache.events.emit('updated', conversationsCache.data);
+        conversationsCache.events.emit('created', conversation);
+        persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+      }
+
+      return conversation;
+    }
+
+    throw new Error(response.error || 'Failed to create conversation');
+  } catch (error) {
+    console.error('[ChatCache] Failed to create conversation:', error);
+    throw error;
+  }
+}
+
+/**
+ * Start a direct conversation with a user (creates if doesn't exist)
+ * @param {string} userKey - The user key to start conversation with
+ * @param {object} [userInfo] - Optional user info for creating new conversation
+ */
+export async function startDirectConversation(userKey, userInfo = null) {
+  const currentUserKey = getCurrentUserKey();
+
+  // Check if conversation already exists
+  const existingIndex = conversationsCache.data.findIndex((c) => {
+    if (c.conversation_type !== 'direct') return false;
+    const participants = c.participants || [];
+    return (
+      participants.length === 2 &&
+      participants.includes(currentUserKey) &&
+      participants.includes(userKey)
+    );
+  });
+
+  if (existingIndex !== -1) {
+    const existingConv = conversationsCache.data[existingIndex];
+
+    // Move to top if not already
+    if (existingIndex > 0) {
+      conversationsCache.data.splice(existingIndex, 1);
+      conversationsCache.data.unshift(existingConv);
+      conversationsCache.events.emit('updated', conversationsCache.data);
+      persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+    }
+
+    return existingConv;
+  }
+
+  // Try to create via API first
+  try {
+    const conversation = await createConversation({
+      conversation_type: 'direct',
+      participants: [currentUserKey, userKey],
+    });
+    return conversation;
+  } catch (error) {
+    console.warn('[ChatCache] API create failed, creating local conversation:', error);
+  }
+
+  // Fallback: Create local conversation if API fails
+  // Get user info from cache if not provided
+  let targetUserInfo = userInfo;
+  if (!targetUserInfo) {
+    const users = getUsersSync() || [];
+    const foundUser = users.find((u) => (u.user_key || u.id) === userKey);
+    if (foundUser) {
+      targetUserInfo = {
+        user_key: foundUser.user_key || foundUser.id,
+        name: foundUser.name || foundUser.username || 'Unknown',
+        avatar_url: foundUser.avatar_url || foundUser.profile_picture || null,
+        is_online: foundUser.is_online || false,
+      };
+    } else {
+      targetUserInfo = {
+        user_key: userKey,
+        name: userKey,
+        avatar_url: null,
+        is_online: false,
+      };
+    }
+  }
+
+  // Get current user info
+  const currentUserInfo = {
+    user_key: currentUserKey,
+    name: 'You',
+    avatar_url: null,
+    is_online: true,
+  };
+
+  // Create local conversation
+  const newConversation = {
+    conversation_id: `conv_local_${Date.now()}`,
+    conversation_type: 'direct',
+    name: null,
+    participants: [currentUserKey, userKey],
+    participants_info: [currentUserInfo, targetUserInfo],
+    last_message: null,
+    unread_count: 0,
+    is_muted: false,
+    is_pinned: false,
+    last_activity: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+  };
+
+  // Add to cache at the top
+  conversationsCache.data.unshift(newConversation);
+  conversationsCache.byId.set(String(newConversation.conversation_id), newConversation);
+  conversationsCache.events.emit('updated', conversationsCache.data);
+  conversationsCache.events.emit('created', newConversation);
+  persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+
+  return newConversation;
+}
+
 // ============================================================================
 // Export
 // ============================================================================
@@ -576,6 +741,8 @@ export const chatCache = {
   getTypingUsers,
   addReaction,
   subscribeToChatWebSocket,
+  createConversation, // Add this
+  startDirectConversation, // Add this
 };
 
 export default chatCache;

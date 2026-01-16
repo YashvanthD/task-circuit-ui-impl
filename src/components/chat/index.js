@@ -14,4 +14,7 @@ export { default as MessageBubble } from './MessageBubble';
 export { default as ChatInput } from './ChatInput';
 export { default as TypingIndicator } from './TypingIndicator';
 export { default as OnlineStatus } from './OnlineStatus';
+export { default as NewConversationDialog } from './NewConversationDialog';
 
+// Export cache functions for easy access
+export { createConversation, startDirectConversation } from '../../utils/cache/chatCache';
