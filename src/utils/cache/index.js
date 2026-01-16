@@ -11,6 +11,8 @@ import { clearPondsCache, refreshPonds, getPonds } from './pondsCache';
 import { clearFishCache, refreshFish, getFish } from './fishCache';
 import { clearSamplingsCache, refreshSamplings } from './samplingsCache';
 import { clearTasksCache, refreshTasks } from './tasksCache';
+import { clearNotificationsCache, refreshNotifications, subscribeToWebSocket as subscribeNotifications } from './notificationsCache';
+import { clearAlertsCache, refreshAlerts, subscribeToAlertWebSocket as subscribeAlerts } from './alertsCache';
 
 // Base cache utilities
 export * from './baseCache';
@@ -21,6 +23,8 @@ export * from './pondsCache';
 export * from './fishCache';
 export * from './samplingsCache';
 export * from './tasksCache';
+export * from './notificationsCache';
+export * from './alertsCache';
 
 // ============================================================================
 // Utility: Clear all caches
@@ -35,6 +39,8 @@ export function clearAllCaches() {
   clearFishCache();
   clearSamplingsCache();
   clearTasksCache();
+  clearNotificationsCache();
+  clearAlertsCache();
 }
 
 // ============================================================================
@@ -52,6 +58,8 @@ export async function refreshAllCaches() {
     refreshFish(),
     refreshSamplings(),
     refreshTasks(),
+    refreshNotifications(),
+    refreshAlerts(),
   ]);
 }
 
@@ -69,5 +77,18 @@ export async function preloadFormCaches() {
     getPonds(),
     getFish(),
   ]);
+}
+
+// ============================================================================
+// WebSocket: Subscribe all real-time caches
+// ============================================================================
+
+/**
+ * Subscribe all caches to WebSocket events for real-time updates.
+ * Call this after WebSocket connection is established.
+ */
+export function subscribeAllToWebSocket() {
+  subscribeNotifications();
+  subscribeAlerts();
 }
 

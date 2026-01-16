@@ -23,6 +23,7 @@ export const ROUTES = {
 export const USER_ROUTES = {
   BASE: '/user',
   DASHBOARD: '/user/dashboard',
+  NOTIFICATIONS: '/user/notifications',
   TASKS: '/user/tasks',
   POND: '/user/pond',
   FISH: '/user/fish',

@@ -53,6 +53,7 @@ export { default as pondApi } from './pond';
 export { default as fishApi } from './fish';
 export { default as samplingApi } from './sampling';
 export { default as companyApi } from './company';
+export { default as notificationsApi } from './notifications';
 
 // ============================================================================
 // Named exports from API modules
@@ -64,4 +65,5 @@ export * from './pond';
 export * from './fish';
 export * from './sampling';
 export * from './company';
+export * from './notifications';
 

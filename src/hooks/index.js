@@ -366,3 +366,15 @@ export function useMounted() {
   return mountedRef;
 }
 
+// ============================================================================
+// WebSocket Hooks
+// ============================================================================
+
+export {
+  useWebSocketConnection,
+  useWebSocketEvent,
+  useNotificationWebSocket,
+  useAlertWebSocket,
+  useDataStreamWebSocket,
+} from './useWebSocket';
+

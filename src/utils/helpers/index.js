@@ -128,3 +128,10 @@ export {
   formatReportCategory,
   getReportPeriodLabel,
 } from './reports';
+
+// Dashboard helpers
+export {
+  refreshDashboardData,
+  refreshAllDashboardData,
+  refreshNotificationsAndAlerts,
+} from './dashboard';

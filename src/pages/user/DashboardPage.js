@@ -33,6 +33,8 @@ import {
   DashboardStats,
   AlertsSection,
   ActionsSection,
+  DashboardHeader,
+  NotificationsSection,
 } from '../../components/dashboard';
 
 // Config
@@ -47,6 +49,9 @@ import {
 
 // Constants
 import { REMINDER_OPTIONS } from '../../constants';
+
+// Dashboard refresh utility
+import { refreshAllDashboardData } from '../../utils/helpers/dashboard';
 
 // ============================================================================
 // Constants
@@ -151,6 +156,20 @@ export default function DashboardPage() {
   const criticalTasks = useMemo(() => countCriticalTasks(tasks), [tasks]);
   const alerts = useMemo(() => getTaskAlerts(tasks, 5), [tasks]);
 
+  // Fetch tasks function (reusable)
+  const fetchTasks = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await getTasks();
+      setTasks(data || []);
+    } catch (err) {
+      setError('Network error. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Auth check and data fetch
   useEffect(() => {
     const accessToken = getAccessToken();
@@ -159,21 +178,16 @@ export default function DashboardPage() {
       return;
     }
 
-    async function fetchTasks() {
-      setLoading(true);
-      setError('');
-      try {
-        const data = await getTasks();
-        setTasks(data || []);
-      } catch (err) {
-        setError('Network error. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchTasks();
-  }, [navigate]);
+  }, [navigate, fetchTasks]);
+
+  // Dashboard refresh handler - refreshes all dashboard data
+  const handleDashboardRefresh = useCallback(async () => {
+    // Refresh cache data (notifications, alerts, etc.)
+    await refreshAllDashboardData();
+    // Also refresh local tasks
+    await fetchTasks();
+  }, [fetchTasks]);
 
   // Task update handler
   const updateTask = useCallback(
@@ -235,6 +249,12 @@ export default function DashboardPage() {
 
   return (
     <>
+      <DashboardHeader
+        title="Dashboard"
+        subtitle="Overview of your tasks and alerts"
+        onRefresh={handleDashboardRefresh}
+      />
+
       <CriticalSummary criticalCount={criticalTasks} alertCount={alerts.length} />
 
       <DashboardStats activeTasks={activeTasks} criticalTasks={criticalTasks} />
@@ -246,6 +266,8 @@ export default function DashboardPage() {
         onAlertClick={handleAlertClick}
         onSeeMore={() => navigate(BASE_APP_PATH_USER_TASKS)}
       />
+
+      <NotificationsSection maxItems={5} />
 
       <ActionsSection actions={QUICK_ACTIONS} onNavigate={handleNavigate} />
 

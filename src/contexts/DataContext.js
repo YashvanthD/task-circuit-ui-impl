@@ -34,6 +34,23 @@ import {
   getTaskById, getTaskOptions, getTasksByStatus, getTasksByUser, getTaskCounts, onTasksChange,
 } from '../utils/cache/tasksCache';
 
+import {
+  getNotifications, refreshNotifications, getNotificationsSync, isNotificationsLoading, getNotificationsError,
+  getNotificationById, getUnreadNotifications, getRecentNotifications, getUnreadNotificationCount,
+  markNotificationAsRead, deleteNotification, markAllNotificationsAsRead,
+  onNotificationsChange,
+} from '../utils/cache/notificationsCache';
+
+import {
+  getAlerts, refreshAlerts, getAlertsSync, isAlertsLoading, getAlertsError,
+  getAlertById, getUnacknowledgedAlerts, getCriticalAlerts, getUnacknowledgedAlertCount,
+  acknowledgeAlert, deleteAlert,
+  onAlertsChange,
+} from '../utils/cache/alertsCache';
+
+import { subscribeAllToWebSocket } from '../utils/cache';
+import { socketService } from '../utils/websocket';
+
 // ============================================================================
 // Context
 // ============================================================================
@@ -62,7 +79,25 @@ export function DataProvider({ children }) {
       onFishChange('updated', rerender),
       onSamplingsChange('updated', rerender),
       onTasksChange('updated', rerender),
+      onNotificationsChange('updated', rerender),
+      onAlertsChange('updated', rerender),
     ];
+
+    // Initial load of notifications and alerts for authenticated users
+    // Check if user is authenticated (has token)
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      // Connect WebSocket for real-time updates
+      socketService.connect().then((connected) => {
+        if (connected) {
+          subscribeAllToWebSocket();
+        }
+      });
+
+      // Load in background, don't block
+      getNotifications().catch(() => {});
+      getAlerts().catch(() => {});
+    }
 
     return () => unsubs.forEach((unsub) => unsub());
   }, []);
@@ -126,6 +161,33 @@ export function DataProvider({ children }) {
     getTasksByStatus,
     getTasksByUser,
     getTaskCounts,
+
+    // Notifications
+    notifications: getNotificationsSync(),
+    notificationsLoading: isNotificationsLoading(),
+    notificationsError: getNotificationsError(),
+    loadNotifications: getNotifications,
+    refreshNotifications,
+    getNotificationById,
+    getUnreadNotifications,
+    getRecentNotifications,
+    unreadNotificationCount: getUnreadNotificationCount(),
+    markNotificationAsRead,
+    deleteNotification,
+    markAllNotificationsAsRead,
+
+    // Alerts
+    alerts: getAlertsSync(),
+    alertsLoading: isAlertsLoading(),
+    alertsError: getAlertsError(),
+    loadAlerts: getAlerts,
+    refreshAlerts,
+    getAlertById,
+    getUnacknowledgedAlerts,
+    getCriticalAlerts,
+    unacknowledgedAlertCount: getUnacknowledgedAlertCount(),
+    acknowledgeAlert,
+    deleteAlert,
   };
 
   return (
@@ -342,6 +404,93 @@ export function useTasks() {
     getByStatus: getTasksByStatus,
     getByUser: getTasksByUser,
     getCounts: getTaskCounts,
+  };
+}
+
+/**
+ * useNotifications - Hook for notifications data.
+ * @returns {object} Notifications data and functions
+ */
+export function useNotifications() {
+  const [notifications, setNotifications] = useState(getNotificationsSync);
+  const [loading, setLoading] = useState(isNotificationsLoading);
+  const [error, setError] = useState(getNotificationsError);
+  const [unreadCount, setUnreadCount] = useState(getUnreadNotificationCount);
+
+  useEffect(() => {
+    const unsubUpdated = onNotificationsChange('updated', (data) => {
+      setNotifications(data);
+      setUnreadCount(getUnreadNotificationCount());
+    });
+    const unsubLoading = onNotificationsChange('loading', (val) => setLoading(val));
+    const unsubError = onNotificationsChange('error', (err) => setError(err));
+
+    return () => {
+      unsubUpdated();
+      unsubLoading();
+      unsubError();
+    };
+  }, []);
+
+  const load = useCallback((force = false) => getNotifications(force), []);
+  const refresh = useCallback(() => refreshNotifications(), []);
+
+  return {
+    notifications,
+    loading,
+    error,
+    unreadCount,
+    load,
+    refresh,
+    getById: getNotificationById,
+    getUnread: getUnreadNotifications,
+    getRecent: getRecentNotifications,
+    markAsRead: markNotificationAsRead,
+    delete: deleteNotification,
+    markAllRead: markAllNotificationsAsRead,
+  };
+}
+
+/**
+ * useAlerts - Hook for alerts data.
+ * @returns {object} Alerts data and functions
+ */
+export function useAlerts() {
+  const [alerts, setAlerts] = useState(getAlertsSync);
+  const [loading, setLoading] = useState(isAlertsLoading);
+  const [error, setError] = useState(getAlertsError);
+  const [unacknowledgedCount, setUnacknowledgedCount] = useState(getUnacknowledgedAlertCount);
+
+  useEffect(() => {
+    const unsubUpdated = onAlertsChange('updated', (data) => {
+      setAlerts(data);
+      setUnacknowledgedCount(getUnacknowledgedAlertCount());
+    });
+    const unsubLoading = onAlertsChange('loading', (val) => setLoading(val));
+    const unsubError = onAlertsChange('error', (err) => setError(err));
+
+    return () => {
+      unsubUpdated();
+      unsubLoading();
+      unsubError();
+    };
+  }, []);
+
+  const load = useCallback((force = false) => getAlerts(force), []);
+  const refresh = useCallback(() => refreshAlerts(), []);
+
+  return {
+    alerts,
+    loading,
+    error,
+    unacknowledgedCount,
+    load,
+    refresh,
+    getById: getAlertById,
+    getUnacknowledged: getUnacknowledgedAlerts,
+    getCritical: getCriticalAlerts,
+    acknowledge: acknowledgeAlert,
+    delete: deleteAlert,
   };
 }
 

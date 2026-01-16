@@ -25,6 +25,8 @@ export {
   useFish,
   useSamplings,
   useTasks,
+  useNotifications,
+  useAlerts,
   default as DataContext,
 } from './DataContext';
 

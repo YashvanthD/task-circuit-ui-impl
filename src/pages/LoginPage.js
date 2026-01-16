@@ -5,6 +5,10 @@ import { userSession } from '../utils/auth/userSession';
 import { startAccessTokenManagement } from '../utils/auth/storage';
 import { login } from '../api';
 import { BASE_APP_PATH_USER_DASHBOARD } from '../config';
+import { getNotifications } from '../utils/cache/notificationsCache';
+import { getAlerts } from '../utils/cache/alertsCache';
+import { subscribeAllToWebSocket } from '../utils/cache';
+import { socketService } from '../utils/websocket';
 
 /**
  * Login page component for Task Circuit.
@@ -39,6 +43,19 @@ export default function LoginPage() {
         userSession.initFromLoginResponse(data);
         // Start token management
         startAccessTokenManagement();
+
+        // Connect WebSocket for real-time updates
+        socketService.connect().then((connected) => {
+          if (connected) {
+            // Subscribe caches to WebSocket events
+            subscribeAllToWebSocket();
+          }
+        });
+
+        // Preload notifications and alerts in background (don't await)
+        getNotifications().catch(() => {});
+        getAlerts().catch(() => {});
+
         navigate(BASE_APP_PATH_USER_DASHBOARD, { replace: true });
       } else {
         setError('Login failed: No access or refresh token received.');

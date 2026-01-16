@@ -33,6 +33,9 @@ export * from './reports';
 // Expense components
 export * from './expenses';
 
+// Notification components
+export * from './notifications';
+
 // Assistant components (new modular RoamingAssistant)
 export * from './assistant';
 

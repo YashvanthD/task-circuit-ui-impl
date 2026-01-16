@@ -32,6 +32,7 @@ import MyAccount from './pages/user/expenses/MyAccount';
 import UserPaySlips from './pages/user/expenses/UserPaySlips';
 import TreeUserView from './pages/user/TreeUserView';
 import AiPage from './pages/user/AiPage';
+import NotificationsPage from './pages/user/NotificationsPage';
 import {
     BASE_APP_PATH_HOME,
     BASE_APP_PATH_LOGIN,
@@ -95,6 +96,7 @@ function AppRoutes() {
       <Route path={`${BASE_APP_PATH_USER}/*`} element={<UserLayout />} >
         <Route index element={<DashboardPage />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="pond" element={<PondPage />} />
         <Route path="reports" element={<ReportsPage />} />
