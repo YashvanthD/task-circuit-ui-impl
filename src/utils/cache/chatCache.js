@@ -21,7 +21,6 @@ import {
   getMessages,
   markConversationRead as apiMarkConversationRead,
   sendMockMessage,
-  addMockMessage,
   getCurrentUserKey,
 } from '../../api/chat';
 import { getUsers, getUsersSync } from './usersCache';

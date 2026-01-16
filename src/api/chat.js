@@ -23,7 +23,7 @@ const API_CHAT = {
 };
 
 // Flag to use mock data (set to false for production)
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // ============================================================================
 // Current User Helper
@@ -342,11 +342,26 @@ export async function listConversations(params = {}, users = []) {
   if (params.skip) qs.append('skip', params.skip);
   if (params.type) qs.append('type', params.type);
 
-  const response = await apiFetch(`${API_CHAT.CONVERSATIONS}?${qs}`, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(`${API_CHAT.CONVERSATIONS}?${qs}`, {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Chat API] Failed to fetch conversations:', error);
+    // Return empty structure on error
+    return {
+      success: false,
+      data: {
+        conversations: [],
+        count: 0,
+        has_more: false,
+        meta: { limit: params.limit || 50, skip: params.skip || 0 },
+      },
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -362,11 +377,20 @@ export async function getConversation(conversationId) {
     };
   }
 
-  const response = await apiFetch(API_CHAT.CONVERSATION_DETAIL(conversationId), {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_CHAT.CONVERSATION_DETAIL(conversationId), {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Chat API] Failed to fetch conversation:', error);
+    return {
+      success: false,
+      data: { conversation: null },
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -408,11 +432,24 @@ export async function getMessages(conversationId, params = {}) {
   if (params.before) qs.append('before', params.before);
   if (params.after) qs.append('after', params.after);
 
-  const response = await apiFetch(`${API_CHAT.MESSAGES(conversationId)}?${qs}`, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(`${API_CHAT.MESSAGES(conversationId)}?${qs}`, {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Chat API] Failed to fetch messages:', error);
+    return {
+      success: false,
+      data: {
+        messages: [],
+        count: 0,
+        has_more: false,
+      },
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -452,11 +489,24 @@ export async function searchMessages(query, conversationId = null) {
   const qs = new URLSearchParams({ q: query });
   if (conversationId) qs.append('conversation_id', conversationId);
 
-  const response = await apiFetch(`${API_CHAT.SEARCH}?${qs}`, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(`${API_CHAT.SEARCH}?${qs}`, {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Chat API] Failed to search messages:', error);
+    return {
+      success: false,
+      data: {
+        messages: [],
+        count: 0,
+        query,
+      },
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -485,11 +535,23 @@ export async function getUnreadCounts() {
     };
   }
 
-  const response = await apiFetch(API_CHAT.UNREAD, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(API_CHAT.UNREAD, {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Chat API] Failed to get unread counts:', error);
+    return {
+      success: false,
+      data: {
+        total_unread: 0,
+        conversations: {},
+      },
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -523,11 +585,24 @@ export async function getUserPresence(userKeys) {
     };
   }
 
-  const response = await apiFetch(`${API_CHAT.PRESENCE}?user_keys=${userKeys.join(',')}`, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-  return response.json();
+  try {
+    const response = await apiFetch(`${API_CHAT.PRESENCE}?user_keys=${userKeys.join(',')}`, {
+      method: 'GET',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Chat API] Failed to get user presence:', error);
+    const presence = {};
+    userKeys.forEach((key) => {
+      presence[key] = { status: 'offline', last_seen: null };
+    });
+    return {
+      success: false,
+      data: { presence },
+      error: error.message,
+    };
+  }
 }
 
 // ============================================================================
