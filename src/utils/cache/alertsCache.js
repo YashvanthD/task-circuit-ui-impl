@@ -23,6 +23,7 @@ import {
   deleteAlert as apiDeleteAlert,
 } from '../../api/notifications';
 import { socketService, WS_EVENTS } from '../websocket';
+import { showErrorAlert } from '../alertManager';
 
 // ============================================================================
 // Cache Instance
@@ -154,6 +155,7 @@ export async function getAlerts(force = false, params = {}) {
   } catch (error) {
     setCacheError(cache, error);
     console.error('[AlertsCache] Failed to fetch:', error);
+    showErrorAlert('Failed to load alerts.', 'Alerts');
     return cache.data;
   }
 }
@@ -319,6 +321,7 @@ export async function acknowledgeAlert(id) {
     return result;
   } catch (error) {
     console.error('[AlertsCache] Failed to acknowledge:', error);
+    showErrorAlert('Failed to acknowledge alert.', 'Alerts');
     throw error;
   }
 }
@@ -345,6 +348,7 @@ export async function deleteAlert(id) {
     return result;
   } catch (error) {
     console.error('[AlertsCache] Failed to delete:', error);
+    showErrorAlert('Failed to delete alert.', 'Alerts');
     throw error;
   }
 }

@@ -97,7 +97,8 @@ export default function NotificationsSection({ maxItems = 5 }) {
         borderRadius: 2,
         border: '1px solid',
         borderColor: 'divider',
-        height: '100%',
+        minHeight: 200,
+        height: 'auto',
       }}
     >
       {/* Header */}

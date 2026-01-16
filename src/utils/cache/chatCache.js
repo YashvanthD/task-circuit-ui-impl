@@ -19,13 +19,12 @@ import {
 import {
   listConversations,
   getMessages,
-  markConversationRead as apiMarkConversationRead,
-  sendMockMessage,
   getCurrentUserKey,
-  createConversation as apiCreateConversation, // Add this import
+  createConversation as apiCreateConversation,
 } from '../../api/chat';
 import { getUsers, getUsersSync } from './usersCache';
 import { socketService, WS_EVENTS } from '../websocket';
+import { showErrorAlert } from '../alertManager';
 
 // ============================================================================
 // Cache Instances
@@ -291,6 +290,7 @@ export async function getConversations(force = false, params = {}) {
   } catch (error) {
     setCacheError(conversationsCache, error);
     console.error('[ChatCache] Failed to fetch conversations:', error);
+    showErrorAlert('Failed to load conversations. Please try again.', 'Chat Error');
     return conversationsCache.data;
   }
 }
@@ -361,9 +361,18 @@ export function onConversationsChange(event, callback) {
 
 /**
  * Get messages for a conversation (lazy loaded)
+ * For local conversations (conv_local_*), only use cached data
+ * REST API is only called for server-side conversations on first load
  */
 export async function getMessagesForConversation(conversationId, force = false, params = {}) {
   const cache = getOrCreateMessagesCache(conversationId);
+
+  // For local conversations, don't call REST API - just return cached data
+  // Messages will come through WebSocket
+  if (conversationId.startsWith('conv_local_')) {
+    setCacheLoading(cache, false);
+    return cache.data;
+  }
 
   if (!force && hasValidCache(cache)) {
     return cache.data;
@@ -386,6 +395,8 @@ export async function getMessagesForConversation(conversationId, force = false, 
   } catch (error) {
     setCacheError(cache, error);
     console.error('[ChatCache] Failed to fetch messages:', error);
+    showErrorAlert('Failed to load messages. Please try again.', 'Chat Error');
+    setCacheLoading(cache, false);
     return cache.data;
   }
 }
@@ -476,16 +487,16 @@ export async function sendMessage(conversationId, content, replyTo = null) {
   }
 
   try {
-    // Send via WebSocket if connected, otherwise use mock
+    // Always use WebSocket for sending messages
     if (socketService.isConnected()) {
       await socketService.sendMessage(conversationId, content, 'text', replyTo);
+      // WebSocket will send MESSAGE_SENT event to confirm, handled by subscriber
     } else {
-      // Mock: Update message status
-      const msg = sendMockMessage(conversationId, content, replyTo);
-      optimisticMessage.message_id = msg.message_id;
+      // No WebSocket - mark as sent locally (offline mode)
+      optimisticMessage.message_id = `msg_local_${Date.now()}`;
       optimisticMessage.status = 'sent';
       cache.byId.delete(tempId);
-      cache.byId.set(String(msg.message_id), optimisticMessage);
+      cache.byId.set(String(optimisticMessage.message_id), optimisticMessage);
       cache.events.emit('updated', cache.data);
     }
 
@@ -494,6 +505,7 @@ export async function sendMessage(conversationId, content, replyTo = null) {
     // Mark as failed
     optimisticMessage.status = 'failed';
     cache.events.emit('updated', cache.data);
+    showErrorAlert('Failed to send message. Please try again.', 'Chat Error');
     throw error;
   }
 }
@@ -521,12 +533,11 @@ export async function markConversationAsRead(conversationId) {
     cache.events.emit('updated', cache.data);
   }
 
-  // Send to server
+  // Send to server via WebSocket only
   if (socketService.isConnected()) {
-    await socketService.markMessagesRead(conversationId);
-  } else {
-    apiMarkConversationRead(conversationId);
+    socketService.markMessagesRead(conversationId);
   }
+  // If not connected, local update is enough - will sync when reconnected
 }
 
 /**

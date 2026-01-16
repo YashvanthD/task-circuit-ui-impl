@@ -24,6 +24,7 @@ import {
   deleteNotification as apiDeleteNotification,
 } from '../../api/notifications';
 import { socketService, WS_EVENTS } from '../websocket';
+import { showErrorAlert } from '../alertManager';
 
 // ============================================================================
 // Cache Instance
@@ -158,6 +159,7 @@ export async function getNotifications(force = false, params = {}) {
   } catch (error) {
     setCacheError(cache, error);
     console.error('[NotificationsCache] Failed to fetch:', error);
+    showErrorAlert('Failed to load notifications.', 'Notifications');
     return cache.data;
   }
 }
@@ -289,6 +291,7 @@ export async function markNotificationAsRead(id) {
     return result;
   } catch (error) {
     console.error('[NotificationsCache] Failed to mark as read:', error);
+    showErrorAlert('Failed to mark notification as read.', 'Notifications');
     throw error;
   }
 }
@@ -315,6 +318,7 @@ export async function deleteNotification(id) {
     return result;
   } catch (error) {
     console.error('[NotificationsCache] Failed to delete:', error);
+    showErrorAlert('Failed to delete notification.', 'Notifications');
     throw error;
   }
 }
@@ -337,6 +341,7 @@ export async function markAllNotificationsAsRead() {
     return result;
   } catch (error) {
     console.error('[NotificationsCache] Failed to mark all as read:', error);
+    showErrorAlert('Failed to mark all notifications as read.', 'Notifications');
     throw error;
   }
 }

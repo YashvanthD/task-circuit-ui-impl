@@ -160,7 +160,7 @@ export default function NotificationList({
 
       {/* Empty state */}
       {!loading && !error && displayNotifications.length === 0 && (
-        <Box sx={{ textAlign: 'center', py: 4 }}>
+        <Box sx={{ textAlign: 'center', py: 2 }}>
           <Typography color="text.secondary" variant="body2">
             {filter === 'unread' ? 'No unread notifications' : emptyMessage}
           </Typography>
