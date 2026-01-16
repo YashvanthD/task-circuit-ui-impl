@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { apiFetch } from '../../../utils/api';
-import { SIGNUP_ENDPOINT } from '../../../endpoints';
+import { signup } from '../../../api';
 
 /**
  * SignupForm - User registration form for TaskCircuit
@@ -37,11 +36,7 @@ export default function SignupForm() {
     // }
     try {
       const submitBody = { ...form };
-      const res = await apiFetch(SIGNUP_ENDPOINT, {
-        method: 'POST',
-        body: JSON.stringify(submitBody),
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const res = await signup(submitBody);
       const data = await res.json();
       if (res.ok && data.success) {
         setSuccess('Registration successful!');

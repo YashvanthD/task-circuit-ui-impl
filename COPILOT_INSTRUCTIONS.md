@@ -12,7 +12,7 @@ Use the following prompt to recreate the React web app with best practices:
    - `pages/` (page-level components)
    - `forms/` (form-related components)
    - `utils/` (helper functions)
-   - `endpoints/` (API endpoint definitions)
+   - `api/` (centralized API modules, constants, and client)
 2. Use only `.js` files for all React components, pages, and layouts. Do not use `.tsx` or TypeScript for UI.
 3. Use functional React components and hooks. Add JSDoc comments for documentation.
 4. Create `BaseLayout.js` with a sticky top nav bar and a conditional side nav bar (visible only when logged in).
@@ -86,15 +86,17 @@ After initial setup, automatically proceed with these next steps:
   - `src/layouts/` (BaseLayout.js, UserLayout.js)
   - `src/pages/` (LandingPage.js, HomePage.js, LoginPage.js)
   - `src/pages/user/` (DashboardPage.js, other user pages)
-  - `src/utils/` (storage.js for localStorage/sessionStorage helpers)
-  - `src/endpoints/` (index.js for all API endpoints)
+  - `src/utils/` (auth, helpers, resources utilities)
+  - `src/api/` (centralized API modules - auth.js, user.js, task.js, pond.js, fish.js, sampling.js, company.js, client.js, constants.js)
   - `src/config.js` (BASE_URL)
 
-## Endpoints
-- All API endpoints are defined in `src/endpoints/index.js` and imported where needed.
-- Example endpoints:
-  - LOGIN_ENDPOINT, REFRESH_TOKEN_ENDPOINT, VALIDATE_TOKEN_ENDPOINT
-  - GET_USER_ENDPOINT, USER_DASHBOARD_ENDPOINT, TASKS_ENDPOINT, TASK_DETAIL_ENDPOINT
+## API Module Structure
+- All API calls are centralized in `src/api/` folder.
+- Each domain has its own module: `auth.js`, `user.js`, `task.js`, `pond.js`, `fish.js`, `sampling.js`, `company.js`.
+- API constants (endpoint paths) are in `src/api/constants.js`.
+- API client utilities (`apiFetch`, `ApiError`, etc.) are in `src/api/client.js`.
+- Import API functions from `src/api/` (e.g., `import { login, signup } from '../api'`).
+- Use the domain-specific API functions instead of raw `apiFetch` calls with endpoints.
 
 ## Authentication & Session Management
 - On login, use `processLoginResponse` to store access_token, refresh_token, expiry, and user info in localStorage.
@@ -123,14 +125,14 @@ After initial setup, automatically proceed with these next steps:
 - Top nav bar is always visible, sticky, and shows project name and user actions.
 
 ## Best Practices
-- Always use endpoints from `src/endpoints/index.js` for API calls.
-- Use token/session utilities from `src/utils/storage.js` for authentication and session management.
+- Always use API functions from `src/api/` for API calls (e.g., `import { login } from '../api'`).
+- Use token/session utilities from `src/utils/auth/` for authentication and session management.
 - Use localStorage for caching tasks and user info, and keep data in sync with API.
 - All code is modular, documented, and extensible for future features.
 - Remove unused imports and variables to keep code clean.
 
 ## Extensibility
-- To add new endpoints, update `src/endpoints/index.js`.
+- To add new API endpoints, update `src/api/constants.js` and create/update the corresponding API module in `src/api/`.
 - To add new user pages, create a new component in `src/pages/user/` and add a route in App.js.
 - To add new sidebar items, update the navItems array in BaseLayout.js.
 - To extend task logic, use and adapt the utilities and updateTask pattern in DashboardPage.js.

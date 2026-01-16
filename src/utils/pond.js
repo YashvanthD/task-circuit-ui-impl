@@ -1,7 +1,9 @@
-import * as api from './apis/api_pond';
+import { pondApi, extractResponseData } from '../api';
 import { createResourceUtil } from './resources/base';
 import { parsePondList, parsePond } from './parsePond';
-import { extractResponseData } from './api/client';
+
+// Create alias for backward compatibility
+const api = pondApi;
 
 /**
  * Normalize pond list from various API response shapes.
@@ -32,10 +34,10 @@ function normalizePondList(d) {
 const pondResource = createResourceUtil({
   listFn: api.listPonds,
   getFn: api.getPond,
-  addFn: api.addPond,
+  addFn: api.createPond,
   updateFn: api.updatePond,
   deleteFn: api.deletePond,
-  extraFns: { addDailyUpdate: api.addPondDailyUpdate, addEvent: api.addPondEvent }
+  extraFns: { addDailyUpdate: api.addDailyUpdate, addEvent: api.createPondEvent }
 }, {
   cacheKey: 'ponds',
   idField: 'pond_id',

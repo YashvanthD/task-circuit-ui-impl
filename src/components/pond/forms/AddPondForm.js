@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box, MenuItem, Stack } from '@mui/material';
-import { apiFetch } from '../../../utils/api';
-import { ADD_POND_ENDPOINT } from '../../../endpoints';
+import { apiFetch, API_POND } from '../../../api';
 
 /**
  * AddPondForm - Form to add a new pond
@@ -39,7 +38,7 @@ export default function AddPondForm() {
       return;
     }
     try {
-      const res = await apiFetch(ADD_POND_ENDPOINT, {
+      const res = await apiFetch(API_POND.CREATE, {
         method: 'POST',
         body: JSON.stringify(form),
         headers: { 'Content-Type': 'application/json' }

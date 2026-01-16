@@ -1,6 +1,6 @@
 import pondUtil from './pond';
 import fishUtil from './fish';
-import { listPublicFish } from './apis/api_public';
+import { listPublicFish } from '../api';
 import { loadFromLocalStorage, saveToLocalStorage } from './auth/storage';
 import { parseFishList } from './parseFish';
 

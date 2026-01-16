@@ -50,12 +50,12 @@
 
 ## Project Structure
 
+- `src/api/` — Centralized API modules (auth, user, task, pond, fish, sampling, company, client, constants)
 - `src/components/` — Reusable UI components
 - `src/layouts/` — Layout components (BaseLayout, etc.)
 - `src/pages/` — Page-level components (LandingPage, HomePage)
 - `src/forms/` — Form-related components (LoginForm)
-- `src/utils/` — Helper functions (storage.js)
-- `src/endpoints/` — API endpoint definitions
+- `src/utils/` — Helper functions (auth, helpers, resources)
 
 ## Usage
 - Visit `/` for the landing page
@@ -68,7 +68,8 @@
 ## Notes
 - All components use functional React and hooks
 - JSDoc comments are included for documentation
-- Persistent storage via localStorage/sessionStorage helpers in `utils/storage.js`
+- API calls use centralized modules in `src/api/`
+- Persistent storage via utilities in `src/utils/auth/`
 
 ---
 

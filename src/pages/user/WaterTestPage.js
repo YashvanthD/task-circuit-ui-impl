@@ -6,7 +6,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import * as apiPond from '../../utils/apis/api_pond';
+import { pondApi } from '../../api';
 import userUtil from '../../utils/user';
 import { loadUserFromLocalStorage } from '../../utils/auth/storage';
 
@@ -94,7 +94,7 @@ export default function WaterTestPage() {
     setLoading(true);
     (async () => {
       try {
-        const res = await apiPond.listPonds();
+        const res = await pondApi.listPonds();
         let data = res;
         if (res && res.json) data = await res.json();
         const list = data && data.data && data.data.ponds ? data.data.ponds : (Array.isArray(data) ? data : (data && data.ponds ? data.ponds : []));
@@ -137,7 +137,7 @@ export default function WaterTestPage() {
   const refresh = async () => {
     setLoading(true);
     try {
-      const res = await apiPond.listPonds();
+      const res = await pondApi.listPonds();
       let data = res;
       if (res && res.json) data = await res.json();
       const list = data && data.data && data.data.ponds ? data.data.ponds : (Array.isArray(data) ? data : (data && data.ponds ? data.ponds : []));

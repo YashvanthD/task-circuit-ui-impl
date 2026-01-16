@@ -35,10 +35,10 @@ import {
 import SamplingStats from '../../components/sampling/SamplingStats';
 import { SamplingForm } from '../../components/sampling';
 
-// Utils
+// Utils & API
 import samplingUtil from '../../utils/sampling';
 import fishUtil from '../../utils/fish';
-import * as apiPond from '../../utils/apis/api_pond';
+import { pondApi } from '../../api';
 import userUtil from '../../utils/user';
 
 export default function SamplingPage() {
@@ -68,7 +68,7 @@ export default function SamplingPage() {
   // Load data
   const loadPonds = useCallback(async () => {
     try {
-      const res = await apiPond.listPonds();
+      const res = await pondApi.listPonds();
       let data = res;
       if (res && res.json) data = await res.json();
       const list = data?.data?.ponds || (Array.isArray(data) ? data : data?.ponds || []);

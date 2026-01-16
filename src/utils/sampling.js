@@ -1,4 +1,7 @@
-import * as apiSampling from './apis/api_sampling';
+import { samplingApi } from '../api';
+
+// Create alias for backward compatibility
+const apiSampling = samplingApi;
 
 const STORAGE_KEY = 'tc_cache_sampling';
 const ACTIVITY_KEY = 'tc_activity_last_fetched';

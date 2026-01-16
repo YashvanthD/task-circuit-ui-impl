@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TextField, Button, Paper, Typography, Box } from '@mui/material';
-import { apiFetch } from '../../../utils/api';
-import { REGISTER_COMPANY_ENDPOINT } from '../../../endpoints';
+
+import { registerCompany } from '../../../api';
 
 /**
  * RegisterCompanyForm - Company registration form for TaskCircuit
@@ -43,11 +43,7 @@ export default function RegisterCompanyForm() {
     }
     try {
       const submitBody = { ...form };
-      const res = await apiFetch(REGISTER_COMPANY_ENDPOINT, {
-        method: 'POST',
-        body: JSON.stringify(submitBody),
-        headers: { 'Content-Type': 'application/json' }
-      });
+      const res = await registerCompany(submitBody);
       const data = await res.json();
       if (res.ok && data.success) {
         setSuccess('Company registration successful!');

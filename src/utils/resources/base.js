@@ -5,7 +5,7 @@
  * @module utils/resources/base
  */
 
-import { apiStore } from '../api/store';
+import { apiStore } from '../../api';
 
 /**
  * Detect if page was reloaded.

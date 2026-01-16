@@ -19,7 +19,7 @@ import {
   API_COMPANY,
   API_SAMPLING,
   API_FISH,
-} from '../utils/apis/constants';
+} from '../api/constants';
 
 // ============================================================================
 // Auth endpoints (with full URL - legacy)
@@ -60,4 +60,6 @@ export {
   API_COMPANY,
   API_SAMPLING,
   API_FISH,
-} from '../utils/apis/constants';
+} from '../api/constants';
+
+// This file is deprecated. Use API constants from src/api/constants.js and apiFetch from src/api/client.js

@@ -1,7 +1,15 @@
-import * as apiUser from './apis/api_user';
-import { apiFetch, safeJsonParse, extractResponseData } from './api/client';
-import { logError } from './api/errors';
-import {PATH_USER_LIST} from "./apis/constants";
+import { userApi, apiFetch, safeJsonParse, extractResponseData, API_USER } from '../api';
+
+// Create alias for backward compatibility
+const apiUser = userApi;
+
+// Simple logError function
+function logError(context, error) {
+  console.error(`[${context}]`, error);
+}
+
+// PATH_USER_LIST is API_USER.LIST
+const PATH_USER_LIST = API_USER.LIST;
 
 const USERS_CACHE_KEY = 'tc_cache_users';
 
