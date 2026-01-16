@@ -1,6 +1,6 @@
 /**
  * WebSocket Service
- * Real-time connection manager using Socket.IO for notifications, alerts, and data streams.
+ * Real-time connection manager using Socket.IO for notifications, alerts, chat, and data streams.
  *
  * @module utils/websocket/socketService
  */
@@ -12,6 +12,10 @@ import { getAccessToken } from '../auth/storage';
 // WebSocket Events Constants
 // ============================================================================
 export const WS_EVENTS = {
+  // Connection events
+  CONNECTED: 'connected',
+  ERROR: 'error',
+
   // Notification events (server -> client)
   NOTIFICATION_NEW: 'notification:new',
   NOTIFICATION_READ: 'notification:read',
@@ -25,10 +29,46 @@ export const WS_EVENTS = {
   ALERT_DELETED: 'alert:deleted',
   ALERT_COUNT: 'alert:count',
 
-  // Client -> server events
+  // Notification client -> server events
   MARK_NOTIFICATION_READ: 'notification:mark_read',
   MARK_ALL_NOTIFICATIONS_READ: 'notification:mark_all_read',
   ACKNOWLEDGE_ALERT: 'alert:acknowledge',
+
+  // =========================================================================
+  // Chat/Messaging Events
+  // =========================================================================
+
+  // Message events (client -> server)
+  MESSAGE_SEND: 'message:send',
+  MESSAGE_EDIT: 'message:edit',
+  MESSAGE_DELETE: 'message:delete',
+  MESSAGE_READ: 'message:read',
+  MESSAGE_REACTION: 'message:reaction',
+
+  // Message events (server -> client)
+  MESSAGE_SENT: 'message:sent',
+  MESSAGE_NEW: 'message:new',
+  MESSAGE_DELIVERED: 'message:delivered',
+  MESSAGE_EDITED: 'message:edited',
+  MESSAGE_DELETED: 'message:deleted',
+
+  // Typing indicators
+  TYPING_START: 'typing:start',
+  TYPING_STOP: 'typing:stop',
+  TYPING_UPDATE: 'typing:update',
+
+  // Conversation events (client -> server)
+  CONVERSATION_CREATE: 'conversation:create',
+  CONVERSATION_UPDATE: 'conversation:update',
+  CONVERSATION_ADD_PARTICIPANTS: 'conversation:add_participants',
+  CONVERSATION_REMOVE_PARTICIPANT: 'conversation:remove_participant',
+  CONVERSATION_LEAVE: 'conversation:leave',
+
+  // Conversation events (server -> client)
+  CONVERSATION_CREATED: 'conversation:created',
+  CONVERSATION_UPDATED: 'conversation:updated',
+  CONVERSATION_PARTICIPANT_ADDED: 'conversation:participant_added',
+  CONVERSATION_PARTICIPANT_REMOVED: 'conversation:participant_removed',
 
   // Presence events
   PRESENCE_ONLINE: 'presence:online',
@@ -284,6 +324,62 @@ class SocketService {
     this.socket.on(WS_EVENTS.STREAM_EXPENSE_UPDATE, (data) => {
       this._emit(WS_EVENTS.STREAM_EXPENSE_UPDATE, data);
     });
+
+    // =========================================================================
+    // Chat/Messaging Events
+    // =========================================================================
+
+    // Message events from server
+    this.socket.on(WS_EVENTS.MESSAGE_NEW, (data) => {
+      this._emit(WS_EVENTS.MESSAGE_NEW, data);
+    });
+
+    this.socket.on(WS_EVENTS.MESSAGE_SENT, (data) => {
+      this._emit(WS_EVENTS.MESSAGE_SENT, data);
+    });
+
+    this.socket.on(WS_EVENTS.MESSAGE_DELIVERED, (data) => {
+      this._emit(WS_EVENTS.MESSAGE_DELIVERED, data);
+    });
+
+    this.socket.on(WS_EVENTS.MESSAGE_EDITED, (data) => {
+      this._emit(WS_EVENTS.MESSAGE_EDITED, data);
+    });
+
+    this.socket.on(WS_EVENTS.MESSAGE_DELETED, (data) => {
+      this._emit(WS_EVENTS.MESSAGE_DELETED, data);
+    });
+
+    // Typing indicator
+    this.socket.on(WS_EVENTS.TYPING_UPDATE, (data) => {
+      this._emit(WS_EVENTS.TYPING_UPDATE, data);
+    });
+
+    // Conversation events from server
+    this.socket.on(WS_EVENTS.CONVERSATION_CREATED, (data) => {
+      this._emit(WS_EVENTS.CONVERSATION_CREATED, data);
+    });
+
+    this.socket.on(WS_EVENTS.CONVERSATION_UPDATED, (data) => {
+      this._emit(WS_EVENTS.CONVERSATION_UPDATED, data);
+    });
+
+    this.socket.on(WS_EVENTS.CONVERSATION_PARTICIPANT_ADDED, (data) => {
+      this._emit(WS_EVENTS.CONVERSATION_PARTICIPANT_ADDED, data);
+    });
+
+    this.socket.on(WS_EVENTS.CONVERSATION_PARTICIPANT_REMOVED, (data) => {
+      this._emit(WS_EVENTS.CONVERSATION_PARTICIPANT_REMOVED, data);
+    });
+
+    // Presence events
+    this.socket.on(WS_EVENTS.PRESENCE_ONLINE, (data) => {
+      this._emit(WS_EVENTS.PRESENCE_ONLINE, data);
+    });
+
+    this.socket.on(WS_EVENTS.PRESENCE_OFFLINE, (data) => {
+      this._emit(WS_EVENTS.PRESENCE_OFFLINE, data);
+    });
   }
 
   // ============================================================================
@@ -311,6 +407,87 @@ class SocketService {
    */
   acknowledgeAlert(alertId) {
     return this.emit(WS_EVENTS.ACKNOWLEDGE_ALERT, { alert_id: alertId });
+  }
+
+  // ============================================================================
+  // Convenience Methods for Chat
+  // ============================================================================
+
+  /**
+   * Send a chat message via WebSocket
+   * @param {string} conversationId - Conversation ID
+   * @param {string} content - Message content
+   * @param {string} type - Message type (text, image, file)
+   * @param {string} replyTo - Message ID to reply to (optional)
+   */
+  sendMessage(conversationId, content, type = 'text', replyTo = null) {
+    return this.emit(WS_EVENTS.MESSAGE_SEND, {
+      conversationId,
+      content,
+      type,
+      replyTo,
+    });
+  }
+
+  /**
+   * Edit a message via WebSocket
+   * @param {string} messageId - Message ID
+   * @param {string} content - New content
+   */
+  editMessage(messageId, content) {
+    return this.emit(WS_EVENTS.MESSAGE_EDIT, { messageId, content });
+  }
+
+  /**
+   * Delete a message via WebSocket
+   * @param {string} messageId - Message ID
+   * @param {boolean} forEveryone - Delete for everyone
+   */
+  deleteMessage(messageId, forEveryone = false) {
+    return this.emit(WS_EVENTS.MESSAGE_DELETE, { messageId, forEveryone });
+  }
+
+  /**
+   * Mark messages as read via WebSocket
+   * @param {string} conversationId - Conversation ID
+   */
+  markMessagesRead(conversationId) {
+    return this.emit(WS_EVENTS.MESSAGE_READ, { conversationId });
+  }
+
+  /**
+   * Add reaction to a message
+   * @param {string} messageId - Message ID
+   * @param {string} emoji - Emoji reaction
+   */
+  addReaction(messageId, emoji) {
+    return this.emit(WS_EVENTS.MESSAGE_REACTION, { messageId, emoji });
+  }
+
+  /**
+   * Start typing indicator
+   * @param {string} conversationId - Conversation ID
+   */
+  startTyping(conversationId) {
+    return this.emit(WS_EVENTS.TYPING_START, { conversationId });
+  }
+
+  /**
+   * Stop typing indicator
+   * @param {string} conversationId - Conversation ID
+   */
+  stopTyping(conversationId) {
+    return this.emit(WS_EVENTS.TYPING_STOP, { conversationId });
+  }
+
+  /**
+   * Create a new conversation
+   * @param {Array} participants - Array of user keys
+   * @param {string} name - Conversation name (for groups)
+   * @param {string} type - 'direct' or 'group'
+   */
+  createConversation(participants, name = null, type = 'direct') {
+    return this.emit(WS_EVENTS.CONVERSATION_CREATE, { participants, name, type });
   }
 }
 

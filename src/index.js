@@ -12,6 +12,23 @@ if (process.env.NODE_ENV === 'development') {
     console.log('  - window.mockNotification({ title: "Test", message: "Hello!" })');
     console.log('  - window.mockAlert({ title: "Alert", message: "Warning!" })');
   });
+
+  import('./api/chat').then((module) => {
+    window.mockMessage = (convId, content) => {
+      const msg = module.addMockMessage(convId || 'conv_001', {
+        content: content || 'Test message from mock!',
+        sender_key: 'user_john',
+      });
+      // Trigger cache refresh
+      import('./utils/cache/chatCache').then((cache) => {
+        cache.refreshConversations();
+        cache.getMessagesForConversation(convId || 'conv_001', true);
+      });
+      return msg;
+    };
+    console.log('💬 Chat mock functions available:');
+    console.log('  - window.mockMessage("conv_001", "Hello from John!")');
+  });
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

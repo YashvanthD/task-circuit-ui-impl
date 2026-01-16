@@ -13,6 +13,7 @@ import { clearSamplingsCache, refreshSamplings } from './samplingsCache';
 import { clearTasksCache, refreshTasks } from './tasksCache';
 import { clearNotificationsCache, refreshNotifications, subscribeToWebSocket as subscribeNotifications } from './notificationsCache';
 import { clearAlertsCache, refreshAlerts, subscribeToAlertWebSocket as subscribeAlerts } from './alertsCache';
+import { clearConversationsCache, refreshConversations, subscribeToChatWebSocket as subscribeChat } from './chatCache';
 
 // Base cache utilities
 export * from './baseCache';
@@ -25,6 +26,7 @@ export * from './samplingsCache';
 export * from './tasksCache';
 export * from './notificationsCache';
 export * from './alertsCache';
+export * from './chatCache';
 
 // ============================================================================
 // Utility: Clear all caches
@@ -41,6 +43,7 @@ export function clearAllCaches() {
   clearTasksCache();
   clearNotificationsCache();
   clearAlertsCache();
+  clearConversationsCache();
 }
 
 // ============================================================================
@@ -60,6 +63,7 @@ export async function refreshAllCaches() {
     refreshTasks(),
     refreshNotifications(),
     refreshAlerts(),
+    refreshConversations(),
   ]);
 }
 
@@ -90,5 +94,6 @@ export async function preloadFormCaches() {
 export function subscribeAllToWebSocket() {
   subscribeNotifications();
   subscribeAlerts();
+  subscribeChat();
 }
 
