@@ -17,6 +17,7 @@ import InvoicePage from './pages/user/InvoicePage';
 import SettingsPage from './pages/user/SettingsPage';
 import { userSession } from './utils/auth/userSession';
 import { UserProvider } from './contexts/UserContext';
+import { DataProvider } from './contexts/DataContext';
 import { SignupForm } from './components/users/forms';
 import { RegisterCompanyForm } from './components/common/forms';
 import FishPage from './pages/user/FishPage';
@@ -160,11 +161,13 @@ export default function App() {
   }
   return (
     <UserProvider>
-      <Router basename={basename}>
-        <ErrorBoundary>
-          <AppRoutes />
-        </ErrorBoundary>
-      </Router>
+      <DataProvider>
+        <Router basename={basename}>
+          <ErrorBoundary>
+            <AppRoutes />
+          </ErrorBoundary>
+        </Router>
+      </DataProvider>
     </UserProvider>
   );
 }
