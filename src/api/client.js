@@ -156,6 +156,8 @@ export async function apiFetch(url, options = {}) {
   // Add auth token (unless skipAuth is true)
   if (!skipAuth) {
     const token = getAccessToken();
+      console.log("[API] Fetching:", fullUrl, opts, skipAuth, token);
+
     if (token) {
       opts.headers['Authorization'] = `Bearer ${token}`;
     }

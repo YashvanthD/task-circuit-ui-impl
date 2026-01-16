@@ -16,6 +16,8 @@ import ExpensesPage from './pages/user/ExpensesPage';
 import InvoicePage from './pages/user/InvoicePage';
 import SettingsPage from './pages/user/SettingsPage';
 import { getRefreshToken, loadUserFromLocalStorage, removeFromLocalStorage, removeUserFromLocalStorage } from './utils/auth/storage';
+import { userSession } from './utils/auth/userSession';
+import { UserProvider } from './contexts/UserContext';
 import { SignupForm } from './components/users/forms';
 import { RegisterCompanyForm } from './components/common/forms';
 import FishPage from './pages/user/FishPage';
@@ -76,7 +78,9 @@ function AppRoutes() {
   }, [location, navigate]);
 
   const handleLogout = () => {
-    // Clear tokens and user info from storage (these functions will also trigger authChanged event)
+    // Use userSession singleton for logout (clears all session data)
+    userSession.logout();
+    // Also clear legacy storage keys
     removeFromLocalStorage('refresh_token');
     removeFromLocalStorage('access_token');
     removeFromLocalStorage('access_token_expiry');
@@ -166,10 +170,12 @@ export default function App() {
     }
   }
   return (
-    <Router basename={basename}>
-      <ErrorBoundary>
-        <AppRoutes />
-      </ErrorBoundary>
-    </Router>
+    <UserProvider>
+      <Router basename={basename}>
+        <ErrorBoundary>
+          <AppRoutes />
+        </ErrorBoundary>
+      </Router>
+    </UserProvider>
   );
 }

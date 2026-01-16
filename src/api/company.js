@@ -43,12 +43,13 @@ export async function updateCompany(accountKey, data) {
 }
 
 /**
- * Get public company info
+ * Get public company info (no authentication required)
  */
 export async function getPublicCompany(accountKey) {
   return apiFetch(API_COMPANY.PUBLIC(accountKey), {
     method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
+    headers: { 'Accept': 'application/json' },
+    skipAuth: true,
   });
 }
 

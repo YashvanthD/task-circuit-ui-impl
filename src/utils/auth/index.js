@@ -5,6 +5,9 @@
  * @module utils/auth
  */
 
+// User Session Singleton (recommended for new code)
+export { userSession, UserSession } from './userSession';
+
 // Storage utilities
 export {
   saveToLocalStorage,

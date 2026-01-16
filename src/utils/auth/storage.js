@@ -344,6 +344,7 @@ function detectAdminFromUserData(userData) {
 
 /**
  * Process login response: extract expiry, store tokens, user info.
+ * Also initializes the UserSession singleton.
  * @param {object} loginResponse
  */
 export function processLoginResponse(loginResponse) {
@@ -361,6 +362,15 @@ export function processLoginResponse(loginResponse) {
   saveToLocalStorage('refresh_token', loginResponse.data.refreshToken);
   saveUserToLocalStorage(loginResponse.data);
   saveToLocalStorage('is_admin', detectAdminFromUserData(loginResponse.data));
+
+  // Also initialize UserSession singleton for new code
+  try {
+    const { userSession } = require('./userSession');
+    userSession.initFromLoginResponse(loginResponse);
+  } catch (e) {
+    // UserSession may not be loaded yet during initial import
+    console.debug('[processLoginResponse] Could not init userSession:', e.message);
+  }
 
   try {
     window.dispatchEvent(new Event('authChanged'));

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Paper } from '@mui/material';
-import { processLoginResponse } from '../utils/auth/storage';
+import { userSession } from '../utils/auth/userSession';
+import { startAccessTokenManagement } from '../utils/auth/storage';
 import { login } from '../api';
 import { BASE_APP_PATH_USER_DASHBOARD } from '../config';
 
@@ -34,7 +35,10 @@ export default function LoginPage() {
       }
       const data = await response.json();
       if (data.data && data.data.refreshToken && data.data.accessToken) {
-        processLoginResponse(data);
+        // Initialize user session singleton with full login response
+        userSession.initFromLoginResponse(data);
+        // Start token management
+        startAccessTokenManagement();
         navigate(BASE_APP_PATH_USER_DASHBOARD, { replace: true });
       } else {
         setError('Login failed: No access or refresh token received.');

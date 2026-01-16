@@ -51,6 +51,7 @@ export async function validateToken(token) {
   return apiFetch(API_AUTH.VALIDATE, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` },
+    skipAuth: true,
   });
 }
 
