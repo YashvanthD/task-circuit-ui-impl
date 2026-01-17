@@ -159,7 +159,8 @@ export async function getNotifications(force = false, params = {}) {
   } catch (error) {
     setCacheError(cache, error);
     console.error('[NotificationsCache] Failed to fetch:', error);
-    showErrorAlert('Failed to load notifications.', 'Notifications');
+    // Don't show alert for background fetch failures
+    setCacheLoading(cache, false);
     return cache.data;
   }
 }

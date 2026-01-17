@@ -348,6 +348,17 @@ export async function listConversations(params = {}, users = []) {
       method: 'GET',
       headers: getAuthHeaders({ contentType: null }),
     });
+
+    // Check if response is OK and is JSON
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Server returned non-JSON response');
+    }
+    
     return response.json();
   } catch (error) {
     console.error('[Chat API] Failed to fetch conversations:', error);
@@ -438,6 +449,17 @@ export async function getMessages(conversationId, params = {}) {
       method: 'GET',
       headers: getAuthHeaders({ contentType: null }),
     });
+
+    // Check if response is OK and is JSON
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Server returned non-JSON response');
+    }
+
     return response.json();
   } catch (error) {
     console.error('[Chat API] Failed to fetch messages:', error);
@@ -698,6 +720,17 @@ export async function createConversation(data) {
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
+
+    // Check if response is OK and is JSON
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Server returned non-JSON response');
+    }
+
     return response.json();
   } catch (error) {
     console.error('[Chat API] Failed to create conversation:', error);

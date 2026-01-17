@@ -155,7 +155,8 @@ export async function getAlerts(force = false, params = {}) {
   } catch (error) {
     setCacheError(cache, error);
     console.error('[AlertsCache] Failed to fetch:', error);
-    showErrorAlert('Failed to load alerts.', 'Alerts');
+    // Don't show alert for background fetch failures
+    setCacheLoading(cache, false);
     return cache.data;
   }
 }

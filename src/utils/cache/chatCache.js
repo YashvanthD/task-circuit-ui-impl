@@ -290,7 +290,8 @@ export async function getConversations(force = false, params = {}) {
   } catch (error) {
     setCacheError(conversationsCache, error);
     console.error('[ChatCache] Failed to fetch conversations:', error);
-    showErrorAlert('Failed to load conversations. Please try again.', 'Chat Error');
+    // Don't show alert for background fetch failures - just log
+    setCacheLoading(conversationsCache, false);
     return conversationsCache.data;
   }
 }
@@ -395,7 +396,7 @@ export async function getMessagesForConversation(conversationId, force = false, 
   } catch (error) {
     setCacheError(cache, error);
     console.error('[ChatCache] Failed to fetch messages:', error);
-    showErrorAlert('Failed to load messages. Please try again.', 'Chat Error');
+    // Don't show alert for background fetch failures - just log
     setCacheLoading(cache, false);
     return cache.data;
   }
