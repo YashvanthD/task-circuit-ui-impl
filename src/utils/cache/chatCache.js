@@ -499,20 +499,35 @@ export function subscribeToChatWebSocket() {
     // Get participants list
     const participants = data.participants || [];
 
-    // Enrich participants_info with user data from cache if not provided
-    let participantsInfo = data.participants_info || [];
-    if (participantsInfo.length === 0 && participants.length > 0) {
-      const users = getUsersSync() || [];
-      participantsInfo = participants.map((userKey) => {
-        const user = users.find((u) => (u.user_key || u.id) === userKey);
-        return {
-          user_key: userKey,
-          name: user?.name || user?.username || userKey,
-          avatar_url: user?.avatar_url || user?.profile_picture || null,
-          is_online: false,
-        };
-      });
-    }
+    // Helper to check if a string looks like a userKey (numeric or UUID-like)
+    const looksLikeUserKey = (str) => {
+      if (!str) return true;
+      return /^\d+$/.test(str) || /^[a-f0-9-]{20,}$/i.test(str);
+    };
+
+    // Always enrich participants_info with user data from cache
+    const users = getUsersSync() || [];
+    const existingInfo = data.participants_info || [];
+    const participantsInfo = participants.map((userKey) => {
+      const existing = existingInfo.find((p) => p.user_key === userKey);
+      const user = users.find((u) => (u.user_key || u.id) === userKey);
+      const realName = user?.name || user?.username || null;
+
+      let finalName = realName;
+      if (!finalName && existing?.name && !looksLikeUserKey(existing.name)) {
+        finalName = existing.name;
+      }
+      if (!finalName) {
+        finalName = userKey;
+      }
+
+      return {
+        user_key: userKey,
+        name: finalName,
+        avatar_url: user?.avatar_url || user?.profile_picture || existing?.avatar_url || null,
+        is_online: existing?.is_online || false,
+      };
+    });
 
     // Normalize conversation format
     const conversation = {
@@ -781,19 +796,37 @@ export async function getConversations(force = false) {
       const participants = conv.participants || [];
       let participantsInfo = conv.participants_info || conv.participantsInfo || [];
 
-      // Enrich participants_info with user data from cache if not provided or incomplete
-      if ((participantsInfo.length === 0 || participantsInfo.some((p) => !p.name)) && participants.length > 0) {
+      // Helper to check if a string looks like a userKey (numeric or UUID-like)
+      const looksLikeUserKey = (str) => {
+        if (!str) return true;
+        // Check if it's all numbers or looks like a UUID/key
+        return /^\d+$/.test(str) || /^[a-f0-9-]{20,}$/i.test(str);
+      };
+
+      // Always enrich participants_info with user data from cache
+      // This handles cases where name is missing OR name is actually a userKey
+      if (participants.length > 0) {
         participantsInfo = participants.map((userKey) => {
           // Check if we already have info for this participant
           const existingInfo = participantsInfo.find((p) => p.user_key === userKey);
-          if (existingInfo?.name) return existingInfo;
 
-          // Look up user in cache
+          // Look up user in cache to get real name
           const user = usersForEnrichment.find((u) => (u.user_key || u.id) === userKey);
+          const realName = user?.name || user?.username || null;
+
+          // Use real name if available, or existing name if it doesn't look like a userKey
+          let finalName = realName;
+          if (!finalName && existingInfo?.name && !looksLikeUserKey(existingInfo.name)) {
+            finalName = existingInfo.name;
+          }
+          if (!finalName) {
+            finalName = userKey; // Last resort fallback
+          }
+
           return {
             user_key: userKey,
-            name: user?.name || user?.username || userKey,
-            avatar_url: user?.avatar_url || user?.profile_picture || null,
+            name: finalName,
+            avatar_url: user?.avatar_url || user?.profile_picture || existingInfo?.avatar_url || null,
             is_online: existingInfo?.is_online || false,
           };
         });
@@ -975,24 +1008,36 @@ export async function getMessagesForConversation(conversationId, force = false, 
 
     updateCache(cache, normalizedMessages, 'message_id');
 
-    // Recompute conversation unread count from server data
+    // Sync conversation state with actual messages from server
     const conv = conversationsCache.byId.get(String(conversationId));
     if (conv) {
+      // Update last_message to match actual messages (server is authoritative)
+      if (normalizedMessages.length > 0) {
+        const lastMsg = normalizedMessages[normalizedMessages.length - 1];
+        conv.last_message = {
+          content: lastMsg.content,
+          sender_key: lastMsg.sender_key,
+          created_at: lastMsg.created_at,
+        };
+      } else {
+        // No messages - clear last_message to avoid showing stale data
+        conv.last_message = null;
+      }
+
       // Count messages not sent by me that are not read
       const unreadCount = normalizedMessages.filter((m) => {
         return m.sender_key !== currentUserKey && m.status !== 'read' && !m.read_at;
       }).length;
 
-      // Update conversation unread count if different
-      if (conv.unread_count !== unreadCount) {
-        conv.unread_count = unreadCount;
-        // Recompute total unread across all conversations
-        conversationsCache.totalUnread = Math.max(0,
-          conversationsCache.data.reduce((sum, c) => sum + (c.unread_count || 0), 0)
-        );
-        conversationsCache.events.emit('updated', conversationsCache.data);
-        persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
-      }
+      // Update conversation unread count
+      conv.unread_count = unreadCount;
+
+      // Recompute total unread across all conversations
+      conversationsCache.totalUnread = Math.max(0,
+        conversationsCache.data.reduce((sum, c) => sum + (c.unread_count || 0), 0)
+      );
+
+      conversationsCache.events.emit('updated', conversationsCache.data);
     }
 
     setCacheLoading(cache, false);
@@ -1225,6 +1270,7 @@ export function getTypingUsers(conversationId) {
  * - Sets this as the active conversation (for unread count handling)
  * - Joins the conversation room via WebSocket
  * - Loads messages via REST API
+ * - Marks all messages as read
  * @param {string} conversationId - Conversation ID
  */
 export function trackConversationOpen(conversationId) {
@@ -1248,6 +1294,9 @@ export function trackConversationOpen(conversationId) {
 
   // Load messages via REST API
   getMessagesForConversation(conversationId, true);
+
+  // Mark all messages as read when user opens the conversation
+  markConversationAsRead(conversationId);
 }
 
 /**

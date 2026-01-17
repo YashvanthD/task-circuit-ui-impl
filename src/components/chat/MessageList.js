@@ -6,10 +6,11 @@
  */
 
 import React, { useEffect, useRef, useMemo } from 'react';
-import { Box, Typography, Divider, Chip, CircularProgress } from '@mui/material';
+import { Box, Typography, Chip, CircularProgress } from '@mui/material';
 import { format, isToday, isYesterday, isThisYear } from 'date-fns';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
+import { getUsersSync } from '../../utils/cache/usersCache';
 
 // ============================================================================
 // Helper Functions
@@ -107,9 +108,35 @@ export default function MessageList({
     return groupMessagesByDate(messages);
   }, [messages]);
 
+  // Helper to check if a string looks like a userKey (numeric or UUID-like)
+  const looksLikeUserKey = (str) => {
+    if (!str) return true;
+    return /^\d+$/.test(str) || /^[a-f0-9-]{20,}$/i.test(str);
+  };
+
   // Get participant name by key
   const getParticipantName = (userKey) => {
     const participant = participants.find((p) => p.user_key === userKey);
+
+    // If participant has a real name (not a userKey), use it
+    if (participant?.name && !looksLikeUserKey(participant.name)) {
+      return participant.name;
+    }
+
+    // Try to get from users cache
+    try {
+      const users = getUsersSync() || [];
+      const user = users.find((u) => (u.user_key || u.id) === userKey);
+      if (user) {
+        const name = user.name || user.username;
+        if (name && !looksLikeUserKey(name)) {
+          return name;
+        }
+      }
+    } catch (e) {
+      // users cache not available
+    }
+
     return participant?.name || userKey;
   };
 

@@ -195,7 +195,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                   onClick={handleProfileMenuOpen}
                   sx={{ ml: 2 }}
                 >
-                  <Avatar>{user?.user?.username?.[0]?.toUpperCase() || user?.account_key?.[0] || '?'}</Avatar>
+                  <Avatar>{(user?.display_name || user?.name || user?.username || user?.user?.username)?.[0]?.toUpperCase() || '?'}</Avatar>
                 </IconButton>
                 <Menu
                   anchorEl={anchorEl}
@@ -210,7 +210,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                   }}
                 >
                   <MenuItem disabled sx={{ minHeight: 48, fontSize: 16, py: 2 }}>
-                    {user?.user?.username || user?.account_key || 'Profile'}
+                    {user?.display_name || user?.name || user?.username || user?.user?.username || 'Profile'}
                   </MenuItem>
                   <MenuItem
                     sx={{ minHeight: 48, fontSize: 16, py: 2, display: 'flex', alignItems: 'center', gap: 1 }}

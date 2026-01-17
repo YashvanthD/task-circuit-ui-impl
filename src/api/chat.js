@@ -255,40 +255,63 @@ function generateGroupMockMessages(conversationId, currentUserKey, participants)
 export function getConversationDisplayName(conversation, currentUserKey = null) {
   const userKey = currentUserKey || getCurrentUserKey();
 
+  // Helper to check if a string looks like a userKey (numeric or UUID-like)
+  const looksLikeUserKey = (str) => {
+    if (!str) return true;
+    return /^\d+$/.test(str) || /^[a-f0-9-]{20,}$/i.test(str);
+  };
+
   // For group chats, use the name
   if (conversation.conversation_type === 'group') {
     return conversation.name || 'Group Chat';
   }
 
   // For direct chats, show the other participant's name
+  // Try to find the other participant
+  let otherUserKey = null;
+  let otherParticipantName = null;
+  let otherParticipantInfo = null;
+
   // Try participants_info first
   if (conversation.participants_info && conversation.participants_info.length > 0) {
-    const otherParticipant = conversation.participants_info.find(
+    otherParticipantInfo = conversation.participants_info.find(
       (p) => p.user_key !== userKey
     );
-    if (otherParticipant?.name) {
-      return otherParticipant.name;
+    if (otherParticipantInfo) {
+      otherUserKey = otherParticipantInfo.user_key;
+      if (otherParticipantInfo.name && !looksLikeUserKey(otherParticipantInfo.name)) {
+        otherParticipantName = otherParticipantInfo.name;
+      }
     }
   }
 
-  // Fallback: try to get from participants array and look up user
-  if (conversation.participants && conversation.participants.length > 0) {
-    const otherUserKey = conversation.participants.find((p) => p !== userKey);
-    if (otherUserKey) {
-      // Try to get user info from users cache
-      try {
-        const { getUsersSync } = require('../utils/cache/usersCache');
-        const users = getUsersSync() || [];
-        const user = users.find((u) => (u.user_key || u.id) === otherUserKey);
-        if (user) {
-          return user.name || user.username || otherUserKey;
+  // Get other user key from participants array if not found
+  if (!otherUserKey && conversation.participants && conversation.participants.length > 0) {
+    otherUserKey = conversation.participants.find((p) => p !== userKey);
+  }
+
+  // If we have a good name, return it
+  if (otherParticipantName) {
+    return otherParticipantName;
+  }
+
+  // Try to get real name from users cache
+  if (otherUserKey) {
+    try {
+      const { getUsersSync } = require('../utils/cache/usersCache');
+      const users = getUsersSync() || [];
+      const user = users.find((u) => (u.user_key || u.id) === otherUserKey);
+      if (user) {
+        const name = user.name || user.username;
+        if (name && !looksLikeUserKey(name)) {
+          return name;
         }
-      } catch (e) {
-        // usersCache not available
       }
-      // Return the user key as last resort
-      return otherUserKey;
+    } catch (e) {
+      // usersCache not available
     }
+    // Return the user key as last resort
+    return otherUserKey;
   }
 
   return 'Unknown';
