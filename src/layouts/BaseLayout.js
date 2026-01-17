@@ -157,7 +157,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
   return (
     <Box sx={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
       {/* Fixed Top Navigation Bar */}
-      <AppBar position="fixed" sx={{ height: APPBAR_HEIGHT, borderRadius: 0,  justifyContent: 'center', bgcolor: 'primary.main', zIndex: (theme) => theme.zIndex.drawer + 2 }}>
+      <AppBar position="fixed" sx={{ height: APPBAR_HEIGHT, borderRadius: 0,  justifyContent: 'center', bgcolor: 'primary.primary', zIndex: (theme) => theme.zIndex.drawer + 2 }}>
         <Toolbar sx={{ minHeight: APPBAR_HEIGHT, height: APPBAR_HEIGHT, px: 2 }}>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: 'common.white' }}>
             Task Circuit
