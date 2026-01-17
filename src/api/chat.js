@@ -254,14 +254,44 @@ function generateGroupMockMessages(conversationId, currentUserKey, participants)
  */
 export function getConversationDisplayName(conversation, currentUserKey = null) {
   const userKey = currentUserKey || getCurrentUserKey();
+
+  // For group chats, use the name
   if (conversation.conversation_type === 'group') {
     return conversation.name || 'Group Chat';
   }
+
   // For direct chats, show the other participant's name
-  const otherParticipant = conversation.participants_info?.find(
-    (p) => p.user_key !== userKey
-  );
-  return otherParticipant?.name || 'Unknown';
+  // Try participants_info first
+  if (conversation.participants_info && conversation.participants_info.length > 0) {
+    const otherParticipant = conversation.participants_info.find(
+      (p) => p.user_key !== userKey
+    );
+    if (otherParticipant?.name) {
+      return otherParticipant.name;
+    }
+  }
+
+  // Fallback: try to get from participants array and look up user
+  if (conversation.participants && conversation.participants.length > 0) {
+    const otherUserKey = conversation.participants.find((p) => p !== userKey);
+    if (otherUserKey) {
+      // Try to get user info from users cache
+      try {
+        const { getUsersSync } = require('../utils/cache/usersCache');
+        const users = getUsersSync() || [];
+        const user = users.find((u) => (u.user_key || u.id) === otherUserKey);
+        if (user) {
+          return user.name || user.username || otherUserKey;
+        }
+      } catch (e) {
+        // usersCache not available
+      }
+      // Return the user key as last resort
+      return otherUserKey;
+    }
+  }
+
+  return 'Unknown';
 }
 
 /**
@@ -269,13 +299,39 @@ export function getConversationDisplayName(conversation, currentUserKey = null) 
  */
 export function getConversationAvatar(conversation, currentUserKey = null) {
   const userKey = currentUserKey || getCurrentUserKey();
+
   if (conversation.conversation_type === 'group') {
     return null; // Group avatar
   }
-  const otherParticipant = conversation.participants_info?.find(
-    (p) => p.user_key !== userKey
-  );
-  return otherParticipant?.avatar_url || null;
+
+  // Try participants_info first
+  if (conversation.participants_info && conversation.participants_info.length > 0) {
+    const otherParticipant = conversation.participants_info.find(
+      (p) => p.user_key !== userKey
+    );
+    if (otherParticipant?.avatar_url) {
+      return otherParticipant.avatar_url;
+    }
+  }
+
+  // Fallback: try to get from users cache
+  if (conversation.participants && conversation.participants.length > 0) {
+    const otherUserKey = conversation.participants.find((p) => p !== userKey);
+    if (otherUserKey) {
+      try {
+        const { getUsersSync } = require('../utils/cache/usersCache');
+        const users = getUsersSync() || [];
+        const user = users.find((u) => (u.user_key || u.id) === otherUserKey);
+        if (user) {
+          return user.avatar_url || user.profile_picture || null;
+        }
+      } catch (e) {
+        // usersCache not available
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -283,13 +339,39 @@ export function getConversationAvatar(conversation, currentUserKey = null) {
  */
 export function isOtherUserOnline(conversation, currentUserKey = null) {
   const userKey = currentUserKey || getCurrentUserKey();
+
   if (conversation.conversation_type === 'group') {
     return false;
   }
-  const otherParticipant = conversation.participants_info?.find(
-    (p) => p.user_key !== userKey
-  );
-  return otherParticipant?.is_online || false;
+
+  // Try participants_info first
+  if (conversation.participants_info && conversation.participants_info.length > 0) {
+    const otherParticipant = conversation.participants_info.find(
+      (p) => p.user_key !== userKey
+    );
+    if (otherParticipant) {
+      return otherParticipant.is_online || false;
+    }
+  }
+
+  // Fallback: try to get from users cache
+  if (conversation.participants && conversation.participants.length > 0) {
+    const otherUserKey = conversation.participants.find((p) => p !== userKey);
+    if (otherUserKey) {
+      try {
+        const { getUsersSync } = require('../utils/cache/usersCache');
+        const users = getUsersSync() || [];
+        const user = users.find((u) => (u.user_key || u.id) === otherUserKey);
+        if (user) {
+          return user.is_online || false;
+        }
+      } catch (e) {
+        // usersCache not available
+      }
+    }
+  }
+
+  return false;
 }
 
 // ============================================================================

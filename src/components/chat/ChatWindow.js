@@ -29,6 +29,7 @@ import {
   getTypingUsers,
   addReaction,
   onConversationsChange,
+  trackConversationOpen,
 } from '../../utils/cache/chatCache';
 
 // ============================================================================
@@ -85,7 +86,7 @@ export default function ChatWindow({
       return;
     }
 
-    // Get sync data first
+    // Get cached messages first
     setMessages(getMessagesSync(conversationId));
     setLoading(isMessagesLoading(conversationId));
 
@@ -105,8 +106,8 @@ export default function ChatWindow({
       }
     });
 
-    // Fetch messages
-    getMessagesForConversation(conversationId);
+    // Join room and load messages via trackConversationOpen
+    trackConversationOpen(conversationId);
 
     // Mark as read
     markConversationAsRead(conversationId);
@@ -119,9 +120,9 @@ export default function ChatWindow({
   }, [conversationId, effectiveUserId]);
 
   // Handlers
-  const handleSend = useCallback((content, replyToId) => {
-    if (!conversationId) return;
-    sendMessage(conversationId, content, replyToId);
+  const handleSend = useCallback((content) => {
+    if (!conversationId || !content.trim()) return;
+    sendMessage(conversationId, content);
     setReplyTo(null);
   }, [conversationId]);
 

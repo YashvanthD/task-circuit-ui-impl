@@ -54,6 +54,17 @@ export default function ChatPage() {
     const unsubLoading = onConversationsChange('loading', (val) => setLoading(val));
     const unsubError = onConversationsChange('error', (err) => setError(err));
 
+    // Subscribe to new conversation created event
+    const unsubCreated = onConversationsChange('created', (conversation) => {
+      console.log('[ChatPage] New conversation created:', conversation.conversation_id);
+      // Auto-select the new conversation
+      setSelectedConversation(conversation);
+      trackConversationOpen(conversation.conversation_id);
+      if (isMobile) {
+        setMobileDrawerOpen(false);
+      }
+    });
+
     // Subscribe to WebSocket events
     subscribeToChatWebSocket();
 
@@ -64,8 +75,9 @@ export default function ChatPage() {
       unsubUpdated();
       unsubLoading();
       unsubError();
+      unsubCreated();
     };
-  }, []);
+  }, [isMobile]);
 
   // Handlers
   const handleSelectConversation = useCallback((conversation) => {
@@ -92,22 +104,18 @@ export default function ChatPage() {
   const handleSelectContact = useCallback(async (user) => {
     try {
       const userKey = user.user_key || user.id;
-      // Pass user info for creating conversation with proper display name
-      const userInfo = {
-        user_key: userKey,
-        name: user.name || user.username || 'Unknown',
-        avatar_url: user.avatar_url || user.profile_picture || null,
-        is_online: user.is_online || false,
-      };
-      const conversation = await startDirectConversation(userKey, userInfo);
+      const conversation = await startDirectConversation(userKey);
+
+      // If conversation exists, select it immediately
       if (conversation) {
         setSelectedConversation(conversation);
-        // Track conversation open via WebSocket
         trackConversationOpen(conversation.conversation_id);
         if (isMobile) {
           setMobileDrawerOpen(false);
         }
       }
+      // If null, a new conversation is being created
+      // The 'created' event handler will auto-select it
     } catch (error) {
       console.error('Failed to start conversation:', error);
     }

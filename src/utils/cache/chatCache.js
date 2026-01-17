@@ -64,7 +64,7 @@ export function subscribeToChatWebSocket() {
   // Don't try to connect if previous connection failed
   if (wsConnectionFailed) {
     console.log('[ChatCache] Skipping WebSocket - previous connection failed');
-    wsSubscribed = true; // Still mark as subscribed to prevent repeated attempts
+    wsSubscribed = true;
     return;
   }
 
@@ -72,16 +72,27 @@ export function subscribeToChatWebSocket() {
   if (!socketService.isConnected()) {
     socketService.connect()
       .then((connected) => {
-        if (!connected) {
+        if (connected) {
+          console.log('[ChatCache] WebSocket connected, loading conversations...');
+          // Auto-load conversations after connection (like test HTML does)
+          getConversations(true);
+        } else {
           wsConnectionFailed = true;
-          console.warn('[ChatCache] WebSocket not available, running in offline mode');
+          console.warn('[ChatCache] WebSocket not available');
         }
       })
       .catch((err) => {
         wsConnectionFailed = true;
-        console.warn('[ChatCache] WebSocket connection failed, running in offline mode:', err);
+        console.warn('[ChatCache] WebSocket connection failed:', err);
       });
   }
+
+  // Listen for 'connected' event from server (authentication confirmation)
+  socketService.on(WS_EVENTS.CONNECTED, (data) => {
+    console.log('[ChatCache] Authenticated as:', data?.user_key);
+    // Reload conversations after authentication
+    getConversations(true);
+  });
 
   // New message received (chat:message)
   // User B receives this when User A sends a message
@@ -459,17 +470,34 @@ export async function getConversations(force = false, params = {}) {
     }
 
     const response = await listConversations(params, users);
-    const data = response?.data?.conversations || [];
+    const rawConversations = response?.data?.conversations || [];
 
-    updateCache(conversationsCache, data, 'conversation_id');
+    console.log('[ChatCache] Received conversations:', rawConversations.length);
+
+    // Normalize conversations to snake_case format
+    const normalizedConversations = rawConversations.map((conv) => ({
+      conversation_id: conv.conversation_id || conv.conversationId || conv.id,
+      conversation_type: conv.conversation_type || conv.type || 'direct',
+      name: conv.name || null,
+      participants: conv.participants || [],
+      participants_info: conv.participants_info || conv.participantsInfo || [],
+      last_message: conv.last_message || conv.lastMessage || null,
+      unread_count: conv.unread_count || conv.unreadCount || 0,
+      is_muted: conv.is_muted || conv.isMuted || false,
+      is_pinned: conv.is_pinned || conv.isPinned || false,
+      last_activity: conv.last_activity || conv.lastActivity || conv.updatedAt || conv.createdAt,
+      created_at: conv.created_at || conv.createdAt,
+    }));
+
+    updateCache(conversationsCache, normalizedConversations, 'conversation_id');
 
     // Calculate total unread
-    conversationsCache.totalUnread = data.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+    conversationsCache.totalUnread = normalizedConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 
     persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
     setCacheLoading(conversationsCache, false);
 
-    return data;
+    return normalizedConversations;
   } catch (error) {
     setCacheError(conversationsCache, error);
     console.error('[ChatCache] Failed to fetch conversations:', error);
@@ -545,18 +573,10 @@ export function onConversationsChange(event, callback) {
 
 /**
  * Get messages for a conversation (lazy loaded)
- * For local conversations (conv_local_*), only use cached data
- * REST API is only called for server-side conversations on first load
+ * REST API is called for server-side conversations
  */
 export async function getMessagesForConversation(conversationId, force = false, params = {}) {
   const cache = getOrCreateMessagesCache(conversationId);
-
-  // For local conversations, don't call REST API - just return cached data
-  // Messages will come through WebSocket
-  if (conversationId.startsWith('conv_local_')) {
-    setCacheLoading(cache, false);
-    return cache.data;
-  }
 
   if (!force && hasValidCache(cache)) {
     return cache.data;
@@ -569,17 +589,35 @@ export async function getMessagesForConversation(conversationId, force = false, 
   setCacheLoading(cache, true);
 
   try {
-    const response = await getMessages(conversationId, params);
-    const data = response?.data?.messages || [];
+    console.log('[ChatCache] Fetching messages for:', conversationId);
+    const response = await getMessages(conversationId, { limit: 50, ...params });
 
-    updateCache(cache, data, 'message_id');
+    // Get messages array from response
+    const rawMessages = response?.data?.messages || [];
+    console.log('[ChatCache] Received messages:', rawMessages.length);
+
+    // Normalize messages to snake_case format
+    const normalizedMessages = rawMessages.map((msg) => ({
+      message_id: msg.message_id || msg.messageId || msg.id,
+      conversation_id: msg.conversation_id || msg.conversationId || conversationId,
+      sender_key: msg.sender_key || msg.senderKey,
+      sender_name: msg.sender_name || msg.senderName,
+      content: msg.content,
+      message_type: msg.message_type || msg.type || 'text',
+      status: msg.status || 'sent',
+      created_at: msg.created_at || msg.createdAt,
+      edited_at: msg.edited_at || msg.editedAt || null,
+      reply_to: msg.reply_to || msg.replyTo || null,
+      reactions: msg.reactions || [],
+    }));
+
+    updateCache(cache, normalizedMessages, 'message_id');
     setCacheLoading(cache, false);
 
-    return data;
+    return normalizedMessages;
   } catch (error) {
     setCacheError(cache, error);
     console.error('[ChatCache] Failed to fetch messages:', error);
-    // Don't show alert for background fetch failures - just log
     setCacheLoading(cache, false);
     return cache.data;
   }
@@ -747,11 +785,15 @@ export function getTypingUsers(conversationId) {
 }
 
 /**
- * Track when user opens a conversation (sends to server via WebSocket)
+ * Track when user opens a conversation
+ * - Joins the conversation room via WebSocket
+ * - Loads messages via REST API
  * @param {string} conversationId - Conversation ID
  */
 export function trackConversationOpen(conversationId) {
   if (!conversationId) return;
+
+  console.log('[ChatCache] Opening conversation:', conversationId);
 
   // Update local last activity
   const conv = conversationsCache.byId.get(String(conversationId));
@@ -759,10 +801,13 @@ export function trackConversationOpen(conversationId) {
     conv.last_opened = new Date().toISOString();
   }
 
-  // Send to server via WebSocket
+  // Join conversation room via WebSocket (to receive real-time messages)
   if (socketService.isConnected()) {
-    socketService.openConversation(conversationId);
+    socketService.joinConversation(conversationId);
   }
+
+  // Load messages via REST API
+  getMessagesForConversation(conversationId, true);
 }
 
 /**
