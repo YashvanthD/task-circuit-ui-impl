@@ -20,7 +20,6 @@ import {
   listConversations,
   getMessages,
   getCurrentUserKey,
-  createConversation as apiCreateConversation,
 } from '../../api/chat';
 import { getUsers, getUsersSync } from './usersCache';
 import { socketService, WS_EVENTS } from '../websocket';
@@ -38,6 +37,9 @@ const messagesCache = new Map(); // Map<conversationId, cache>
 
 // Typing indicators state
 const typingState = new Map(); // Map<conversationId, Set<userKey>>
+
+// Clear old mock data on init (uncomment to clear once)
+// localStorage.removeItem(STORAGE_KEY_CONVERSATIONS);
 
 // Load conversations from localStorage
 loadPersistedCache(conversationsCache, STORAGE_KEY_CONVERSATIONS, 'conversation_id');
@@ -81,35 +83,57 @@ export function subscribeToChatWebSocket() {
       });
   }
 
-  // New message received
+  // New message received (chat:message)
+  // User B receives this when User A sends a message
   socketService.on(WS_EVENTS.MESSAGE_NEW, (message) => {
-    const { conversation_id } = message;
+    // Backend sends: messageId, conversationId, senderKey, senderName, senderAvatar, content, type, status, createdAt
+    const conversationId = message.conversation_id || message.conversationId;
+    const messageId = message.message_id || message.messageId;
+    const senderKey = message.sender_key || message.senderKey;
     const currentUserKey = getCurrentUserKey();
 
+    console.log('[ChatCache] New message received:', { messageId, conversationId, senderKey });
+
     // Add to messages cache
-    const msgCache = getOrCreateMessagesCache(conversation_id);
+    const msgCache = getOrCreateMessagesCache(conversationId);
+
+    // Normalize message format
+    const normalizedMessage = {
+      message_id: messageId,
+      conversation_id: conversationId,
+      sender_key: senderKey,
+      sender_name: message.sender_name || message.senderName,
+      sender_avatar: message.sender_avatar || message.senderAvatar,
+      content: message.content,
+      message_type: message.type || message.message_type || 'text',
+      status: message.status || 'sent',
+      created_at: message.created_at || message.createdAt,
+      edited_at: message.edited_at || message.editedAt || null,
+      reply_to: message.reply_to || message.replyTo || null,
+      reactions: message.reactions || [],
+    };
 
     // Check if message already exists (avoid duplicates)
-    if (!msgCache.byId.has(String(message.message_id))) {
-      msgCache.data.push(message);
-      msgCache.byId.set(String(message.message_id), message);
+    if (!msgCache.byId.has(String(messageId))) {
+      msgCache.data.push(normalizedMessage);
+      msgCache.byId.set(String(messageId), normalizedMessage);
       msgCache.events.emit('updated', msgCache.data);
-      msgCache.events.emit('new', message);
+      msgCache.events.emit('new', normalizedMessage);
     }
 
     // Update conversation and move to top
     const convIndex = conversationsCache.data.findIndex(
-      (c) => c.conversation_id === conversation_id
+      (c) => c.conversation_id === conversationId
     );
     if (convIndex !== -1) {
       const conv = conversationsCache.data[convIndex];
       conv.last_message = {
-        content: message.content,
-        sender_key: message.sender_key,
-        created_at: message.created_at,
+        content: normalizedMessage.content,
+        sender_key: senderKey,
+        created_at: normalizedMessage.created_at,
       };
-      conv.last_activity = message.created_at;
-      if (message.sender_key !== currentUserKey) {
+      conv.last_activity = normalizedMessage.created_at;
+      if (senderKey !== currentUserKey) {
         conv.unread_count = (conv.unread_count || 0) + 1;
         conversationsCache.totalUnread++;
       }
@@ -121,12 +145,13 @@ export function subscribeToChatWebSocket() {
       }
 
       conversationsCache.events.emit('updated', conversationsCache.data);
-      conversationsCache.events.emit('message', { conversation_id, message });
+      conversationsCache.events.emit('message', { conversation_id: conversationId, message: normalizedMessage });
       persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
     }
   });
 
-  // Message sent confirmation
+  // Message sent confirmation (chat:message:sent)
+  // User A receives this after sending a message
   socketService.on(WS_EVENTS.MESSAGE_SENT, (data) => {
     // Backend sends: messageId, conversationId, senderKey, content, type, status, createdAt, tempId
     const messageId = data.message_id || data.messageId;
@@ -150,43 +175,80 @@ export function subscribeToChatWebSocket() {
     }
   });
 
-  // Message delivered
+  // Message delivered confirmation (chat:message:delivered)
+  // User A receives this when User B's client receives the message
   socketService.on(WS_EVENTS.MESSAGE_DELIVERED, (data) => {
-    const { message_id, conversation_id } = data;
-    const msgCache = messagesCache.get(conversation_id);
-    if (msgCache) {
-      const msg = msgCache.byId.get(String(message_id));
-      if (msg) {
-        msg.status = 'delivered';
-        msgCache.events.emit('updated', msgCache.data);
+    // Backend sends: messageId, deliveredTo, timestamp
+    const messageId = data.message_id || data.messageId;
+    const conversationId = data.conversation_id || data.conversationId;
+    const deliveredTo = data.delivered_to || data.deliveredTo;
+
+    console.log('[ChatCache] Message delivered:', { messageId, deliveredTo });
+
+    // Find the message in any conversation cache
+    if (conversationId) {
+      const msgCache = messagesCache.get(conversationId);
+      if (msgCache) {
+        const msg = msgCache.byId.get(String(messageId));
+        if (msg) {
+          msg.status = 'delivered';
+          msg.delivered_at = data.timestamp;
+          msgCache.events.emit('updated', msgCache.data);
+        }
+      }
+    } else {
+      // Search all conversations
+      for (const [, cache] of messagesCache) {
+        const msg = cache.byId.get(String(messageId));
+        if (msg) {
+          msg.status = 'delivered';
+          msg.delivered_at = data.timestamp;
+          cache.events.emit('updated', cache.data);
+          break;
+        }
       }
     }
   });
 
-  // Message edited
-  socketService.on(WS_EVENTS.MESSAGE_EDITED, (data) => {
-    const { message_id, conversation_id, content, edited_at } = data;
-    const msgCache = messagesCache.get(conversation_id);
+  // Message read confirmation (chat:message:read)
+  // User A receives this when User B reads the message
+  socketService.on('chat:message:read', (data) => {
+    // Backend sends: conversationId, readBy, timestamp
+    const conversationId = data.conversation_id || data.conversationId;
+    const readBy = data.read_by || data.readBy;
+
+    console.log('[ChatCache] Messages read:', { conversationId, readBy });
+
+    const msgCache = messagesCache.get(conversationId);
     if (msgCache) {
-      const msg = msgCache.byId.get(String(message_id));
-      if (msg) {
-        msg.content = content;
-        msg.edited_at = edited_at;
-        msgCache.events.emit('updated', msgCache.data);
-      }
+      const currentUserKey = getCurrentUserKey();
+      // Mark all messages from current user as read
+      msgCache.data.forEach((msg) => {
+        if (msg.sender_key === currentUserKey && msg.status !== 'read') {
+          msg.status = 'read';
+          msg.read_at = data.timestamp;
+        }
+      });
+      msgCache.events.emit('updated', msgCache.data);
     }
   });
 
-  // Message deleted
+  // Message deleted (chat:message:deleted)
   socketService.on(WS_EVENTS.MESSAGE_DELETED, (data) => {
-    const { message_id, conversation_id } = data;
-    const msgCache = messagesCache.get(conversation_id);
-    if (msgCache) {
-      const index = msgCache.data.findIndex((m) => m.message_id === message_id);
+    // Backend sends: messageId, forEveryone
+    const messageId = data.message_id || data.messageId;
+    const forEveryone = data.forEveryone || data.for_everyone;
+
+    console.log('[ChatCache] Message deleted:', { messageId, forEveryone });
+
+    // Search all conversations for this message
+    for (const [conversationId, msgCache] of messagesCache) {
+      const index = msgCache.data.findIndex((m) => m.message_id === messageId);
       if (index !== -1) {
         msgCache.data.splice(index, 1);
-        msgCache.byId.delete(String(message_id));
+        msgCache.byId.delete(String(messageId));
         msgCache.events.emit('updated', msgCache.data);
+        break;
       }
     }
   });
@@ -215,34 +277,108 @@ export function subscribeToChatWebSocket() {
     showErrorAlert(message || 'Failed to send message', 'Chat Error');
   });
 
-  // Typing indicator update
-  socketService.on(WS_EVENTS.TYPING_UPDATE, (data) => {
-    const { conversation_id, user_key, is_typing } = data;
+  // Typing indicator - user started typing (chat:typing:start)
+  socketService.on(WS_EVENTS.TYPING_START, (data) => {
+    const conversationId = data.conversation_id || data.conversationId;
+    const userKey = data.user_key || data.userKey;
 
-    if (!typingState.has(conversation_id)) {
-      typingState.set(conversation_id, new Set());
+    console.log('[ChatCache] Typing start:', { conversationId, userKey });
+
+    if (!typingState.has(conversationId)) {
+      typingState.set(conversationId, new Set());
     }
 
-    const typing = typingState.get(conversation_id);
-    if (is_typing) {
-      typing.add(user_key);
-    } else {
-      typing.delete(user_key);
-    }
+    const typing = typingState.get(conversationId);
+    typing.add(userKey);
 
     // Emit typing update event
     conversationsCache.events.emit('typing', {
-      conversation_id,
+      conversation_id: conversationId,
       users: Array.from(typing),
     });
   });
 
-  // Conversation created
-  socketService.on(WS_EVENTS.CONVERSATION_CREATED, (conversation) => {
-    conversationsCache.data.unshift(conversation);
-    conversationsCache.byId.set(String(conversation.conversation_id), conversation);
-    conversationsCache.events.emit('updated', conversationsCache.data);
-    conversationsCache.events.emit('created', conversation);
+  // Typing indicator - user stopped typing (chat:typing:stop)
+  socketService.on(WS_EVENTS.TYPING_STOP, (data) => {
+    const conversationId = data.conversation_id || data.conversationId;
+    const userKey = data.user_key || data.userKey;
+
+    console.log('[ChatCache] Typing stop:', { conversationId, userKey });
+
+    if (typingState.has(conversationId)) {
+      const typing = typingState.get(conversationId);
+      typing.delete(userKey);
+
+      // Emit typing update event
+      conversationsCache.events.emit('typing', {
+        conversation_id: conversationId,
+        users: Array.from(typing),
+      });
+    }
+  });
+
+  // Conversation joined (chat:conversation:joined)
+  socketService.on(WS_EVENTS.CONVERSATION_JOINED, (data) => {
+    const conversationId = data.conversation_id || data.conversationId;
+    console.log('[ChatCache] Joined conversation room:', conversationId);
+  });
+
+  // Conversation cleared (chat:conversation:cleared)
+  socketService.on(WS_EVENTS.CONVERSATION_CLEARED, (data) => {
+    const conversationId = data.conversation_id || data.conversationId;
+    const messagesCleared = data.messagesCleared || data.messages_cleared || 0;
+
+    console.log('[ChatCache] Conversation cleared:', { conversationId, messagesCleared });
+
+    // Clear messages from cache
+    const msgCache = messagesCache.get(conversationId);
+    if (msgCache) {
+      msgCache.data = [];
+      msgCache.byId.clear();
+      msgCache.events.emit('updated', msgCache.data);
+    }
+
+    // Update conversation
+    const conv = conversationsCache.byId.get(String(conversationId));
+    if (conv) {
+      conv.last_message = null;
+      conversationsCache.events.emit('updated', conversationsCache.data);
+      persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+    }
+  });
+
+  // Conversation created (chat:conversation:created)
+  // Both User A and User B receive this when a conversation is created
+  socketService.on(WS_EVENTS.CONVERSATION_CREATED, (data) => {
+    // Backend sends: conversationId, type, participants, createdBy, createdAt
+    const conversationId = data.conversation_id || data.conversationId;
+
+    console.log('[ChatCache] Conversation created:', conversationId);
+
+    // Normalize conversation format
+    const conversation = {
+      conversation_id: conversationId,
+      conversation_type: data.type || data.conversation_type || 'direct',
+      participants: data.participants || [],
+      participants_info: data.participants_info || [],
+      created_by: data.created_by || data.createdBy,
+      created_at: data.created_at || data.createdAt,
+      last_activity: data.created_at || data.createdAt,
+      last_message: null,
+      unread_count: 0,
+      is_muted: false,
+      is_pinned: false,
+      name: data.name || null,
+    };
+
+    // Check if already exists
+    if (!conversationsCache.byId.has(String(conversationId))) {
+      conversationsCache.data.unshift(conversation);
+      conversationsCache.byId.set(String(conversationId), conversation);
+      conversationsCache.events.emit('updated', conversationsCache.data);
+      conversationsCache.events.emit('created', conversation);
+      persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+    }
   });
 
   // Conversation updated
@@ -485,12 +621,13 @@ export function onMessagesChange(conversationId, event, callback) {
 // ============================================================================
 
 /**
- * Send a message
+ * Send a message via WebSocket
+ * Event: chat:send
  */
-export async function sendMessage(conversationId, content, replyTo = null) {
+export async function sendMessage(conversationId, content) {
   const currentUserKey = getCurrentUserKey();
 
-  // Create optimistic message
+  // Create optimistic message with temp ID
   const tempId = `temp_${Date.now()}`;
   const optimisticMessage = {
     message_id: tempId,
@@ -499,13 +636,10 @@ export async function sendMessage(conversationId, content, replyTo = null) {
     content,
     message_type: 'text',
     created_at: new Date().toISOString(),
-    edited_at: null,
-    reply_to: replyTo,
-    reactions: [],
     status: 'sending',
   };
 
-  // Add to cache immediately
+  // Add to cache immediately for optimistic UI
   const cache = getOrCreateMessagesCache(conversationId);
   cache.data.push(optimisticMessage);
   cache.byId.set(tempId, optimisticMessage);
@@ -535,17 +669,16 @@ export async function sendMessage(conversationId, content, replyTo = null) {
   }
 
   try {
-    // Always use WebSocket for sending messages
+    // Send via WebSocket
     if (socketService.isConnected()) {
-      await socketService.sendMessage(conversationId, content, 'text', replyTo, tempId);
-      // WebSocket will send MESSAGE_SENT event to confirm, handled by subscriber
+      await socketService.sendMessage(conversationId, content, 'text', tempId);
+      // WebSocket will send chat:message:sent event to confirm
     } else {
-      // No WebSocket - mark as sent locally (offline mode)
-      optimisticMessage.message_id = `msg_local_${Date.now()}`;
-      optimisticMessage.status = 'sent';
-      cache.byId.delete(tempId);
-      cache.byId.set(String(optimisticMessage.message_id), optimisticMessage);
+      // No WebSocket - mark as failed
+      optimisticMessage.status = 'failed';
+      optimisticMessage.error = 'Not connected to chat server';
       cache.events.emit('updated', cache.data);
+      showErrorAlert('Not connected to chat server', 'Chat Error');
     }
 
     return optimisticMessage;
@@ -661,47 +794,47 @@ export async function addReaction(conversationId, messageId, emoji) {
 }
 
 /**
- * Create a new conversation
+ * Create a new conversation via WebSocket
+ * The conversation will be added to cache when chat:conversation:created event is received
  * @param {object} data - Conversation data
  * @param {string} data.conversation_type - 'direct' or 'group'
  * @param {Array<string>} data.participants - Array of user keys
  * @param {string} [data.name] - Name for group conversations
  */
 export async function createConversation(data) {
+  if (!socketService.isConnected()) {
+    showErrorAlert('Not connected to chat server.', 'Chat Error');
+    throw new Error('WebSocket not connected');
+  }
+
   try {
-    const response = await apiCreateConversation(data);
+    // Use WebSocket to create conversation
+    // Backend will respond with chat:conversation:created event
+    const participants = data.participants || [];
+    const name = data.name || null;
+    const type = data.conversation_type || 'direct';
 
-    if (response.success && response.data?.conversation) {
-      const conversation = response.data.conversation;
+    await socketService.createConversation(participants, name, type);
 
-      // Add to cache if it's a new conversation
-      if (!response.data.existing) {
-        conversationsCache.data.unshift(conversation);
-        conversationsCache.byId.set(String(conversation.conversation_id), conversation);
-        conversationsCache.events.emit('updated', conversationsCache.data);
-        conversationsCache.events.emit('created', conversation);
-        persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
-      }
-
-      return conversation;
-    }
-
-    throw new Error(response.error || 'Failed to create conversation');
+    // Return null - the actual conversation will come via WebSocket event
+    return null;
   } catch (error) {
     console.error('[ChatCache] Failed to create conversation:', error);
+    showErrorAlert('Failed to create conversation.', 'Chat Error');
     throw error;
   }
 }
 
 /**
  * Start a direct conversation with a user (creates if doesn't exist)
+ * Conversation will be created via WebSocket and come back via chat:conversation:created event
  * @param {string} userKey - The user key to start conversation with
- * @param {object} [userInfo] - Optional user info for creating new conversation
+ * @param {object} [userInfo] - Optional user info (not used, kept for compatibility)
  */
 export async function startDirectConversation(userKey, userInfo = null) {
   const currentUserKey = getCurrentUserKey();
 
-  // Check if conversation already exists
+  // Check if conversation already exists in cache
   const existingIndex = conversationsCache.data.findIndex((c) => {
     if (c.conversation_type !== 'direct') return false;
     const participants = c.participants || [];
@@ -726,71 +859,24 @@ export async function startDirectConversation(userKey, userInfo = null) {
     return existingConv;
   }
 
-  // Try to create via API first
-  try {
-    const conversation = await createConversation({
-      conversation_type: 'direct',
-      participants: [currentUserKey, userKey],
-    });
-    return conversation;
-  } catch (error) {
-    console.warn('[ChatCache] API create failed, creating local conversation:', error);
-  }
-
-  // Fallback: Create local conversation if API fails
-  // Get user info from cache if not provided
-  let targetUserInfo = userInfo;
-  if (!targetUserInfo) {
-    const users = getUsersSync() || [];
-    const foundUser = users.find((u) => (u.user_key || u.id) === userKey);
-    if (foundUser) {
-      targetUserInfo = {
-        user_key: foundUser.user_key || foundUser.id,
-        name: foundUser.name || foundUser.username || 'Unknown',
-        avatar_url: foundUser.avatar_url || foundUser.profile_picture || null,
-        is_online: foundUser.is_online || false,
-      };
-    } else {
-      targetUserInfo = {
-        user_key: userKey,
-        name: userKey,
-        avatar_url: null,
-        is_online: false,
-      };
+  // Create conversation via WebSocket - backend will send chat:conversation:created event
+  if (socketService.isConnected()) {
+    try {
+      // Emit conversation create event to backend
+      await socketService.createConversation([userKey], null, 'direct');
+      // The conversation will be added to cache when we receive chat:conversation:created event
+      // Return null for now - UI should wait for the event
+      return null;
+    } catch (error) {
+      console.error('[ChatCache] Failed to create conversation via WebSocket:', error);
+      showErrorAlert('Failed to start conversation. Please try again.', 'Chat Error');
+      throw error;
     }
+  } else {
+    // No WebSocket connection
+    showErrorAlert('Not connected to chat server. Please check your connection.', 'Chat Error');
+    throw new Error('WebSocket not connected');
   }
-
-  // Get current user info
-  const currentUserInfo = {
-    user_key: currentUserKey,
-    name: 'You',
-    avatar_url: null,
-    is_online: true,
-  };
-
-  // Create local conversation
-  const newConversation = {
-    conversation_id: `conv_local_${Date.now()}`,
-    conversation_type: 'direct',
-    name: null,
-    participants: [currentUserKey, userKey],
-    participants_info: [currentUserInfo, targetUserInfo],
-    last_message: null,
-    unread_count: 0,
-    is_muted: false,
-    is_pinned: false,
-    last_activity: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  };
-
-  // Add to cache at the top
-  conversationsCache.data.unshift(newConversation);
-  conversationsCache.byId.set(String(newConversation.conversation_id), newConversation);
-  conversationsCache.events.emit('updated', conversationsCache.data);
-  conversationsCache.events.emit('created', newConversation);
-  persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
-
-  return newConversation;
 }
 
 // ============================================================================

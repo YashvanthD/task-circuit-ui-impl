@@ -23,8 +23,8 @@ const API_CHAT = {
   CREATE_CONVERSATION: '/api/chat/conversations', // POST endpoint
 };
 
-// Flag to use mock data (set to false when backend chat API is ready)
-const USE_MOCK = true;
+// Flag to use mock data (set to false for real WebSocket data)
+const USE_MOCK = false;
 
 // ============================================================================
 // Current User Helper

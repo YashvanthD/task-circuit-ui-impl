@@ -9,14 +9,49 @@ import { getAccessToken } from '../auth/storage';
 import { BASE_URL } from '../../config';
 
 // ============================================================================
-// WebSocket Events Constants
+// WebSocket Events Constants (matching backend exactly)
 // ============================================================================
 export const WS_EVENTS = {
   // Connection events
   CONNECTED: 'connected',
   ERROR: 'error',
+  PONG: 'pong',
 
-  // Notification events (server -> client)
+  // =========================================================================
+  // Chat/Messaging Events
+  // =========================================================================
+
+  // Message events (client -> server)
+  MESSAGE_SEND: 'chat:send',
+  MESSAGE_READ: 'chat:read',
+  MESSAGE_DELETE: 'chat:delete',
+  MESSAGE_TYPING: 'chat:typing',
+
+  // Message events (server -> client)
+  MESSAGE_NEW: 'chat:message',
+  MESSAGE_SENT: 'chat:message:sent',
+  MESSAGE_DELIVERED: 'chat:message:delivered',
+  MESSAGE_READ_RECEIPT: 'chat:message:read',
+  MESSAGE_DELETED: 'chat:message:deleted',
+  CHAT_ERROR: 'chat:error',
+
+  // Typing indicators (server -> client)
+  TYPING_START: 'chat:typing:start',
+  TYPING_STOP: 'chat:typing:stop',
+
+  // Conversation events (client -> server)
+  CONVERSATION_CREATE: 'chat:conversation:create',
+  CONVERSATION_JOIN: 'chat:conversation:join',
+  CONVERSATION_CLEAR: 'chat:conversation:clear',
+
+  // Conversation events (server -> client)
+  CONVERSATION_CREATED: 'chat:conversation:created',
+  CONVERSATION_JOINED: 'chat:conversation:joined',
+  CONVERSATION_CLEARED: 'chat:conversation:cleared',
+
+  // =========================================================================
+  // Notification events
+  // =========================================================================
   NOTIFICATION_NEW: 'notification:new',
   NOTIFICATION_READ: 'notification:read',
   NOTIFICATION_READ_ALL: 'notification:read_all',
@@ -33,42 +68,6 @@ export const WS_EVENTS = {
   MARK_NOTIFICATION_READ: 'notification:mark_read',
   MARK_ALL_NOTIFICATIONS_READ: 'notification:mark_all_read',
   ACKNOWLEDGE_ALERT: 'alert:acknowledge',
-
-  // =========================================================================
-  // Chat/Messaging Events (matching backend chat_handler.py)
-  // =========================================================================
-
-  // Message events (client -> server)
-  MESSAGE_SEND: 'chat:send',
-  MESSAGE_EDIT: 'chat:edit',
-  MESSAGE_DELETE: 'chat:delete',
-  MESSAGE_READ: 'chat:read',
-  MESSAGE_REACTION: 'chat:reaction',
-
-  // Message events (server -> client)
-  MESSAGE_SENT: 'chat:message:sent',
-  MESSAGE_NEW: 'chat:message',
-  MESSAGE_DELIVERED: 'chat:message:delivered',
-  MESSAGE_EDITED: 'chat:message:edited',
-  MESSAGE_DELETED: 'chat:message:deleted',
-  CHAT_ERROR: 'chat:error',
-
-  // Typing indicators
-  TYPING_START: 'chat:typing',
-  TYPING_STOP: 'chat:typing:stop',
-  TYPING_UPDATE: 'chat:typing',
-
-  // Conversation events (client -> server)
-  CONVERSATION_CREATE: 'chat:conversation:create',
-  CONVERSATION_JOIN: 'chat:conversation:join',
-  CONVERSATION_LEAVE: 'chat:conversation:leave',
-  CONVERSATION_OPEN: 'conversation:open',
-
-  // Conversation events (server -> client)
-  CONVERSATION_CREATED: 'chat:conversation:created',
-  CONVERSATION_UPDATED: 'chat:conversation:updated',
-  CONVERSATION_PARTICIPANT_ADDED: 'conversation:participant_added',
-  CONVERSATION_PARTICIPANT_REMOVED: 'conversation:participant_removed',
 
   // Presence events
   PRESENCE_ONLINE: 'presence:online',
@@ -464,89 +463,59 @@ class SocketService {
     }
 
     // ============================================================================
-    // Convenience Methods for Chat - CORRECTED
+    // Convenience Methods for Chat (matching backend exactly)
     // ============================================================================
 
     /**
      * Send a chat message via WebSocket
-     * Matches backend chat:send event format from chat_handler.py
+     * Event: chat:send
      *
      * @param {string} conversationId - Conversation ID (required)
      * @param {string} content - Message content (required)
-     * @param {string} type - Message type: text, image, file, audio, video (default: text)
-     * @param {string} replyTo - Message ID to reply to (optional)
+     * @param {string} type - Message type: text, image, file (default: text)
      * @param {string} tempId - Temporary ID for optimistic update (optional)
-     * @param {string} mediaUrl - Media URL for image/file/audio/video messages (optional)
-     * @param {Array} mentions - Array of user_keys mentioned (optional)
      */
-    sendMessage(conversationId, content, type = 'text', replyTo = null, tempId = null, mediaUrl = null, mentions = null) {
-        const generatedTempId = tempId || `temp_${Date.now()}`;
-
+    sendMessage(conversationId, content, type = 'text', tempId = null) {
         const payload = {
             conversationId,
             content,
             type,
-            tempId: generatedTempId,
+            tempId: tempId || `temp_${Date.now()}`,
         };
-
-        // Only include optional fields if they have values
-        if (replyTo) {
-            payload.replyTo = replyTo;
-        }
-        if (mediaUrl) {
-            payload.mediaUrl = mediaUrl;
-        }
-        if (mentions && mentions.length > 0) {
-            payload.mentions = mentions;
-        }
 
         console.log('[SocketService] Sending chat:send:', payload);
         return this.emit(WS_EVENTS.MESSAGE_SEND, payload);
     }
 
     /**
-     * Edit a message via WebSocket
-     * @param {string} messageId - Message ID
-     * @param {string} content - New content
+     * Mark conversation as read via WebSocket
+     * Event: chat:read
+     * @param {string} conversationId - Conversation ID
      */
-    editMessage(messageId, content) {
-        return this.emit(WS_EVENTS.MESSAGE_EDIT, { messageId, content });
+    markMessagesRead(conversationId) {
+        console.log('[SocketService] Sending chat:read:', { conversationId });
+        return this.emit(WS_EVENTS.MESSAGE_READ, { conversationId });
     }
 
     /**
      * Delete a message via WebSocket
+     * Event: chat:delete
      * @param {string} messageId - Message ID
      * @param {boolean} forEveryone - Delete for everyone
      */
     deleteMessage(messageId, forEveryone = false) {
+        console.log('[SocketService] Sending chat:delete:', { messageId, forEveryone });
         return this.emit(WS_EVENTS.MESSAGE_DELETE, { messageId, forEveryone });
     }
 
     /**
-     * Mark messages as read via WebSocket
-     * @param {string} conversationId - Conversation ID (marks all messages in conversation)
-     * @param {string} messageId - Optional specific message ID
-     */
-    markMessagesRead(conversationId, messageId = null) {
-        const payload = messageId ? { messageId } : { conversationId };
-        return this.emit(WS_EVENTS.MESSAGE_READ, payload);
-    }
-
-    /**
-     * Confirm message delivery
-     * @param {string} messageId - Message ID
-     */
-    confirmDelivery(messageId) {
-        return this.emit(WS_EVENTS.MESSAGE_DELIVERED, { messageId });
-    }
-
-    /**
      * Send typing indicator
+     * Event: chat:typing
      * @param {string} conversationId - Conversation ID
      * @param {boolean} isTyping - Whether user is typing
      */
     sendTyping(conversationId, isTyping = true) {
-        return this.emit(WS_EVENTS.TYPING, { conversationId, isTyping });
+        return this.emit(WS_EVENTS.MESSAGE_TYPING, { conversationId, isTyping });
     }
 
     /**
@@ -566,29 +535,41 @@ class SocketService {
     }
 
     /**
-     * Create a new conversation - CORRECTED EVENT NAME
+     * Create a new conversation
+     * Event: chat:conversation:create
      * @param {Array} participants - Array of user keys
      * @param {string} name - Conversation name (for groups)
      * @param {string} type - 'direct' or 'group'
      */
     createConversation(participants, name = null, type = 'direct') {
-        return this.emit(WS_EVENTS.CONVERSATION_CREATE, { participants, name, type });
+        const payload = {
+            type,
+            participants,
+            name: type === 'group' ? name : null,
+        };
+        console.log('[SocketService] Sending chat:conversation:create:', payload);
+        return this.emit(WS_EVENTS.CONVERSATION_CREATE, payload);
     }
 
     /**
      * Join a conversation room to receive messages
+     * Event: chat:conversation:join
      * @param {string} conversationId - Conversation ID
      */
     joinConversation(conversationId) {
+        console.log('[SocketService] Sending chat:conversation:join:', { conversationId });
         return this.emit(WS_EVENTS.CONVERSATION_JOIN, { conversationId });
     }
 
     /**
-     * Leave a conversation room
+     * Clear conversation messages
+     * Event: chat:conversation:clear
      * @param {string} conversationId - Conversation ID
+     * @param {boolean} forEveryone - Clear for everyone
      */
-    leaveConversation(conversationId) {
-        return this.emit(WS_EVENTS.CONVERSATION_LEAVE, { conversationId });
+    clearConversation(conversationId, forEveryone = false) {
+        console.log('[SocketService] Sending chat:conversation:clear:', { conversationId, forEveryone });
+        return this.emit(WS_EVENTS.CONVERSATION_CLEAR, { conversationId, forEveryone });
     }
 
     /**
@@ -596,10 +577,8 @@ class SocketService {
      * @param {string} conversationId - Conversation ID
      */
     openConversation(conversationId) {
-        return this.emit(WS_EVENTS.CONVERSATION_OPEN, {
-            conversationId,
-            timestamp: new Date().toISOString()
-        });
+        // Join the conversation room when opening
+        return this.joinConversation(conversationId);
     }
 }
 
