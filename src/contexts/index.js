@@ -30,3 +30,8 @@ export {
   default as DataContext,
 } from './DataContext';
 
+export {
+  ThemeContextProvider,
+  useThemeMode,
+  default as ThemeContext,
+} from './ThemeContext';

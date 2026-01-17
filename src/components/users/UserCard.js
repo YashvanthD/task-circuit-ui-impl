@@ -84,7 +84,7 @@ export default function UserCard({
         sx={{
           p: 2,
           borderRadius: 2,
-          backgroundColor: isInactive ? '#fafafa' : '#fff',
+          bgcolor: isInactive ? 'action.disabledBackground' : 'background.paper',
           opacity: isInactive ? 0.7 : 1,
           display: 'flex',
           alignItems: 'center',
@@ -122,7 +122,7 @@ export default function UserCard({
       sx={{
         borderRadius: 3,
         overflow: 'hidden',
-        backgroundColor: isInactive ? '#fafafa' : '#fff',
+        bgcolor: isInactive ? 'action.disabledBackground' : 'background.paper',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',

@@ -12,6 +12,7 @@ import Avatar from '@mui/material/Avatar';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -26,7 +27,10 @@ import LocalAtmIcon from '@mui/icons-material/LocalAtm';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ScienceIcon from '@mui/icons-material/Science';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
 import RoamingAssistant from '../components/RoamingAssistant';
+import { useThemeMode } from '../contexts/ThemeContext';
 
 // Shortened imports for better readability
 import {
@@ -79,6 +83,10 @@ import {
 export default function BaseLayout({ children, loggedIn, user, onLogout, showSidebar = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
+
+  // Theme mode from context
+  const { toggleTheme, isDarkMode } = useThemeMode();
+
   // Updated navItems to use centralized paths from config.js
   const navItems = [
     { label: 'Dashboard', to: BASE_APP_PATH_USER_DASHBOARD, icon: <DashboardIcon /> },
@@ -154,7 +162,16 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: 'common.white' }}>
             Task Circuit
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            {/* Theme Toggle Button - always visible */}
+            <Tooltip title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+              <IconButton
+                color="inherit"
+                onClick={toggleTheme}
+              >
+                {isDarkMode ? <Brightness7Icon /> : <Brightness4Icon />}
+              </IconButton>
+            </Tooltip>
             {!loggedIn && (
               <>
                 <Button
@@ -193,7 +210,6 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
                   edge="end"
                   color="inherit"
                   onClick={handleProfileMenuOpen}
-                  sx={{ ml: 2 }}
                 >
                   <Avatar>{(user?.display_name || user?.name || user?.username || user?.user?.username)?.[0]?.toUpperCase() || '?'}</Avatar>
                 </IconButton>
@@ -253,7 +269,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
             left: 0,
             height: `calc(100vh - ${APPBAR_HEIGHT}px)`,
             width: DRAWER_WIDTH,
-            bgcolor: '#263238',
+            bgcolor: isDarkMode ? 'background.paper' : '#263238',
             color: 'common.white',
             boxShadow: 'none',
             borderRadius: 0,

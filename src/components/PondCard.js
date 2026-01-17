@@ -375,7 +375,7 @@ export default function PondCard({
       </Box>
 
       {/* Financial Stats Row */}
-      <Box sx={{ px: 2, py: 2, bgcolor: '#f8f9fa', borderBottom: '1px solid', borderColor: 'divider' }}>
+      <Box sx={{ px: 2, py: 2, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Stack direction="row" justifyContent="space-around" alignItems="center" divider={<Divider orientation="vertical" flexItem />}>
           <Box sx={{ textAlign: 'center', px: 2 }}>
             <Typography variant="h5" fontWeight={700} color="error.main">{formatCurrency(totalExpenses)}</Typography>
@@ -464,7 +464,7 @@ export default function PondCard({
 
           <Collapse in={expanded}>
             {/* Stock Table */}
-            <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#fafafa', mb: 1.5 }}>
+            <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'action.hover', mb: 1.5 }}>
               <StockTable stock={stock} />
             </Paper>
 
@@ -472,7 +472,7 @@ export default function PondCard({
             <Typography variant="subtitle2" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
               💰 Cost Breakdown
             </Typography>
-            <Paper variant="outlined" sx={{ p: 2, bgcolor: '#fff8e1' }}>
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: 'warning.light' }}>
               <Stack spacing={1}>
                 <Stack direction="row" justifyContent="space-between">
                   <Typography variant="body2">Pond Setup Cost:</Typography>
@@ -513,7 +513,9 @@ export default function PondCard({
           py: 1.5,
           borderTop: '1px solid',
           borderColor: 'divider',
-          background: 'linear-gradient(to right, #f8f9fa, #fff)',
+          background: (theme) => theme.palette.mode === 'dark'
+            ? 'linear-gradient(to right, rgba(255,255,255,0.05), rgba(255,255,255,0.02))'
+            : 'linear-gradient(to right, #f8f9fa, #fff)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',

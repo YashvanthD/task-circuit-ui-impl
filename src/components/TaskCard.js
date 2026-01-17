@@ -24,34 +24,34 @@ import WarningIcon from '@mui/icons-material/Warning';
 
 const STATUS_CONFIG = {
   pending: {
-    bg: '#fff8e1',
-    color: '#f57c00',
-    borderColor: '#ffb74d',
+    bg: 'warning.light',
+    color: 'warning.dark',
+    borderColor: 'warning.main',
     label: 'Pending',
     icon: '⏳',
   },
   inprogress: {
-    bg: '#e3f2fd',
-    color: '#1976d2',
-    borderColor: '#64b5f6',
+    bg: 'info.light',
+    color: 'info.dark',
+    borderColor: 'info.main',
     label: 'In Progress',
     icon: '🔄',
   },
   completed: {
-    bg: '#e8f5e9',
-    color: '#388e3c',
-    borderColor: '#81c784',
+    bg: 'success.light',
+    color: 'success.dark',
+    borderColor: 'success.main',
     label: 'Completed',
     icon: '✅',
   },
 };
 
 const PRIORITY_CONFIG = {
-  1: { label: 'Critical', color: 'error', bg: '#ffebee' },
-  2: { label: 'High', color: 'warning', bg: '#fff3e0' },
-  3: { label: 'Medium', color: 'info', bg: '#e3f2fd' },
-  4: { label: 'Low', color: 'success', bg: '#e8f5e9' },
-  5: { label: 'Normal', color: 'default', bg: '#fafafa' },
+  1: { label: 'Critical', color: 'error', bg: 'error.light' },
+  2: { label: 'High', color: 'warning', bg: 'warning.light' },
+  3: { label: 'Medium', color: 'info', bg: 'info.light' },
+  4: { label: 'Low', color: 'success', bg: 'success.light' },
+  5: { label: 'Normal', color: 'default', bg: 'action.hover' },
 };
 
 // ============================================================================
@@ -168,8 +168,8 @@ export default function TaskCard({
         sx={{
           p: 2,
           borderRadius: 2,
-          borderLeft: `4px solid ${overdue ? '#f44336' : status.borderColor}`,
-          backgroundColor: isCompleted ? '#fafafa' : '#fff',
+          borderLeft: (theme) => `4px solid ${overdue ? theme.palette.error.main : theme.palette[status.borderColor.split('.')[0]][status.borderColor.split('.')[1]]}`,
+          bgcolor: isCompleted ? 'action.disabledBackground' : 'background.paper',
           opacity: isCompleted ? 0.8 : 1,
           display: 'flex',
           alignItems: 'center',
@@ -236,7 +236,7 @@ export default function TaskCard({
       sx={{
         borderRadius: 3,
         overflow: 'hidden',
-        backgroundColor: isCompleted ? '#fafafa' : '#fff',
+        bgcolor: isCompleted ? 'action.disabledBackground' : 'background.paper',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -253,8 +253,8 @@ export default function TaskCard({
         sx={{
           px: 2,
           py: 1,
-          backgroundColor: overdue ? '#ffebee' : status.bg,
-          borderBottom: `2px solid ${overdue ? '#f44336' : status.borderColor}`,
+          bgcolor: overdue ? 'error.light' : status.bg,
+          borderBottom: (theme) => `2px solid ${overdue ? theme.palette.error.main : theme.palette[status.borderColor.split('.')[0]][status.borderColor.split('.')[1]]}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -266,7 +266,7 @@ export default function TaskCard({
             variant="caption"
             sx={{
               fontWeight: 700,
-              color: overdue ? '#c62828' : status.color,
+              color: overdue ? 'error.dark' : status.color,
               textTransform: 'uppercase',
               letterSpacing: 0.5,
             }}
@@ -380,7 +380,7 @@ export default function TaskCard({
           py: 1.5,
           borderTop: '1px solid',
           borderColor: 'divider',
-          backgroundColor: '#fafafa',
+          bgcolor: 'action.hover',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',

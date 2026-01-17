@@ -147,7 +147,7 @@ export default function FishCard({
           p: 2,
           borderRadius: 2,
           borderLeft: `4px solid ${statusConfig.color}`,
-          backgroundColor: isInactive ? '#fafafa' : '#fff',
+          bgcolor: isInactive ? 'action.disabledBackground' : 'background.paper',
           opacity: isInactive ? 0.7 : 1,
           display: 'flex',
           alignItems: 'center',
@@ -221,7 +221,7 @@ export default function FishCard({
       sx={{
         p: 3,
         borderRadius: 3,
-        backgroundColor: isInactive ? '#fafafa' : '#fff',
+        bgcolor: isInactive ? 'action.disabledBackground' : 'background.paper',
         opacity: isInactive ? 0.8 : 1,
         cursor: onClick ? 'pointer' : 'default',
         transition: 'all 0.2s ease',

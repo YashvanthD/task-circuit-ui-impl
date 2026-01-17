@@ -31,8 +31,9 @@ export default function ErrorState({
       <Paper
         sx={{
           p: 2,
-          backgroundColor: '#ffebee',
-          border: '1px solid #f44336',
+          bgcolor: 'error.light',
+          border: '1px solid',
+          borderColor: 'error.main',
           borderRadius: 2,
         }}
       >

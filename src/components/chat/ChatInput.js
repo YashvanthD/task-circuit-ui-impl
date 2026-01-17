@@ -182,7 +182,7 @@ export default function ChatInput({
           sx={{
             '& .MuiOutlinedInput-root': {
               borderRadius: 3,
-              bgcolor: 'grey.50',
+              bgcolor: 'action.hover',
               '& fieldset': {
                 borderColor: 'transparent',
               },

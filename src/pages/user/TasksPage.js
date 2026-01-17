@@ -405,7 +405,7 @@ export default function TasksPage() {
 
       {/* Error */}
       {error && (
-        <Paper sx={{ p: 2, mb: 2, backgroundColor: '#ffebee', border: '1px solid #f44336' }}>
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'error.light', border: '1px solid', borderColor: 'error.main' }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography color="error">{error}</Typography>
             <Button size="small" onClick={() => loadTasks(true)}>Retry</Button>
@@ -423,7 +423,7 @@ export default function TasksPage() {
 
       {/* Empty state */}
       {!loading && !error && filteredTasks.length === 0 && (
-        <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: '#fffde7', border: '1px solid #ffeb3b' }}>
+        <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'warning.light', border: '1px solid', borderColor: 'warning.main' }}>
           <Typography variant="body1" color="text.secondary">No tasks found.</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             Click "Create New Task" above to add your first task!

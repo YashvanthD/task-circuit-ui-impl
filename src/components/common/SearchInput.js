@@ -60,7 +60,7 @@ export default function SearchInput({
         ...(fullWidth && { width: '100%', maxWidth: 'none' }),
         '& .MuiOutlinedInput-root': {
           borderRadius: 2,
-          backgroundColor: 'grey.50',
+          bgcolor: 'action.hover',
         },
       }}
       InputProps={{

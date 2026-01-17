@@ -26,8 +26,9 @@ export default function CriticalSummary({ criticalCount = 0, alertCount = 0 }) {
       sx={{
         mb: 4,
         p: 2,
-        backgroundColor: '#ffebee',
-        border: '1px solid #f44336',
+        bgcolor: 'error.light',
+        border: '1px solid',
+        borderColor: 'error.main',
       }}
     >
       <Typography variant="h6" color="error" sx={{ fontWeight: 'bold' }}>

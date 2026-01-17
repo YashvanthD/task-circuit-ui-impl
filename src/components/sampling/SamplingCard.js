@@ -63,7 +63,7 @@ export default function SamplingCard({
           p: 2,
           borderRadius: 2,
           borderLeft: `4px solid ${isOverdue ? '#f44336' : statusConfig.color}`,
-          backgroundColor: isCancelled ? '#fafafa' : '#fff',
+          bgcolor: isCancelled ? 'action.disabledBackground' : 'background.paper',
           opacity: isCancelled ? 0.7 : 1,
           display: 'flex',
           alignItems: 'center',
@@ -118,7 +118,7 @@ export default function SamplingCard({
       sx={{
         borderRadius: 3,
         overflow: 'hidden',
-        backgroundColor: isCancelled ? '#fafafa' : '#fff',
+        bgcolor: isCancelled ? 'action.disabledBackground' : 'background.paper',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',

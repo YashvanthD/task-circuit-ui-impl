@@ -51,7 +51,7 @@ function EmptyState() {
         alignItems: 'center',
         justifyContent: 'center',
         height: '100%',
-        bgcolor: 'grey.50',
+        bgcolor: 'background.default',
         p: 4,
       }}
     >

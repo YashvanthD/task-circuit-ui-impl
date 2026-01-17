@@ -160,6 +160,44 @@ export function clearUsersCache() {
 }
 
 /**
+ * Refresh user session with fresh data from API.
+ * Call this after any profile update to ensure cache is in sync.
+ * @returns {Promise<object|null>} Updated user data
+ */
+export async function refreshUserSession() {
+  try {
+    // Fetch fresh profile from API
+    const res = await apiUser.getProfile();
+    const data = await parseResponse(res);
+    const userData = data?.data || data?.user || data;
+
+    if (userData) {
+      // Update userSession with fresh data
+      try {
+        const { userSession } = require('./auth/userSession');
+        userSession.updateProfile(userData);
+        console.log('[User] Session refreshed with updated profile');
+      } catch (e) {
+        console.warn('[User] Failed to update userSession:', e);
+      }
+
+      // Also update localStorage user data for backward compatibility
+      try {
+        const existingUser = JSON.parse(localStorage.getItem('user') || '{}');
+        localStorage.setItem('user', JSON.stringify({ ...existingUser, ...userData }));
+      } catch (e) {
+        // Ignore storage errors
+      }
+    }
+
+    return userData;
+  } catch (e) {
+    logError('refreshUserSession', e);
+    return null;
+  }
+}
+
+/**
  * Get the current logged-in user's profile.
  * Tries userSession first (already has data from login), then API as fallback.
  * Merges data from both sources to ensure all fields are populated.
@@ -354,7 +392,12 @@ export async function deleteUser(userId) {
 export async function updateUserEmail(newEmail) {
   try {
     const res = await apiUser.updateProfile({ email: newEmail });
-    return parseResponse(res);
+    const data = await parseResponse(res);
+
+    // Refresh user session with updated data
+    await refreshUserSession();
+
+    return data;
   } catch (e) {
     logError('updateUserEmail', e);
     throw e;
@@ -370,7 +413,12 @@ export async function updateUserEmail(newEmail) {
 export async function updateUserMobile(newMobile) {
   try {
     const res = await apiUser.updateProfile({ mobile: newMobile });
-    return parseResponse(res);
+    const data = await parseResponse(res);
+
+    // Refresh user session with updated data
+    await refreshUserSession();
+
+    return data;
   } catch (e) {
     logError('updateUserMobile', e);
     throw e;
@@ -385,8 +433,9 @@ export async function updateUserMobile(newMobile) {
  */
 export async function updateUserPassword(payload) {
   try {
-    const res = await apiUser.updateProfile(payload);
-    return parseResponse(res);
+    const res = await apiUser.updatePassword(payload);
+    const data = await parseResponse(res);
+    return data;
   } catch (e) {
     logError('updateUserPassword', e);
     throw e;
@@ -402,7 +451,12 @@ export async function updateUserPassword(payload) {
 export async function updateUsername(newUsername) {
   try {
     const res = await apiUser.updateProfile({ username: newUsername });
-    return parseResponse(res);
+    const data = await parseResponse(res);
+
+    // Refresh user session with updated data
+    await refreshUserSession();
+
+    return data;
   } catch (e) {
     logError('updateUsername', e);
     throw e;
@@ -451,7 +505,15 @@ export async function updateUserSettings(settings) {
 export async function updateNotificationSettings(notificationSettings) {
   try {
     const res = await apiUser.updateNotificationSettings(notificationSettings);
-    return parseResponse(res);
+    const data = await parseResponse(res);
+
+    // Update userSession settings
+    try {
+      const { userSession } = require('./auth/userSession');
+      userSession.updateSettings({ notifications: notificationSettings });
+    } catch (e) { /* ignore */ }
+
+    return data;
   } catch (e) {
     logError('updateNotificationSettings', e);
     throw e;
@@ -467,7 +529,12 @@ export async function updateNotificationSettings(notificationSettings) {
 export async function uploadProfilePicture(file) {
   try {
     const res = await apiUser.uploadProfilePicture(file);
-    return parseResponse(res);
+    const data = await parseResponse(res);
+
+    // Refresh user session with updated data
+    await refreshUserSession();
+
+    return data;
   } catch (e) {
     logError('uploadProfilePicture', e);
     throw e;
@@ -483,7 +550,12 @@ export async function uploadProfilePicture(file) {
 export async function updateProfileDescription(description) {
   try {
     const res = await apiUser.updateProfile({ description });
-    return parseResponse(res);
+    const data = await parseResponse(res);
+
+    // Refresh user session with updated data
+    await refreshUserSession();
+
+    return data;
   } catch (e) {
     logError('updateProfileDescription', e);
     throw e;
@@ -496,6 +568,7 @@ const userUtil = {
   getUserName,
   clearUsersCache,
   getCurrentUser,
+  refreshUserSession,
   getUserInfo,
   listAccountUsers,
   addUser,

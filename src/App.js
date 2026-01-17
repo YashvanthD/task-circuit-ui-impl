@@ -19,6 +19,7 @@ import { userSession } from './utils/auth/userSession';
 import { UserProvider } from './contexts/UserContext';
 import { DataProvider } from './contexts/DataContext';
 import { AlertProvider } from './contexts/AlertContext';
+import { ThemeContextProvider } from './contexts/ThemeContext';
 import { SignupForm } from './components/users/forms';
 import { RegisterCompanyForm } from './components/common/forms';
 import FishPage from './pages/user/FishPage';
@@ -163,16 +164,18 @@ export default function App() {
     }
   }
   return (
-    <AlertProvider>
-      <UserProvider>
-        <DataProvider>
-          <Router basename={basename}>
-            <ErrorBoundary>
-              <AppRoutes />
-            </ErrorBoundary>
-          </Router>
-        </DataProvider>
-      </UserProvider>
-    </AlertProvider>
+    <ThemeContextProvider>
+      <AlertProvider>
+        <UserProvider>
+          <DataProvider>
+            <Router basename={basename}>
+              <ErrorBoundary>
+                <AppRoutes />
+              </ErrorBoundary>
+            </Router>
+          </DataProvider>
+        </UserProvider>
+      </AlertProvider>
+    </ThemeContextProvider>
   );
 }

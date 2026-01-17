@@ -20,8 +20,12 @@ import DialogContent from '@mui/material/DialogContent';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useThemeMode } from '../contexts/ThemeContext';
 
-export default function Profile({ onThemeChange }) {
+export default function Profile() {
+  // Theme from context
+  const { mode: themeMode, setMode: setThemeMode, isDarkMode } = useThemeMode();
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profilePic, setProfilePic] = useState('');
@@ -32,7 +36,6 @@ export default function Profile({ onThemeChange }) {
   const [mailDialogOpen, setMailDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [usernameDialogOpen, setUsernameDialogOpen] = useState(false);
-  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('themeMode') || 'light');
   const [uploadingPic, setUploadingPic] = useState(false);
 
   // Notification settings state
@@ -107,10 +110,6 @@ export default function Profile({ onThemeChange }) {
     loadUser();
   }, [loadUser]);
 
-  useEffect(() => {
-    localStorage.setItem('themeMode', themeMode);
-    if (onThemeChange) onThemeChange(themeMode);
-  }, [themeMode, onThemeChange]);
 
   const handlePicChange = async (e) => {
     const file = e.target.files[0];
@@ -196,7 +195,7 @@ export default function Profile({ onThemeChange }) {
   }
 
   return (
-    <Card sx={{ maxWidth: 600, m: '40px auto', p: 2, bgcolor: '#f5f5f5', boxShadow: 2 }}>
+    <Card sx={{ maxWidth: 600, m: '40px auto', p: 2, bgcolor: 'background.default', boxShadow: 2 }}>
       <CardContent>
         <Stack alignItems="center" spacing={2}>
           {/* Profile Picture */}
@@ -328,21 +327,21 @@ export default function Profile({ onThemeChange }) {
             <Divider sx={{ mb: 2 }} />
             <Stack spacing={2}>
               <Stack direction="row" spacing={2} justifyContent="center" alignItems="center">
-                <Box sx={{ bgcolor: 'common.white', color: 'primary.main', p: 2, boxShadow: 4, textAlign: 'center', flex: 1, borderRadius: 1 }}>
+                <Box sx={{ bgcolor: 'background.paper', color: 'primary.main', p: 2, boxShadow: 4, textAlign: 'center', flex: 1, borderRadius: 1 }}>
                   <Typography variant="body2">Total Tasks</Typography>
                   <Typography variant="h5" fontWeight={700}>{user?.activity?.total || user?.stats?.total_tasks || 0}</Typography>
                 </Box>
-                <Box sx={{ bgcolor: 'common.white', color: 'success.main', p: 2, boxShadow: 4, textAlign: 'center', flex: 1, borderRadius: 1 }}>
+                <Box sx={{ bgcolor: 'background.paper', color: 'success.main', p: 2, boxShadow: 4, textAlign: 'center', flex: 1, borderRadius: 1 }}>
                   <Typography variant="body2">Completed</Typography>
                   <Typography variant="h5" fontWeight={700}>{user?.activity?.completed || user?.stats?.completed_tasks || 0}</Typography>
                 </Box>
               </Stack>
               <Stack direction="row" spacing={2} justifyContent="center" alignItems="center">
-                <Box sx={{ bgcolor: 'common.white', color: 'warning.main', p: 2, boxShadow: 4, textAlign: 'center', flex: 1, borderRadius: 1 }}>
+                <Box sx={{ bgcolor: 'background.paper', color: 'warning.main', p: 2, boxShadow: 4, textAlign: 'center', flex: 1, borderRadius: 1 }}>
                   <Typography variant="body2">Pending</Typography>
                   <Typography variant="h5" fontWeight={700}>{user?.activity?.pending || user?.stats?.pending_tasks || 0}</Typography>
                 </Box>
-                <Box sx={{ bgcolor: 'common.white', color: 'info.main', p: 2, boxShadow: 4, textAlign: 'center', flex: 1, borderRadius: 1 }}>
+                <Box sx={{ bgcolor: 'background.paper', color: 'info.main', p: 2, boxShadow: 4, textAlign: 'center', flex: 1, borderRadius: 1 }}>
                   <Typography variant="body2">Success Rate</Typography>
                   <Typography variant="h5" fontWeight={700}>
                     {user?.activity?.successRate ? `${user.activity.successRate}%` :
@@ -356,7 +355,7 @@ export default function Profile({ onThemeChange }) {
           <Divider sx={{ my: 2, width: '100%' }} />
 
           {/* Account Settings Section */}
-          <Card sx={{ width: '100%', boxShadow: 2, bgcolor: 'common.white', mb: 2 }}>
+          <Card sx={{ width: '100%', boxShadow: 2, bgcolor: 'background.paper', mb: 2 }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>Account Settings</Typography>
               <Divider sx={{ mb: 2 }} />
@@ -368,7 +367,7 @@ export default function Profile({ onThemeChange }) {
                     fontWeight: 400,
                     boxShadow: 2,
                     p: 1.5,
-                    bgcolor: 'common.white',
+                    bgcolor: 'background.paper',
                     color: 'text.primary',
                     textTransform: 'none',
                     fontSize: 16,
@@ -387,7 +386,7 @@ export default function Profile({ onThemeChange }) {
                     fontWeight: 400,
                     boxShadow: 2,
                     p: 1.5,
-                    bgcolor: 'common.white',
+                    bgcolor: 'background.paper',
                     color: 'text.primary',
                     textTransform: 'none',
                     fontSize: 16,
@@ -404,7 +403,7 @@ export default function Profile({ onThemeChange }) {
           </Card>
 
           {/* Notification Settings Section */}
-          <Card sx={{ width: '100%', boxShadow: 2, bgcolor: 'common.white', mb: 2 }}>
+          <Card sx={{ width: '100%', boxShadow: 2, bgcolor: 'background.paper', mb: 2 }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>Notification Settings</Typography>
               <Divider sx={{ mb: 2 }} />
@@ -454,13 +453,13 @@ export default function Profile({ onThemeChange }) {
           </Card>
 
           {/* Theme Section */}
-          <Card sx={{ width: '100%', boxShadow: 2, bgcolor: 'common.white', mb: 2 }}>
+          <Card sx={{ width: '100%', boxShadow: 2, bgcolor: 'background.paper', mb: 2 }}>
             <CardContent>
               <Typography variant="h6" fontWeight={600} gutterBottom>Theme</Typography>
               <Divider sx={{ mb: 2 }} />
               <Stack direction="row" alignItems="center" justifyContent="space-between">
                 <AnimatePresence mode="wait">
-                  {themeMode === 'dark' ? (
+                  {isDarkMode ? (
                     <motion.span
                       key="dark"
                       initial={{ opacity: 0, x: -20 }}
@@ -487,7 +486,7 @@ export default function Profile({ onThemeChange }) {
                   )}
                 </AnimatePresence>
                 <Switch
-                  checked={themeMode === 'dark'}
+                  checked={isDarkMode}
                   onChange={e => setThemeMode(e.target.checked ? 'dark' : 'light')}
                   inputProps={{ 'aria-label': 'theme toggle' }}
                 />

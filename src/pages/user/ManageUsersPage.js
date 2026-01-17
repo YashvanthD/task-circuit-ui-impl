@@ -195,7 +195,7 @@ function ManageUsersPageContent() {
 
       {/* Error */}
       {error && (
-        <Paper sx={{ p: 2, mb: 2, bgcolor: '#ffebee', border: '1px solid #f44336' }}>
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'error.light', border: '1px solid', borderColor: 'error.main' }}>
           <Typography color="error">{error}</Typography>
         </Paper>
       )}

@@ -233,7 +233,7 @@ export default function PondPage() {
 
       {/* Error */}
       {error && (
-        <Paper sx={{ p: 2, mb: 2, backgroundColor: '#ffebee', border: '1px solid #f44336' }}>
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'error.light', border: '1px solid', borderColor: 'error.main' }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography color="error">{error}</Typography>
             <Button size="small" onClick={() => fetchPonds({ force: true })}>Retry</Button>
@@ -243,7 +243,7 @@ export default function PondPage() {
 
       {/* Empty State */}
       {filteredPondList.length === 0 && !loading && !error && (
-        <Paper sx={{ p: 4, textAlign: 'center', backgroundColor: '#f5f5f5' }}>
+        <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'background.paper' }}>
           <Typography variant="body1" color="text.secondary">No ponds found.</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             Click "Add Pond" to create your first pond!
