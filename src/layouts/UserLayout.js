@@ -9,7 +9,7 @@ import {
   removeUserFromLocalStorage,
   clearAccessTokenManagement,
   clearTasksFromLocalStorage
-} from '../utils/auth/storage';
+} from '../utils';
 import BaseLayout from './BaseLayout';
 import { BASE_APP_PATH_LOGIN } from "../config";
 

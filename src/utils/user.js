@@ -412,7 +412,7 @@ export async function updateUserEmail(newEmail) {
  */
 export async function updateUserMobile(newMobile) {
   try {
-    const res = await apiUser.updateProfile({ mobile: newMobile });
+    const res = await apiUser.updateProfile({ phone: newMobile });
     const data = await parseResponse(res);
 
     // Refresh user session with updated data
