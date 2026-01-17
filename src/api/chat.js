@@ -23,8 +23,8 @@ const API_CHAT = {
   CREATE_CONVERSATION: '/api/chat/conversations', // POST endpoint
 };
 
-// Flag to use mock data (set to false for production)
-const USE_MOCK = false;
+// Flag to use mock data (set to false when backend chat API is ready)
+const USE_MOCK = true;
 
 // ============================================================================
 // Current User Helper
@@ -358,7 +358,7 @@ export async function listConversations(params = {}, users = []) {
     if (!contentType || !contentType.includes('application/json')) {
       throw new Error('Server returned non-JSON response');
     }
-    
+
     return response.json();
   } catch (error) {
     console.error('[Chat API] Failed to fetch conversations:', error);

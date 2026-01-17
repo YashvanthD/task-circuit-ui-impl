@@ -128,16 +128,23 @@ export function subscribeToChatWebSocket() {
 
   // Message sent confirmation
   socketService.on(WS_EVENTS.MESSAGE_SENT, (data) => {
-    const { message_id, conversation_id, temp_id } = data;
-    const msgCache = messagesCache.get(conversation_id);
+    // Backend sends: messageId, conversationId, senderKey, content, type, status, createdAt, tempId
+    const messageId = data.message_id || data.messageId;
+    const conversationId = data.conversation_id || data.conversationId;
+    const tempId = data.temp_id || data.tempId;
+
+    console.log('[ChatCache] Message sent confirmation:', { messageId, conversationId, tempId });
+
+    const msgCache = messagesCache.get(conversationId);
     if (msgCache) {
       // Update temp message with real ID
-      const msg = msgCache.data.find((m) => m.message_id === temp_id);
+      const msg = msgCache.data.find((m) => m.message_id === tempId);
       if (msg) {
-        msg.message_id = message_id;
-        msg.status = 'sent';
-        msgCache.byId.delete(temp_id);
-        msgCache.byId.set(String(message_id), msg);
+        msg.message_id = messageId;
+        msg.status = data.status || 'sent';
+        msg.created_at = data.createdAt || data.created_at || msg.created_at;
+        msgCache.byId.delete(tempId);
+        msgCache.byId.set(String(messageId), msg);
         msgCache.events.emit('updated', msgCache.data);
       }
     }
@@ -182,6 +189,30 @@ export function subscribeToChatWebSocket() {
         msgCache.events.emit('updated', msgCache.data);
       }
     }
+  });
+
+  // Chat error handler - marks message as failed
+  socketService.on(WS_EVENTS.CHAT_ERROR, (data) => {
+    const { code, message, tempId, temp_id } = data;
+    const msgTempId = tempId || temp_id;
+
+    console.error('[ChatCache] Chat error:', code, message, 'tempId:', msgTempId);
+
+    // Find and mark the message as failed
+    if (msgTempId) {
+      for (const [, cache] of messagesCache) {
+        const msg = cache.data.find((m) => m.message_id === msgTempId);
+        if (msg) {
+          msg.status = 'failed';
+          msg.error = message || code;
+          cache.events.emit('updated', cache.data);
+          break;
+        }
+      }
+    }
+
+    // Show error alert for user
+    showErrorAlert(message || 'Failed to send message', 'Chat Error');
   });
 
   // Typing indicator update
