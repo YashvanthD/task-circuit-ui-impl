@@ -217,6 +217,8 @@ class SocketService {
             // Register all WebSocket event handlers
             this._registerEventHandlers();
         });
+
+        return this._connectingPromise;
     }
 
     /**

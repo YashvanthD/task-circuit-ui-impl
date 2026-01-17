@@ -113,10 +113,14 @@ export function subscribeToChatWebSocket() {
   socketService.setOnline();
 
   // Auto-load conversations
-  getConversations(true).then(() => {
-    // Request presence for all participants after loading conversations
-    requestPresenceForAllParticipants();
-  });
+  (async () => {
+    try {
+      await getConversations(true);
+      requestPresenceForAllParticipants();
+    } catch (e) {
+      console.warn('[ChatCache] Failed to load conversations:', e);
+    }
+  })();
 
   // Listen for 'connected' event from server (authentication confirmation)
   socketService.on(WS_EVENTS.CONNECTED, (data) => {
@@ -124,10 +128,14 @@ export function subscribeToChatWebSocket() {
     // Set user as online when authenticated
     socketService.setOnline();
     // Reload conversations after authentication
-    getConversations(true).then(() => {
-      // Request presence for all participants after loading conversations
-      requestPresenceForAllParticipants();
-    });
+    (async () => {
+      try {
+        await getConversations(true);
+        requestPresenceForAllParticipants();
+      } catch (e) {
+        console.warn('[ChatCache] Failed to reload conversations:', e);
+      }
+    })();
   });
 
   // New message received (chat:message)

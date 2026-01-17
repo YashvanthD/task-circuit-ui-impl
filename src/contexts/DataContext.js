@@ -113,11 +113,16 @@ export function DataProvider({ children }) {
     const token = localStorage.getItem('access_token');
     if (token) {
       // Connect WebSocket for real-time updates
-      socketService.connect().then((connected) => {
-        if (connected) {
-          subscribeAllToWebSocket();
+      (async () => {
+        try {
+          const connected = await socketService.connect();
+          if (connected) {
+            subscribeAllToWebSocket();
+          }
+        } catch (e) {
+          console.warn('[DataContext] WebSocket connection failed:', e);
         }
-      });
+      })();
 
       // Load in background, don't block
       getNotifications().catch(() => {});
