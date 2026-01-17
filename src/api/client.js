@@ -6,6 +6,7 @@
  */
 
 import { BASE_URL } from '../config';
+import { showApiErrorAlert, showErrorAlert } from '../utils/alertManager';
 
 // ============================================================================
 // Local Storage Helpers (synced with userSession)
@@ -198,6 +199,7 @@ export async function apiFetch(url, options = {}) {
     res = await fetch(fullUrl, opts);
   } catch (err) {
     console.error('[API] Network error:', err);
+    showErrorAlert('Failed to connect to server. Please check your network connection.', 'Network Error');
     throw new NetworkError('Failed to connect to server', err);
   }
 
@@ -225,14 +227,20 @@ export async function apiFetch(url, options = {}) {
  * API fetch with automatic JSON parsing.
  * @param {string} url - endpoint URL
  * @param {object} options - fetch options
+ * @param {boolean} options.showErrors - Whether to show error alerts (default: true)
  * @returns {Promise<object>} Parsed JSON
  */
 export async function apiJsonFetch(url, options = {}) {
-  const res = await apiFetch(url, options);
+  const { showErrors = true, ...fetchOptions } = options;
+  const res = await apiFetch(url, fetchOptions);
   const data = await safeJsonParse(res);
 
   if (!res.ok) {
-    throw ApiError.fromResponse(res, data);
+    const error = ApiError.fromResponse(res, data);
+    if (showErrors) {
+      showApiErrorAlert(error);
+    }
+    throw error;
   }
 
   return data;

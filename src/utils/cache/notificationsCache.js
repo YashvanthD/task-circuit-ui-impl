@@ -35,22 +35,11 @@ const cache = createCache('notifications', 2 * 60 * 1000); // 2 min TTL
 // Add unread count to cache
 cache.unreadCount = 0;
 
-// Load from localStorage on init
-loadPersistedCache(cache, STORAGE_KEY, 'notification_id');
-
-// If persisted cache is stale (older than TTL), clear it to avoid showing stale unread flags
-if (cache.lastFetch && Date.now() - cache.lastFetch > cache.ttl) {
-  clearCache(cache);
-  cache.unreadCount = 0;
-  localStorage.removeItem(STORAGE_KEY);
-} else {
-  // Normalize read flag to boolean to avoid undefined -> treated as unread
-  cache.data = (cache.data || []).map((n) => ({ ...(n || {}), read: !!n.read }));
-  cache.byId.clear();
-  cache.data.forEach((item) => cache.byId.set(String(item.notification_id), item));
-  // Ensure unreadCount is accurate after loading persisted cache
-  cache.unreadCount = Math.max(0, (cache.data || []).filter((n) => !n.read).length);
-}
+// Always start fresh - don't load stale persisted data that may have incorrect read/unread state
+// The server is the source of truth for notification state
+clearCache(cache);
+cache.unreadCount = 0;
+localStorage.removeItem(STORAGE_KEY);
 
 // ============================================================================
 // WebSocket Integration
@@ -228,18 +217,31 @@ export async function getNotifications(force = false, params = {}) {
     return cache.data;
   }
 
+  // Clear cache on force reload to avoid stale data mixing
+  if (force) {
+    cache.data = [];
+    cache.byId.clear();
+    cache.unreadCount = 0;
+  }
+
   setCacheLoading(cache, true);
 
   try {
     const response = await listNotifications(params);
-    const data = response?.data?.notifications || [];
+    const rawData = response?.data?.notifications || [];
+
+    // Normalize notifications - ensure read flag is boolean
+    const data = rawData.map((n) => ({
+      ...n,
+      read: !!n.read,  // Normalize to boolean
+    }));
 
     // Only update full cache if no filters
     if (!params.unread) {
       updateCache(cache, data, 'notification_id');
-      // Recompute unread count deterministically
-      cache.unreadCount = Math.max(0, (cache.data || []).filter((n) => !n.read).length);
-      persistCache(cache, STORAGE_KEY);
+      // Compute unread count from server data (authoritative)
+      cache.unreadCount = Math.max(0, data.filter((n) => !n.read).length);
+      // Don't persist - server is source of truth
     }
 
     setCacheLoading(cache, false);
