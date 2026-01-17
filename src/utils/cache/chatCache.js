@@ -50,6 +50,7 @@ conversationsCache.totalUnread = 0;
 // ============================================================================
 
 let wsSubscribed = false;
+let wsConnectionFailed = false; // Track if WebSocket connection has failed
 
 /**
  * Subscribe to WebSocket chat events
@@ -58,11 +59,26 @@ let wsSubscribed = false;
 export function subscribeToChatWebSocket() {
   if (wsSubscribed) return;
 
+  // Don't try to connect if previous connection failed
+  if (wsConnectionFailed) {
+    console.log('[ChatCache] Skipping WebSocket - previous connection failed');
+    wsSubscribed = true; // Still mark as subscribed to prevent repeated attempts
+    return;
+  }
+
   // Connect to WebSocket if not already connected
   if (!socketService.isConnected()) {
-    socketService.connect().catch((err) => {
-      console.warn('[ChatCache] WebSocket connection failed:', err);
-    });
+    socketService.connect()
+      .then((connected) => {
+        if (!connected) {
+          wsConnectionFailed = true;
+          console.warn('[ChatCache] WebSocket not available, running in offline mode');
+        }
+      })
+      .catch((err) => {
+        wsConnectionFailed = true;
+        console.warn('[ChatCache] WebSocket connection failed, running in offline mode:', err);
+      });
   }
 
   // New message received

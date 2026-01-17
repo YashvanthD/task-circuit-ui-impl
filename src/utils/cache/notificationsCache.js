@@ -44,6 +44,8 @@ loadPersistedCache(cache, STORAGE_KEY, 'notification_id');
 
 let wsSubscribed = false;
 
+let wsConnectionFailed = false;
+
 /**
  * Subscribe to WebSocket notification events
  * Also connects to WebSocket if not already connected
@@ -51,11 +53,23 @@ let wsSubscribed = false;
 export function subscribeToWebSocket() {
   if (wsSubscribed) return;
 
+  // Don't try to connect if previous connection failed
+  if (wsConnectionFailed) {
+    wsSubscribed = true;
+    return;
+  }
+
   // Connect to WebSocket if not already connected
   if (!socketService.isConnected()) {
-    socketService.connect().catch((err) => {
-      console.warn('[NotificationsCache] WebSocket connection failed:', err);
-    });
+    socketService.connect()
+      .then((connected) => {
+        if (!connected) {
+          wsConnectionFailed = true;
+        }
+      })
+      .catch(() => {
+        wsConnectionFailed = true;
+      });
   }
 
   // New notification received

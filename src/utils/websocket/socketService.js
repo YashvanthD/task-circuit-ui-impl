@@ -91,7 +91,7 @@ class SocketService {
     this.socket = null;
     this.connected = false;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
+    this.maxReconnectAttempts = 2; // Reduced from 5 to fail faster
     this.listeners = new Map();
     this.pendingEmits = [];
   }
@@ -123,8 +123,8 @@ class SocketService {
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 10000,
+        reconnectionDelayMax: 3000,
+        timeout: 5000, // Reduced from 10000 to fail faster
       });
 
       // Connection events
