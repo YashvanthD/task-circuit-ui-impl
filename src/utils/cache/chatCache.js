@@ -38,6 +38,9 @@ const messagesCache = new Map(); // Map<conversationId, cache>
 // Typing indicators state
 const typingState = new Map(); // Map<conversationId, Set<userKey>>
 
+// Track currently active/open conversation (for unread count handling)
+let activeConversationId = null;
+
 // Clear old mock data on init (uncomment to clear once)
 // localStorage.removeItem(STORAGE_KEY_CONVERSATIONS);
 
@@ -53,6 +56,7 @@ conversationsCache.totalUnread = 0;
 
 let wsSubscribed = false;
 let wsConnectionFailed = false; // Track if WebSocket connection has failed
+let visibilityListenerAdded = false; // Track if visibility listener is added
 
 /**
  * Subscribe to WebSocket chat events
@@ -68,14 +72,22 @@ export function subscribeToChatWebSocket() {
     return;
   }
 
+  // Set up visibility change listener for online/offline status
+  setupVisibilityListener();
+
   // Connect to WebSocket if not already connected
   if (!socketService.isConnected()) {
     socketService.connect()
       .then((connected) => {
         if (connected) {
           console.log('[ChatCache] WebSocket connected, loading conversations...');
+          // Set user as online when connected
+          socketService.setOnline();
           // Auto-load conversations after connection (like test HTML does)
-          getConversations(true);
+          getConversations(true).then(() => {
+            // Request presence for all participants after loading conversations
+            requestPresenceForAllParticipants();
+          });
         } else {
           wsConnectionFailed = true;
           console.warn('[ChatCache] WebSocket not available');
@@ -85,13 +97,21 @@ export function subscribeToChatWebSocket() {
         wsConnectionFailed = true;
         console.warn('[ChatCache] WebSocket connection failed:', err);
       });
+  } else {
+    // Already connected, just set online
+    socketService.setOnline();
   }
 
   // Listen for 'connected' event from server (authentication confirmation)
   socketService.on(WS_EVENTS.CONNECTED, (data) => {
     console.log('[ChatCache] Authenticated as:', data?.user_key);
+    // Set user as online when authenticated
+    socketService.setOnline();
     // Reload conversations after authentication
-    getConversations(true);
+    getConversations(true).then(() => {
+      // Request presence for all participants after loading conversations
+      requestPresenceForAllParticipants();
+    });
   });
 
   // New message received (chat:message)
@@ -152,7 +172,11 @@ export function subscribeToChatWebSocket() {
         created_at: normalizedMessage.created_at,
       };
       conv.last_activity = normalizedMessage.created_at;
-      if (senderKey !== currentUserKey) {
+
+      // Only increment unread if:
+      // 1. Message is from someone else
+      // 2. This conversation is NOT currently active (user is viewing it)
+      if (senderKey !== currentUserKey && conversationId !== activeConversationId) {
         conv.unread_count = (conv.unread_count || 0) + 1;
         conversationsCache.totalUnread++;
       }
@@ -261,12 +285,30 @@ export function subscribeToChatWebSocket() {
     console.log('[ChatCache] Message deleted:', { messageId, forEveryone });
 
     // Search all conversations for this message
-    for (const [conversationId, msgCache] of messagesCache) {
+    for (const [convId, msgCache] of messagesCache) {
       const index = msgCache.data.findIndex((m) => m.message_id === messageId);
       if (index !== -1) {
+        // Remove the message
         msgCache.data.splice(index, 1);
         msgCache.byId.delete(String(messageId));
         msgCache.events.emit('updated', msgCache.data);
+
+        // Update conversation's last_message to the previous message
+        const conv = conversationsCache.byId.get(String(convId));
+        if (conv) {
+          if (msgCache.data.length > 0) {
+            const lastMsg = msgCache.data[msgCache.data.length - 1];
+            conv.last_message = {
+              content: lastMsg.content,
+              sender_key: lastMsg.sender_key,
+              created_at: lastMsg.created_at,
+            };
+          } else {
+            conv.last_message = null;
+          }
+          conversationsCache.events.emit('updated', conversationsCache.data);
+          persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+        }
         break;
       }
     }
@@ -484,6 +526,116 @@ function updateUserPresence(userKey, isOnline, lastSeen = null) {
       is_online: isOnline,
       last_seen: lastSeen
     });
+  }
+}
+
+/**
+ * Set up visibility change listener for online/offline status
+ * User is online when the chat tab is visible/focused
+ * User is offline when the chat tab is hidden/blurred
+ */
+function setupVisibilityListener() {
+  if (visibilityListenerAdded || typeof document === 'undefined') return;
+
+  // Handle page visibility change (tab switch, minimize)
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      console.log('[ChatCache] Tab visible - setting online');
+      socketService.setOnline();
+    } else {
+      console.log('[ChatCache] Tab hidden - setting offline');
+      socketService.setOffline();
+    }
+  };
+
+  // Handle window focus/blur
+  const handleFocus = () => {
+    console.log('[ChatCache] Window focused - setting online');
+    socketService.setOnline();
+  };
+
+  const handleBlur = () => {
+    console.log('[ChatCache] Window blurred - setting offline');
+    socketService.setOffline();
+  };
+
+  // Handle page unload (close tab, navigate away)
+  const handleBeforeUnload = () => {
+    console.log('[ChatCache] Page unloading - setting offline');
+    socketService.setOffline();
+  };
+
+  // Add event listeners
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('focus', handleFocus);
+  window.addEventListener('blur', handleBlur);
+  window.addEventListener('beforeunload', handleBeforeUnload);
+
+  visibilityListenerAdded = true;
+  console.log('[ChatCache] Visibility listeners set up');
+}
+
+/**
+ * Manually set user as online (call when entering chat page)
+ */
+export function setUserOnline() {
+  console.log('[ChatCache] Manually setting user online');
+  if (socketService.isConnected()) {
+    socketService.setOnline();
+  }
+}
+
+/**
+ * Manually set user as offline (call when leaving chat page)
+ */
+export function setUserOffline() {
+  console.log('[ChatCache] Manually setting user offline');
+  if (socketService.isConnected()) {
+    socketService.setOffline();
+  }
+}
+
+/**
+ * Request presence status for all participants in conversations
+ * Called after loading conversations to sync online status
+ */
+async function requestPresenceForAllParticipants() {
+  const currentUserKey = getCurrentUserKey();
+
+  // Collect unique user keys from all conversations
+  const userKeys = new Set();
+  conversationsCache.data.forEach((conv) => {
+    (conv.participants || []).forEach((key) => {
+      if (key !== currentUserKey) {
+        userKeys.add(key);
+      }
+    });
+  });
+
+  if (userKeys.size === 0) return;
+
+  console.log('[ChatCache] Requesting presence for', userKeys.size, 'users');
+
+  try {
+    // Call presence API
+    const { getUserPresence } = await import('../api/chat');
+    const userKeysArray = Array.from(userKeys);
+    const response = await getUserPresence(userKeysArray);
+
+    if (response?.success && response?.data?.presence) {
+      const presenceData = response.data.presence;
+
+      // Update presence for each user
+      Object.entries(presenceData).forEach(([userKey, presence]) => {
+        const isOnline = presence.status === 'online';
+        const lastSeen = presence.last_seen || null;
+        updateUserPresence(userKey, isOnline, lastSeen);
+      });
+
+      console.log('[ChatCache] Presence updated for', Object.keys(presenceData).length, 'users');
+    }
+  } catch (error) {
+    console.warn('[ChatCache] Failed to fetch presence:', error);
   }
 }
 
@@ -873,7 +1025,7 @@ export async function markConversationAsRead(conversationId) {
 export async function deleteMessage(conversationId, messageId, forEveryone = false) {
   console.log('[ChatCache] Deleting message:', { conversationId, messageId, forEveryone });
 
-  // Optimistic update - mark message as deleted locally
+  // Optimistic update - remove message from local cache
   const cache = messagesCache.get(conversationId);
   if (cache) {
     const msgIndex = cache.data.findIndex((m) => m.message_id === messageId);
@@ -882,6 +1034,23 @@ export async function deleteMessage(conversationId, messageId, forEveryone = fal
       cache.data.splice(msgIndex, 1);
       cache.byId.delete(String(messageId));
       cache.events.emit('updated', cache.data);
+
+      // Update conversation's last_message to the previous message
+      const conv = conversationsCache.byId.get(String(conversationId));
+      if (conv) {
+        if (cache.data.length > 0) {
+          const lastMsg = cache.data[cache.data.length - 1];
+          conv.last_message = {
+            content: lastMsg.content,
+            sender_key: lastMsg.sender_key,
+            created_at: lastMsg.created_at,
+          };
+        } else {
+          conv.last_message = null;
+        }
+        conversationsCache.events.emit('updated', conversationsCache.data);
+        persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+      }
     }
   }
 
@@ -921,6 +1090,7 @@ export function getTypingUsers(conversationId) {
 
 /**
  * Track when user opens a conversation
+ * - Sets this as the active conversation (for unread count handling)
  * - Joins the conversation room via WebSocket
  * - Loads messages via REST API
  * @param {string} conversationId - Conversation ID
@@ -929,6 +1099,9 @@ export function trackConversationOpen(conversationId) {
   if (!conversationId) return;
 
   console.log('[ChatCache] Opening conversation:', conversationId);
+
+  // Set as active conversation (messages received won't increase unread count)
+  activeConversationId = conversationId;
 
   // Update local last activity
   const conv = conversationsCache.byId.get(String(conversationId));
@@ -943,6 +1116,15 @@ export function trackConversationOpen(conversationId) {
 
   // Load messages via REST API
   getMessagesForConversation(conversationId, true);
+}
+
+/**
+ * Track when user closes/leaves a conversation
+ * Call this when navigating away from a conversation
+ */
+export function trackConversationClose() {
+  console.log('[ChatCache] Closing conversation:', activeConversationId);
+  activeConversationId = null;
 }
 
 /**
@@ -1210,10 +1392,13 @@ export const chatCache = {
   deleteConversation,
   getLastSeen,
   isUserOnline,
+  setUserOnline,
+  setUserOffline,
   startTyping,
   stopTyping,
   getTypingUsers,
   trackConversationOpen,
+  trackConversationClose,
   addReaction,
   subscribeToChatWebSocket,
   createConversation,

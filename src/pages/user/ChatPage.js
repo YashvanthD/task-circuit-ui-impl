@@ -22,6 +22,8 @@ import {
   subscribeToChatWebSocket,
   startDirectConversation,
   trackConversationOpen,
+  setUserOnline,
+  setUserOffline,
 } from '../../utils/cache/chatCache';
 import { getCurrentUserKey } from '../../api/chat';
 
@@ -67,8 +69,11 @@ export default function ChatPage() {
       }
     });
 
-    // Subscribe to WebSocket events
+    // Subscribe to WebSocket events and set user as online
     subscribeToChatWebSocket();
+
+    // Set user as online when entering chat page
+    setUserOnline();
 
     // Load conversations
     getConversations();
@@ -78,6 +83,8 @@ export default function ChatPage() {
       unsubLoading();
       unsubError();
       unsubCreated();
+      // Set user as offline when leaving chat page
+      setUserOffline();
     };
   }, [isMobile]);
 

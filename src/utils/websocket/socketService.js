@@ -591,6 +591,37 @@ class SocketService {
         // Join the conversation room when opening
         return this.joinConversation(conversationId);
     }
+
+    /**
+     * Set user as online (call when chat tab/window is opened/focused)
+     */
+    setOnline() {
+        if (this.isConnected()) {
+            console.log('[SocketService] Setting user online');
+            return this.emit('presence:online', {});
+        }
+    }
+
+    /**
+     * Set user as offline (call when chat tab/window is closed/blurred)
+     */
+    setOffline() {
+        if (this.isConnected()) {
+            console.log('[SocketService] Setting user offline');
+            return this.emit('presence:offline', {});
+        }
+    }
+
+    /**
+     * Update presence status
+     * @param {string} status - 'online' or 'offline'
+     */
+    updatePresence(status) {
+        if (this.isConnected()) {
+            console.log('[SocketService] Updating presence:', status);
+            return this.emit('presence:update', { status });
+        }
+    }
 }
 
 // ============================================================================
