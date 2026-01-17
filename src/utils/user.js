@@ -1,5 +1,4 @@
 import { userApi, apiFetch, safeJsonParse, extractResponseData, API_USER } from '../api';
-import {ADD_USER_ENDPOINT} from "../endpoints";
 
 // Create alias for backward compatibility
 const apiUser = userApi;
@@ -162,21 +161,76 @@ export function clearUsersCache() {
 
 /**
  * Get the current logged-in user's profile.
- * @param {boolean} forceApi - Force API call (unused, always calls API)
+ * Tries userSession first (already has data from login), then API as fallback.
+ * Merges data from both sources to ensure all fields are populated.
+ * @param {boolean} forceApi - Force API call even if userSession has data
  * @returns {Promise<object|null>}
  */
 export async function getCurrentUser(forceApi = false) {
+  // Get user data from userSession (cached from login)
+  let sessionUser = null;
+  try {
+    const { userSession } = require('./auth/userSession');
+    sessionUser = userSession.user;
+  } catch (e) {
+    // userSession not available
+  }
+
+  // If we have session user and not forcing API, return it
+  if (sessionUser && !forceApi) {
+    // Still try to get fresh data from API in background (fire and forget)
+    (async () => {
+      try {
+        const res = await apiUser.getProfile();
+        if (res) {
+          const data = await parseResponse(res);
+          const apiUserData = data?.data || data?.user || data;
+          if (apiUserData) {
+            // Update session with fresh data
+            try {
+              const { userSession } = require('./auth/userSession');
+              userSession.updateProfile(apiUserData);
+            } catch (e) { /* ignore */ }
+          }
+        }
+      } catch (e) {
+        // Ignore background fetch errors
+      }
+    })();
+
+    return sessionUser;
+  }
+
+  // Fetch from API
   try {
     const res = await apiUser.getProfile();
     const data = await parseResponse(res);
 
     // Extract user from response
-    if (data && data.data) return data.data;
-    if (data && data.user) return data.user;
-    return data;
+    let userData = data?.data || data?.user || data;
+
+    // Merge with session user data to ensure all fields are populated
+    if (sessionUser && userData) {
+      userData = {
+        ...sessionUser,
+        ...userData,
+        // Ensure key fields from session are preserved if API doesn't return them
+        user_key: userData.user_key || userData.userKey || sessionUser.user_key,
+        account_key: userData.account_key || userData.accountKey || sessionUser.account_key,
+        username: userData.username || sessionUser.username,
+        email: userData.email || sessionUser.email,
+        mobile: userData.mobile || sessionUser.mobile,
+        display_name: userData.display_name || userData.displayName || sessionUser.display_name,
+        roles: userData.roles || sessionUser.roles,
+        settings: userData.settings || sessionUser.settings,
+      };
+    }
+
+    return userData;
   } catch (e) {
     logError('getCurrentUser', e);
-    return null;
+    // Return session user as fallback if API fails
+    return sessionUser;
   }
 }
 
@@ -355,6 +409,87 @@ export async function updateUsername(newUsername) {
   }
 }
 
+/**
+ * Get user settings.
+ * @returns {Promise<object>}
+ * @throws {Error} On API failure
+ */
+export async function getUserSettings() {
+  try {
+    const res = await apiUser.getSettings();
+    const data = await parseResponse(res);
+    if (data && data.data) return data.data;
+    return data;
+  } catch (e) {
+    logError('getUserSettings', e);
+    throw e;
+  }
+}
+
+/**
+ * Update user settings.
+ * @param {object} settings - Settings to update
+ * @returns {Promise<object>}
+ * @throws {Error} On API failure
+ */
+export async function updateUserSettings(settings) {
+  try {
+    const res = await apiUser.updateSettings(settings);
+    return parseResponse(res);
+  } catch (e) {
+    logError('updateUserSettings', e);
+    throw e;
+  }
+}
+
+/**
+ * Update notification settings.
+ * @param {object} notificationSettings - Notification settings to update
+ * @returns {Promise<object>}
+ * @throws {Error} On API failure
+ */
+export async function updateNotificationSettings(notificationSettings) {
+  try {
+    const res = await apiUser.updateNotificationSettings(notificationSettings);
+    return parseResponse(res);
+  } catch (e) {
+    logError('updateNotificationSettings', e);
+    throw e;
+  }
+}
+
+/**
+ * Upload profile picture.
+ * @param {File} file - Image file to upload
+ * @returns {Promise<object>}
+ * @throws {Error} On API failure
+ */
+export async function uploadProfilePicture(file) {
+  try {
+    const res = await apiUser.uploadProfilePicture(file);
+    return parseResponse(res);
+  } catch (e) {
+    logError('uploadProfilePicture', e);
+    throw e;
+  }
+}
+
+/**
+ * Update profile description.
+ * @param {string} description - New description
+ * @returns {Promise<object>}
+ * @throws {Error} On API failure
+ */
+export async function updateProfileDescription(description) {
+  try {
+    const res = await apiUser.updateProfile({ description });
+    return parseResponse(res);
+  } catch (e) {
+    logError('updateProfileDescription', e);
+    throw e;
+  }
+}
+
 const userUtil = {
   fetchUsers,
   getUserByKey,
@@ -370,6 +505,11 @@ const userUtil = {
   updateUserMobile,
   updateUserPassword,
   updateUsername,
+  getUserSettings,
+  updateUserSettings,
+  updateNotificationSettings,
+  uploadProfilePicture,
+  updateProfileDescription,
 };
 
 export default userUtil;

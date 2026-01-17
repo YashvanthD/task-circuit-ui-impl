@@ -1,63 +1,77 @@
 import React, { useState } from 'react';
-import { TextField, Button, Paper, Typography, Box } from '@mui/material';
+import { TextField, Button, Typography, Box, CircularProgress } from '@mui/material';
 import { updateUserEmail } from '../../../utils/user';
 
 /**
  * UpdateMailForm - Form to update user email
- * Fields: email, otp (optional)
+ * @param {function} onSuccess - Callback when email is updated successfully
+ * @param {function} onClose - Callback to close the form/dialog
  */
-export default function UpdateMailForm() {
-  const [form, setForm] = useState({ email: '', otp: '' });
+export default function UpdateMailForm({ onSuccess, onClose }) {
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-
-  const handleChange = (e) => {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
-  };
-
-  const handleSendOtp = async () => {
-    setError('');
-    setSuccess('');
-    if (!form.email) {
-      setError('Email is required');
-      return;
-    }
-    // Simulate OTP send (can be skipped)
-    setOtpSent(true);
-    setSuccess('OTP sent (simulated, can be skipped)');
-  };
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (!form.email) {
+
+    if (!email) {
       setError('Email is required');
       return;
     }
-    // OTP can be skipped
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
     try {
-      await updateUserEmail(form.email, form.otp);
+      await updateUserEmail(email);
       setSuccess('Email updated successfully!');
+      if (onSuccess) onSuccess();
+      // Close dialog after short delay
+      setTimeout(() => {
+        if (onClose) onClose();
+      }, 1500);
     } catch (err) {
       setError(err.message || 'Failed to update email');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Paper elevation={3} sx={{padding:4, maxWidth:400, margin:'80px auto'}}>
-      <Typography variant="h6" gutterBottom>Update Email</Typography>
-      <Box component="form" noValidate autoComplete="off" onSubmit={handleSubmit}>
-        <TextField label="New Email" name="email" type="email" variant="outlined" fullWidth margin="normal" value={form.email} onChange={handleChange} required />
-        {otpSent && (
-          <TextField label="OTP (optional)" name="otp" type="text" variant="outlined" fullWidth margin="normal" value={form.otp} onChange={handleChange} />
-        )}
-        {error && <Typography color="error" mt={2}>{error}</Typography>}
-        {success && <Typography color="success.main" mt={2}>{success}</Typography>}
-        <Button variant="outlined" color="info" fullWidth sx={{mt:2}} type="button" onClick={handleSendOtp}>Send OTP (optional)</Button>
-        <Button variant="contained" color="primary" fullWidth sx={{mt:2}} type="submit">Update Email</Button>
-      </Box>
-    </Paper>
+    <Box component="form" noValidate autoComplete="off" onSubmit={handleSubmit} sx={{ pt: 1 }}>
+      <TextField
+        label="New Email Address"
+        type="email"
+        variant="outlined"
+        fullWidth
+        margin="normal"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        disabled={loading}
+        placeholder="user@example.com"
+      />
+      {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
+      {success && <Typography color="success.main" sx={{ mt: 2 }}>{success}</Typography>}
+      <Button
+        variant="contained"
+        color="primary"
+        fullWidth
+        sx={{ mt: 2 }}
+        type="submit"
+        disabled={loading}
+      >
+        {loading ? <CircularProgress size={24} /> : 'Update Email'}
+      </Button>
+    </Box>
   );
 }

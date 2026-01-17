@@ -94,6 +94,52 @@ export async function updatePassword(data) {
   });
 }
 
+/**
+ * Get user settings
+ */
+export async function getSettings() {
+  return apiFetch(API_USER.SETTINGS, {
+    method: 'GET',
+    headers: getAuthHeaders({ contentType: null }),
+  });
+}
+
+/**
+ * Update user settings
+ */
+export async function updateSettings(data) {
+  return apiFetch(API_USER.SETTINGS, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update notification settings
+ */
+export async function updateNotificationSettings(data) {
+  return apiFetch(API_USER.SETTINGS_NOTIFICATIONS, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Upload profile picture
+ */
+export async function uploadProfilePicture(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  return apiFetch(`${API_USER.PROFILE}/picture`, {
+    method: 'POST',
+    headers: getAuthHeaders({ contentType: null }), // Let browser set content-type for FormData
+    body: formData,
+  });
+}
+
 const userApi = {
   getProfile,
   updateProfile,
@@ -103,6 +149,10 @@ const userApi = {
   updateUser,
   deleteUser,
   updatePassword,
+  getSettings,
+  updateSettings,
+  updateNotificationSettings,
+  uploadProfilePicture,
 };
 
 export default userApi;
