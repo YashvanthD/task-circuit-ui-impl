@@ -233,7 +233,7 @@ class SocketService {
      * Emit an event to server
      * @param {string} event - Event name
      * @param {*} data - Data to send
-     * @returns {Promise<*>} Response from server
+     * @returns {Promise<void>} Resolves when emitted
      */
     emit(event, data) {
         return new Promise((resolve, reject) => {
@@ -245,13 +245,11 @@ class SocketService {
             }
 
             console.log('[SocketService] Emitting:', event, data);
-            this.socket.emit(event, data, (response) => {
-                if (response?.error) {
-                    reject(new Error(response.error));
-                } else {
-                    resolve(response);
-                }
-            });
+
+            // Just emit without waiting for callback (like the test HTML does)
+            // The response will come as a separate event (e.g., chat:message:sent)
+            this.socket.emit(event, data);
+            resolve();
         });
     }
 
