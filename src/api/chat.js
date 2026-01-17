@@ -374,6 +374,29 @@ export function isOtherUserOnline(conversation, currentUserKey = null) {
   return false;
 }
 
+/**
+ * Get last seen time of other user (for direct chats)
+ */
+export function getOtherUserLastSeen(conversation, currentUserKey = null) {
+  const userKey = currentUserKey || getCurrentUserKey();
+
+  if (conversation.conversation_type === 'group') {
+    return null;
+  }
+
+  // Try participants_info first
+  if (conversation.participants_info && conversation.participants_info.length > 0) {
+    const otherParticipant = conversation.participants_info.find(
+      (p) => p.user_key !== userKey
+    );
+    if (otherParticipant) {
+      return otherParticipant.last_seen || otherParticipant.last_activity || null;
+    }
+  }
+
+  return null;
+}
+
 // ============================================================================
 // REST API Functions
 // ============================================================================
@@ -915,13 +938,14 @@ const chatApi = {
   getConversationDisplayName,
   getConversationAvatar,
   isOtherUserOnline,
+  getOtherUserLastSeen,
   getCurrentUserKey,
   getCurrentUserInfo,
   generateMockConversations,
   addMockMessage,
   sendMockMessage,
   markConversationRead,
-  createConversation, // Add this
+  createConversation,
 };
 
 export default chatApi;

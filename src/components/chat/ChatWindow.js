@@ -16,6 +16,7 @@ import {
   getConversationAvatar,
   isOtherUserOnline,
   getCurrentUserKey,
+  getOtherUserLastSeen,
 } from '../../api/chat';
 import {
   getMessagesForConversation,
@@ -25,6 +26,10 @@ import {
   sendMessage,
   deleteMessage,
   markConversationAsRead,
+  pinConversation,
+  muteConversation,
+  clearConversation,
+  deleteConversation,
   startTyping,
   stopTyping,
   getTypingUsers,
@@ -169,6 +174,42 @@ export default function ChatWindow({
     deleteMessage(conversationId, messageId, forEveryone);
   }, [conversationId]);
 
+  // Conversation action handlers
+  const handlePinConversation = useCallback((pinned) => {
+    if (!conversationId) return;
+    pinConversation(conversationId, pinned);
+  }, [conversationId]);
+
+  const handleMuteConversation = useCallback((muted) => {
+    if (!conversationId) return;
+    muteConversation(conversationId, muted);
+  }, [conversationId]);
+
+  const handleClearChat = useCallback(() => {
+    if (!conversationId) return;
+    if (window.confirm('Are you sure you want to clear all messages? This cannot be undone.')) {
+      clearConversation(conversationId, false);
+    }
+  }, [conversationId]);
+
+  const handleDeleteConversation = useCallback(() => {
+    if (!conversationId) return;
+    if (window.confirm('Are you sure you want to delete this conversation?')) {
+      deleteConversation(conversationId);
+      onBack?.();
+    }
+  }, [conversationId, onBack]);
+
+  const handleBlockUser = useCallback(() => {
+    // TODO: Implement block user
+    console.log('Block user');
+  }, []);
+
+  const handleViewInfo = useCallback(() => {
+    // TODO: Implement view conversation info
+    console.log('View conversation info');
+  }, []);
+
   // No conversation selected
   if (!conversation) {
     return <EmptyState />;
@@ -177,6 +218,7 @@ export default function ChatWindow({
   const displayName = getConversationDisplayName(conversation, effectiveUserId);
   const avatarUrl = getConversationAvatar(conversation, effectiveUserId);
   const isOnline = isOtherUserOnline(conversation, effectiveUserId);
+  const lastSeen = getOtherUserLastSeen(conversation, effectiveUserId);
 
   return (
     <Box
@@ -193,8 +235,15 @@ export default function ChatWindow({
         displayName={displayName}
         avatarUrl={avatarUrl}
         isOnline={isOnline}
+        lastSeen={lastSeen}
         participantsCount={conversation.participants?.length || 0}
         onBack={onBack}
+        onPinConversation={handlePinConversation}
+        onMuteConversation={handleMuteConversation}
+        onClearChat={handleClearChat}
+        onDeleteConversation={handleDeleteConversation}
+        onBlockUser={handleBlockUser}
+        onViewInfo={handleViewInfo}
       />
 
       {/* Messages */}

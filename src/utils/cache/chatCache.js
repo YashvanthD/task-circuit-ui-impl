@@ -431,13 +431,27 @@ export function subscribeToChatWebSocket() {
     }
   });
 
-  // Presence updates
-  socketService.on(WS_EVENTS.PRESENCE_ONLINE, ({ user_key }) => {
-    updateUserPresence(user_key, true);
+  // Presence updates with last_seen
+  socketService.on(WS_EVENTS.PRESENCE_ONLINE, (data) => {
+    const userKey = data.user_key || data.userKey;
+    console.log('[ChatCache] User online:', userKey);
+    updateUserPresence(userKey, true, null);
   });
 
-  socketService.on(WS_EVENTS.PRESENCE_OFFLINE, ({ user_key }) => {
-    updateUserPresence(user_key, false);
+  socketService.on(WS_EVENTS.PRESENCE_OFFLINE, (data) => {
+    const userKey = data.user_key || data.userKey;
+    const lastSeen = data.last_seen || data.lastSeen || new Date().toISOString();
+    console.log('[ChatCache] User offline:', userKey, 'lastSeen:', lastSeen);
+    updateUserPresence(userKey, false, lastSeen);
+  });
+
+  // General presence update
+  socketService.on(WS_EVENTS.PRESENCE_UPDATE, (data) => {
+    const userKey = data.user_key || data.userKey;
+    const isOnline = data.is_online || data.isOnline || data.status === 'online';
+    const lastSeen = data.last_seen || data.lastSeen;
+    console.log('[ChatCache] Presence update:', userKey, isOnline, lastSeen);
+    updateUserPresence(userKey, isOnline, lastSeen);
   });
 
   wsSubscribed = true;
@@ -445,15 +459,32 @@ export function subscribeToChatWebSocket() {
 
 /**
  * Update user presence in all conversations
+ * @param {string} userKey - User key
+ * @param {boolean} isOnline - Whether user is online
+ * @param {string|null} lastSeen - Last seen timestamp (only for offline)
  */
-function updateUserPresence(userKey, isOnline) {
+function updateUserPresence(userKey, isOnline, lastSeen = null) {
+  let updated = false;
+
   conversationsCache.data.forEach((conv) => {
     const participant = conv.participants_info?.find((p) => p.user_key === userKey);
     if (participant) {
       participant.is_online = isOnline;
+      if (!isOnline && lastSeen) {
+        participant.last_seen = lastSeen;
+      }
+      updated = true;
     }
   });
-  conversationsCache.events.emit('presence', { user_key: userKey, is_online: isOnline });
+
+  if (updated) {
+    conversationsCache.events.emit('updated', conversationsCache.data);
+    conversationsCache.events.emit('presence', {
+      user_key: userKey,
+      is_online: isOnline,
+      last_seen: lastSeen
+    });
+  }
 }
 
 /**
@@ -943,6 +974,129 @@ export async function addReaction(conversationId, messageId, emoji) {
 }
 
 /**
+ * Pin/Unpin a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {boolean} pinned - Whether to pin or unpin
+ */
+export function pinConversation(conversationId, pinned) {
+  const conv = conversationsCache.byId.get(String(conversationId));
+  if (conv) {
+    conv.is_pinned = pinned;
+
+    // Re-sort conversations (pinned first)
+    conversationsCache.data.sort((a, b) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return new Date(b.last_activity || 0) - new Date(a.last_activity || 0);
+    });
+
+    conversationsCache.events.emit('updated', conversationsCache.data);
+    persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+
+    console.log('[ChatCache] Conversation pinned:', conversationId, pinned);
+  }
+}
+
+/**
+ * Mute/Unmute a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {boolean} muted - Whether to mute or unmute
+ */
+export function muteConversation(conversationId, muted) {
+  const conv = conversationsCache.byId.get(String(conversationId));
+  if (conv) {
+    conv.is_muted = muted;
+    conversationsCache.events.emit('updated', conversationsCache.data);
+    persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+
+    console.log('[ChatCache] Conversation muted:', conversationId, muted);
+  }
+}
+
+/**
+ * Clear conversation messages via WebSocket
+ * @param {string} conversationId - Conversation ID
+ * @param {boolean} forEveryone - Clear for everyone (default: false - just for me)
+ */
+export async function clearConversation(conversationId, forEveryone = false) {
+  console.log('[ChatCache] Clearing conversation:', conversationId, 'forEveryone:', forEveryone);
+
+  // Optimistic update - clear local cache
+  const cache = messagesCache.get(conversationId);
+  if (cache) {
+    cache.data = [];
+    cache.byId.clear();
+    cache.events.emit('updated', cache.data);
+  }
+
+  // Update conversation
+  const conv = conversationsCache.byId.get(String(conversationId));
+  if (conv) {
+    conv.last_message = null;
+    conversationsCache.events.emit('updated', conversationsCache.data);
+    persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+  }
+
+  // Send to server via WebSocket
+  if (socketService.isConnected()) {
+    await socketService.clearConversation(conversationId, forEveryone);
+  }
+}
+
+/**
+ * Delete a conversation (leave it)
+ * @param {string} conversationId - Conversation ID
+ */
+export function deleteConversation(conversationId) {
+  // Remove from local cache
+  const index = conversationsCache.data.findIndex(
+    (c) => c.conversation_id === conversationId
+  );
+  if (index !== -1) {
+    conversationsCache.data.splice(index, 1);
+    conversationsCache.byId.delete(String(conversationId));
+    conversationsCache.events.emit('updated', conversationsCache.data);
+    persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+  }
+
+  // Clear messages cache
+  messagesCache.delete(conversationId);
+  typingState.delete(conversationId);
+
+  console.log('[ChatCache] Conversation deleted locally:', conversationId);
+
+  // TODO: Send to server if needed
+}
+
+/**
+ * Get last seen time for a user in a conversation
+ * @param {string} conversationId - Conversation ID
+ * @param {string} userKey - User key to get last seen for
+ * @returns {string|null} Last seen ISO timestamp
+ */
+export function getLastSeen(conversationId, userKey) {
+  const conv = conversationsCache.byId.get(String(conversationId));
+  if (!conv) return null;
+
+  const participant = conv.participants_info?.find((p) => p.user_key === userKey);
+  return participant?.last_seen || null;
+}
+
+/**
+ * Check if a user is online
+ * @param {string} userKey - User key
+ * @returns {boolean}
+ */
+export function isUserOnline(userKey) {
+  // Check across all conversations
+  for (const conv of conversationsCache.data) {
+    const participant = conv.participants_info?.find((p) => p.user_key === userKey);
+    if (participant?.is_online) return true;
+  }
+  return false;
+}
+
+/**
  * Create a new conversation via WebSocket
  * The conversation will be added to cache when chat:conversation:created event is received
  * @param {object} data - Conversation data
@@ -1050,6 +1204,12 @@ export const chatCache = {
   sendMessage,
   deleteMessage,
   markConversationAsRead,
+  pinConversation,
+  muteConversation,
+  clearConversation,
+  deleteConversation,
+  getLastSeen,
+  isUserOnline,
   startTyping,
   stopTyping,
   getTypingUsers,
