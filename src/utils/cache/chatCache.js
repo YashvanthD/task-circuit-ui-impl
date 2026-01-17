@@ -101,9 +101,17 @@ export function subscribeToChatWebSocket() {
     const conversationId = message.conversation_id || message.conversationId;
     const messageId = message.message_id || message.messageId;
     const senderKey = message.sender_key || message.senderKey;
+    let senderName = message.sender_name || message.senderName;
     const currentUserKey = getCurrentUserKey();
 
     console.log('[ChatCache] New message received:', { messageId, conversationId, senderKey });
+
+    // Enrich sender_name from users cache if not provided
+    if (!senderName && senderKey) {
+      const users = getUsersSync() || [];
+      const user = users.find((u) => (u.user_key || u.id) === senderKey);
+      senderName = user?.name || user?.username || senderKey;
+    }
 
     // Add to messages cache
     const msgCache = getOrCreateMessagesCache(conversationId);
@@ -113,7 +121,7 @@ export function subscribeToChatWebSocket() {
       message_id: messageId,
       conversation_id: conversationId,
       sender_key: senderKey,
-      sender_name: message.sender_name || message.senderName,
+      sender_name: senderName,
       sender_avatar: message.sender_avatar || message.senderAvatar,
       content: message.content,
       message_type: message.type || message.message_type || 'text',
@@ -364,14 +372,32 @@ export function subscribeToChatWebSocket() {
     // Backend sends: conversationId, type, participants, createdBy, createdAt
     const conversationId = data.conversation_id || data.conversationId;
 
-    console.log('[ChatCache] Conversation created:', conversationId);
+    console.log('[ChatCache] Conversation created:', conversationId, data);
+
+    // Get participants list
+    const participants = data.participants || [];
+
+    // Enrich participants_info with user data from cache if not provided
+    let participantsInfo = data.participants_info || [];
+    if (participantsInfo.length === 0 && participants.length > 0) {
+      const users = getUsersSync() || [];
+      participantsInfo = participants.map((userKey) => {
+        const user = users.find((u) => (u.user_key || u.id) === userKey);
+        return {
+          user_key: userKey,
+          name: user?.name || user?.username || userKey,
+          avatar_url: user?.avatar_url || user?.profile_picture || null,
+          is_online: false,
+        };
+      });
+    }
 
     // Normalize conversation format
     const conversation = {
       conversation_id: conversationId,
       conversation_type: data.type || data.conversation_type || 'direct',
-      participants: data.participants || [],
-      participants_info: data.participants_info || [],
+      participants: participants,
+      participants_info: participantsInfo,
       created_by: data.created_by || data.createdBy,
       created_at: data.created_at || data.createdAt,
       last_activity: data.created_at || data.createdAt,
@@ -389,6 +415,9 @@ export function subscribeToChatWebSocket() {
       conversationsCache.events.emit('updated', conversationsCache.data);
       conversationsCache.events.emit('created', conversation);
       persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+      console.log('[ChatCache] Conversation added to cache:', conversation);
+    } else {
+      console.log('[ChatCache] Conversation already exists in cache:', conversationId);
     }
   });
 
@@ -474,20 +503,46 @@ export async function getConversations(force = false, params = {}) {
 
     console.log('[ChatCache] Received conversations:', rawConversations.length);
 
-    // Normalize conversations to snake_case format
-    const normalizedConversations = rawConversations.map((conv) => ({
-      conversation_id: conv.conversation_id || conv.conversationId || conv.id,
-      conversation_type: conv.conversation_type || conv.type || 'direct',
-      name: conv.name || null,
-      participants: conv.participants || [],
-      participants_info: conv.participants_info || conv.participantsInfo || [],
-      last_message: conv.last_message || conv.lastMessage || null,
-      unread_count: conv.unread_count || conv.unreadCount || 0,
-      is_muted: conv.is_muted || conv.isMuted || false,
-      is_pinned: conv.is_pinned || conv.isPinned || false,
-      last_activity: conv.last_activity || conv.lastActivity || conv.updatedAt || conv.createdAt,
-      created_at: conv.created_at || conv.createdAt,
-    }));
+    // Get users for enriching participants_info
+    const usersForEnrichment = users || getUsersSync() || [];
+
+    // Normalize conversations to snake_case format and enrich participants_info
+    const normalizedConversations = rawConversations.map((conv) => {
+      const participants = conv.participants || [];
+      let participantsInfo = conv.participants_info || conv.participantsInfo || [];
+
+      // Enrich participants_info with user data from cache if not provided or incomplete
+      if ((participantsInfo.length === 0 || participantsInfo.some((p) => !p.name)) && participants.length > 0) {
+        participantsInfo = participants.map((userKey) => {
+          // Check if we already have info for this participant
+          const existingInfo = participantsInfo.find((p) => p.user_key === userKey);
+          if (existingInfo?.name) return existingInfo;
+
+          // Look up user in cache
+          const user = usersForEnrichment.find((u) => (u.user_key || u.id) === userKey);
+          return {
+            user_key: userKey,
+            name: user?.name || user?.username || userKey,
+            avatar_url: user?.avatar_url || user?.profile_picture || null,
+            is_online: existingInfo?.is_online || false,
+          };
+        });
+      }
+
+      return {
+        conversation_id: conv.conversation_id || conv.conversationId || conv.id,
+        conversation_type: conv.conversation_type || conv.type || 'direct',
+        name: conv.name || null,
+        participants: participants,
+        participants_info: participantsInfo,
+        last_message: conv.last_message || conv.lastMessage || null,
+        unread_count: conv.unread_count || conv.unreadCount || 0,
+        is_muted: conv.is_muted || conv.isMuted || false,
+        is_pinned: conv.is_pinned || conv.isPinned || false,
+        last_activity: conv.last_activity || conv.lastActivity || conv.updatedAt || conv.createdAt,
+        created_at: conv.created_at || conv.createdAt,
+      };
+    });
 
     updateCache(conversationsCache, normalizedConversations, 'conversation_id');
 
@@ -596,20 +651,34 @@ export async function getMessagesForConversation(conversationId, force = false, 
     const rawMessages = response?.data?.messages || [];
     console.log('[ChatCache] Received messages:', rawMessages.length);
 
-    // Normalize messages to snake_case format
-    const normalizedMessages = rawMessages.map((msg) => ({
-      message_id: msg.message_id || msg.messageId || msg.id,
-      conversation_id: msg.conversation_id || msg.conversationId || conversationId,
-      sender_key: msg.sender_key || msg.senderKey,
-      sender_name: msg.sender_name || msg.senderName,
-      content: msg.content,
-      message_type: msg.message_type || msg.type || 'text',
-      status: msg.status || 'sent',
-      created_at: msg.created_at || msg.createdAt,
-      edited_at: msg.edited_at || msg.editedAt || null,
-      reply_to: msg.reply_to || msg.replyTo || null,
-      reactions: msg.reactions || [],
-    }));
+    // Get users for enriching sender names
+    const users = getUsersSync() || [];
+
+    // Normalize messages to snake_case format and enrich sender names
+    const normalizedMessages = rawMessages.map((msg) => {
+      const senderKey = msg.sender_key || msg.senderKey;
+      let senderName = msg.sender_name || msg.senderName;
+
+      // Enrich sender_name from users cache if not provided
+      if (!senderName && senderKey) {
+        const user = users.find((u) => (u.user_key || u.id) === senderKey);
+        senderName = user?.name || user?.username || senderKey;
+      }
+
+      return {
+        message_id: msg.message_id || msg.messageId || msg.id,
+        conversation_id: msg.conversation_id || msg.conversationId || conversationId,
+        sender_key: senderKey,
+        sender_name: senderName,
+        content: msg.content,
+        message_type: msg.message_type || msg.type || 'text',
+        status: msg.status || 'sent',
+        created_at: msg.created_at || msg.createdAt,
+        edited_at: msg.edited_at || msg.editedAt || null,
+        reply_to: msg.reply_to || msg.replyTo || null,
+        reactions: msg.reactions || [],
+      };
+    });
 
     updateCache(cache, normalizedMessages, 'message_id');
     setCacheLoading(cache, false);
@@ -761,6 +830,37 @@ export async function markConversationAsRead(conversationId) {
     socketService.markMessagesRead(conversationId);
   }
   // If not connected, local update is enough - will sync when reconnected
+}
+
+/**
+ * Delete a message via WebSocket
+ * Event: chat:delete
+ * @param {string} conversationId - Conversation ID
+ * @param {string} messageId - Message ID to delete
+ * @param {boolean} forEveryone - Delete for everyone (default: false)
+ */
+export async function deleteMessage(conversationId, messageId, forEveryone = false) {
+  console.log('[ChatCache] Deleting message:', { conversationId, messageId, forEveryone });
+
+  // Optimistic update - mark message as deleted locally
+  const cache = messagesCache.get(conversationId);
+  if (cache) {
+    const msgIndex = cache.data.findIndex((m) => m.message_id === messageId);
+    if (msgIndex !== -1) {
+      // Remove from cache immediately
+      cache.data.splice(msgIndex, 1);
+      cache.byId.delete(String(messageId));
+      cache.events.emit('updated', cache.data);
+    }
+  }
+
+  // Send to server via WebSocket
+  if (socketService.isConnected()) {
+    await socketService.deleteMessage(messageId, forEveryone);
+  } else {
+    showErrorAlert('Not connected to chat server.', 'Chat Error');
+    throw new Error('WebSocket not connected');
+  }
 }
 
 /**
@@ -948,6 +1048,7 @@ export const chatCache = {
   isMessagesLoading,
   onMessagesChange,
   sendMessage,
+  deleteMessage,
   markConversationAsRead,
   startTyping,
   stopTyping,

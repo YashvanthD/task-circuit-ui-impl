@@ -348,9 +348,15 @@ export default function MessageBubble({
           </MenuItem>
         )}
         {isOwn && (
-          <MenuItem onClick={handleDeleteForMe} sx={{ color: 'error.main' }}>
+          <MenuItem onClick={handleDeleteForMe}>
+            <ListItemIcon><DeleteIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Delete for me</ListItemText>
+          </MenuItem>
+        )}
+        {isOwn && (
+          <MenuItem onClick={handleDeleteForEveryone} sx={{ color: 'error.main' }}>
             <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
-            <ListItemText>Delete</ListItemText>
+            <ListItemText>Delete for everyone</ListItemText>
           </MenuItem>
         )}
       </Menu>

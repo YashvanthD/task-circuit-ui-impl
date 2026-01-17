@@ -48,6 +48,7 @@ export const WS_EVENTS = {
   CONVERSATION_CREATED: 'chat:conversation:created',
   CONVERSATION_JOINED: 'chat:conversation:joined',
   CONVERSATION_CLEARED: 'chat:conversation:cleared',
+  CONVERSATION_UPDATED: 'chat:conversation:updated',
 
   // =========================================================================
   // Notification events
@@ -388,6 +389,18 @@ class SocketService {
         this.socket.on(WS_EVENTS.CONVERSATION_CREATED, (data) => {
             console.log('[SocketService] Conversation created:', data);
             this._emit(WS_EVENTS.CONVERSATION_CREATED, data);
+        });
+
+        // Conversation joined (room)
+        this.socket.on(WS_EVENTS.CONVERSATION_JOINED, (data) => {
+            console.log('[SocketService] Conversation joined:', data);
+            this._emit(WS_EVENTS.CONVERSATION_JOINED, data);
+        });
+
+        // Conversation cleared
+        this.socket.on(WS_EVENTS.CONVERSATION_CLEARED, (data) => {
+            console.log('[SocketService] Conversation cleared:', data);
+            this._emit(WS_EVENTS.CONVERSATION_CLEARED, data);
         });
 
         // Conversation updated

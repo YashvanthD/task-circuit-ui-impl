@@ -60,6 +60,8 @@ export default function ChatPage() {
       // Auto-select the new conversation
       setSelectedConversation(conversation);
       trackConversationOpen(conversation.conversation_id);
+      // Close the new chat dialog
+      setNewChatDialogOpen(false);
       if (isMobile) {
         setMobileDrawerOpen(false);
       }
@@ -110,12 +112,13 @@ export default function ChatPage() {
       if (conversation) {
         setSelectedConversation(conversation);
         trackConversationOpen(conversation.conversation_id);
+        setNewChatDialogOpen(false);
         if (isMobile) {
           setMobileDrawerOpen(false);
         }
       }
       // If null, a new conversation is being created
-      // The 'created' event handler will auto-select it
+      // The 'created' event handler will auto-select it and close the dialog
     } catch (error) {
       console.error('Failed to start conversation:', error);
     }

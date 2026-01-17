@@ -23,6 +23,7 @@ import {
   isMessagesLoading,
   onMessagesChange,
   sendMessage,
+  deleteMessage,
   markConversationAsRead,
   startTyping,
   stopTyping,
@@ -162,10 +163,11 @@ export default function ChatWindow({
     console.log('Edit message:', message);
   }, []);
 
-  const handleDelete = useCallback((messageId) => {
-    // TODO: Implement delete confirmation
-    console.log('Delete message:', messageId);
-  }, []);
+  const handleDelete = useCallback((messageId, forEveryone = false) => {
+    if (!conversationId || !messageId) return;
+    console.log('[ChatWindow] Delete message:', { conversationId, messageId, forEveryone });
+    deleteMessage(conversationId, messageId, forEveryone);
+  }, [conversationId]);
 
   // No conversation selected
   if (!conversation) {
