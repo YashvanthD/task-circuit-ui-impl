@@ -35,27 +35,27 @@ export const WS_EVENTS = {
   ACKNOWLEDGE_ALERT: 'alert:acknowledge',
 
   // =========================================================================
-  // Chat/Messaging Events
+  // Chat/Messaging Events (matching backend API)
   // =========================================================================
 
   // Message events (client -> server)
-  MESSAGE_SEND: 'message:send',
-  MESSAGE_EDIT: 'message:edit',
-  MESSAGE_DELETE: 'message:delete',
-  MESSAGE_READ: 'message:read',
-  MESSAGE_REACTION: 'message:reaction',
+  MESSAGE_SEND: 'chat:send',           // Was 'message:send'
+  MESSAGE_EDIT: 'chat:edit',           // Was 'message:edit'
+  MESSAGE_DELETE: 'chat:delete',       // Was 'message:delete'
+  MESSAGE_READ: 'chat:read',           // Was 'message:read'
+  MESSAGE_REACTION: 'chat:reaction',   // Was 'message:reaction'
 
   // Message events (server -> client)
-  MESSAGE_SENT: 'message:sent',
-  MESSAGE_NEW: 'message:new',
-  MESSAGE_DELIVERED: 'message:delivered',
-  MESSAGE_EDITED: 'message:edited',
-  MESSAGE_DELETED: 'message:deleted',
+  MESSAGE_SENT: 'chat:message:sent',   // Was 'message:sent'
+  MESSAGE_NEW: 'chat:message',         // Was 'message:new'
+  MESSAGE_DELIVERED: 'chat:message:delivered',
+  MESSAGE_EDITED: 'chat:message:edited',
+  MESSAGE_DELETED: 'chat:message:deleted',
 
   // Typing indicators
-  TYPING_START: 'typing:start',
-  TYPING_STOP: 'typing:stop',
-  TYPING_UPDATE: 'typing:update',
+  TYPING_START: 'chat:typing',         // Was 'typing:start'
+  TYPING_STOP: 'chat:typing:stop',     // Was 'typing:stop'
+  TYPING_UPDATE: 'chat:typing',        // Was 'typing:update'
 
   // Conversation events (client -> server)
   CONVERSATION_CREATE: 'conversation:create',
@@ -157,6 +157,12 @@ class SocketService {
         console.log('[SocketService] Reconnected after', attemptNumber, 'attempts');
         this.connected = true;
         this._emit('connection', { status: 'reconnected', attempts: attemptNumber });
+      });
+
+      // Listen for backend 'connected' event (confirms user authentication)
+      this.socket.on('connected', (data) => {
+        console.log('[SocketService] Authenticated as:', data?.user_key);
+        this._emit(WS_EVENTS.CONNECTED, data);
       });
 
       // Register all WebSocket event handlers
@@ -420,13 +426,15 @@ class SocketService {
    * @param {string} content - Message content
    * @param {string} type - Message type (text, image, file)
    * @param {string} replyTo - Message ID to reply to (optional)
+   * @param {string} tempId - Temporary ID for optimistic update (optional)
    */
-  sendMessage(conversationId, content, type = 'text', replyTo = null) {
+  sendMessage(conversationId, content, type = 'text', replyTo = null, tempId = null) {
     return this.emit(WS_EVENTS.MESSAGE_SEND, {
       conversationId,
       content,
       type,
       replyTo,
+      tempId: tempId || `temp_${Date.now()}`,
     });
   }
 

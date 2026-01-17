@@ -506,7 +506,7 @@ export async function sendMessage(conversationId, content, replyTo = null) {
   try {
     // Always use WebSocket for sending messages
     if (socketService.isConnected()) {
-      await socketService.sendMessage(conversationId, content, 'text', replyTo);
+      await socketService.sendMessage(conversationId, content, 'text', replyTo, tempId);
       // WebSocket will send MESSAGE_SENT event to confirm, handled by subscriber
     } else {
       // No WebSocket - mark as sent locally (offline mode)
