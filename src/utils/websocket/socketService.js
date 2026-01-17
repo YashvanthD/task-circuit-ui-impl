@@ -350,15 +350,15 @@ class SocketService {
         });
 
         // Message delivered to recipient
-        this.socket.on(WS_EVENTS.MESSAGE_DELIVERED_ACK, (data) => {
+        this.socket.on(WS_EVENTS.MESSAGE_DELIVERED, (data) => {
             console.log('[SocketService] Message delivered:', data);
-            this._emit(WS_EVENTS.MESSAGE_DELIVERED_ACK, data);
+            this._emit(WS_EVENTS.MESSAGE_DELIVERED, data);
         });
 
         // Message read by recipient
-        this.socket.on(WS_EVENTS.MESSAGE_READ_ACK, (data) => {
+        this.socket.on(WS_EVENTS.MESSAGE_READ_RECEIPT, (data) => {
             console.log('[SocketService] Message read:', data);
-            this._emit(WS_EVENTS.MESSAGE_READ_ACK, data);
+            this._emit(WS_EVENTS.MESSAGE_READ_RECEIPT, data);
         });
 
         // Message edited

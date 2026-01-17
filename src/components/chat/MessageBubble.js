@@ -23,6 +23,7 @@ import {
   MoreVert as MoreIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  DeleteForever as DeleteForeverIcon,
   Reply as ReplyIcon,
   ContentCopy as CopyIcon,
   Schedule as ScheduleIcon,
@@ -106,8 +107,13 @@ export default function MessageBubble({
     handleMenuClose();
   };
 
-  const handleDelete = () => {
-    onDelete?.(message_id);
+  const handleDeleteForMe = () => {
+    onDelete?.(message_id, false);
+    handleMenuClose();
+  };
+
+  const handleDeleteForEveryone = () => {
+    onDelete?.(message_id, true);
     handleMenuClose();
   };
 
@@ -342,7 +348,7 @@ export default function MessageBubble({
           </MenuItem>
         )}
         {isOwn && (
-          <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+          <MenuItem onClick={handleDeleteForMe} sx={{ color: 'error.main' }}>
             <ListItemIcon><DeleteIcon fontSize="small" color="error" /></ListItemIcon>
             <ListItemText>Delete</ListItemText>
           </MenuItem>

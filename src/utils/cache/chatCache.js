@@ -223,7 +223,7 @@ export function subscribeToChatWebSocket() {
 
   // Message read confirmation (chat:message:read)
   // User A receives this when User B reads the message
-  socketService.on('chat:message:read', (data) => {
+  socketService.on(WS_EVENTS.MESSAGE_READ_RECEIPT, (data) => {
     // Backend sends: conversationId, readBy, timestamp
     const conversationId = data.conversation_id || data.conversationId;
     const readBy = data.read_by || data.readBy;
@@ -663,7 +663,11 @@ export function onMessagesChange(conversationId, event, callback) {
  * Event: chat:send
  */
 export async function sendMessage(conversationId, content) {
+  console.log('[ChatCache] sendMessage called:', { conversationId, content });
+
   const currentUserKey = getCurrentUserKey();
+  console.log('[ChatCache] Current user key:', currentUserKey);
+  console.log('[ChatCache] Socket connected:', socketService.isConnected());
 
   // Create optimistic message with temp ID
   const tempId = `temp_${Date.now()}`;
