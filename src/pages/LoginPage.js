@@ -8,7 +8,6 @@ import { BASE_APP_PATH_USER_DASHBOARD } from '../config';
 import { getNotifications } from '../utils/cache/notificationsCache';
 import { getAlerts } from '../utils/cache/alertsCache';
 import { subscribeAllToWebSocket } from '../utils/cache';
-import { socketService } from '../utils/websocket';
 
 /**
  * Login page component for Task Circuit.
@@ -44,13 +43,9 @@ export default function LoginPage() {
         // Start token management
         startAccessTokenManagement();
 
-        // Connect WebSocket for real-time updates
-        socketService.connect().then((connected) => {
-          if (connected) {
-            // Subscribe caches to WebSocket events
-            subscribeAllToWebSocket();
-          }
-        });
+        // WebSocket connection is handled by DataContext when it detects the token
+        // Just subscribe caches to WebSocket events (they will set up listeners when connected)
+        subscribeAllToWebSocket();
 
         // Preload notifications and alerts in background (don't await)
         getNotifications().catch(() => {});

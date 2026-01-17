@@ -51,28 +51,23 @@ let wsConnectionFailed = false;
 
 /**
  * Subscribe to WebSocket notification events
- * Also connects to WebSocket if not already connected
+ * Note: Connection should be established before calling this (via DataContext)
  */
 export function subscribeToWebSocket() {
   if (wsSubscribed) return;
 
-  // Don't try to connect if previous connection failed
+  // Don't try to subscribe if previous attempt failed
   if (wsConnectionFailed) {
     wsSubscribed = true;
     return;
   }
 
-  // Connect to WebSocket if not already connected
+  // Check if connected - if not, wait for connection
   if (!socketService.isConnected()) {
-    socketService.connect()
-      .then((connected) => {
-        if (!connected) {
-          wsConnectionFailed = true;
-        }
-      })
-      .catch(() => {
-        wsConnectionFailed = true;
-      });
+    console.log('[NotificationsCache] WebSocket not connected, waiting...');
+    // Don't connect here - DataContext handles connection
+    // Just mark as not subscribed so it can retry later
+    return;
   }
 
   // New notification received

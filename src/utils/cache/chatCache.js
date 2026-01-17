@@ -72,7 +72,7 @@ export function resetWebSocketState() {
 
 /**
  * Subscribe to WebSocket chat events
- * Also connects to WebSocket if not already connected
+ * Note: Connection should be established before calling this (via DataContext)
  */
 export function subscribeToChatWebSocket() {
   // If already subscribed and connected, just return
@@ -85,56 +85,38 @@ export function subscribeToChatWebSocket() {
     wsConnectionFailed = false;
   }
 
-  // If already subscribed (event listeners set up), just ensure connection
+  // If already subscribed (event listeners set up), just return
   if (wsSubscribed) {
-    if (!socketService.isConnected()) {
-      socketService.connect().then((connected) => {
-        if (connected) {
-          console.log('[ChatCache] WebSocket reconnected');
-          socketService.setOnline();
-          getConversations(true);
-        }
-      });
-    }
     return;
   }
 
-  // Don't try to connect if previous connection failed
+  // Don't try to subscribe if previous connection failed
   if (wsConnectionFailed) {
     console.log('[ChatCache] Skipping WebSocket - previous connection failed');
     wsSubscribed = true;
     return;
   }
 
+  // Check if connected - if not, wait for connection
+  if (!socketService.isConnected()) {
+    console.log('[ChatCache] WebSocket not connected, waiting...');
+    // Don't connect here - DataContext handles connection
+    return;
+  }
+
   // Set up visibility change listener for online/offline status
   setupVisibilityListener();
 
-  // Connect to WebSocket if not already connected
-  if (!socketService.isConnected()) {
-    socketService.connect()
-      .then((connected) => {
-        if (connected) {
-          console.log('[ChatCache] WebSocket connected, loading conversations...');
-          // Set user as online when connected
-          socketService.setOnline();
-          // Auto-load conversations after connection (like test HTML does)
-          getConversations(true).then(() => {
-            // Request presence for all participants after loading conversations
-            requestPresenceForAllParticipants();
-          });
-        } else {
-          wsConnectionFailed = true;
-          console.warn('[ChatCache] WebSocket not available');
-        }
-      })
-      .catch((err) => {
-        wsConnectionFailed = true;
-        console.warn('[ChatCache] WebSocket connection failed:', err);
-      });
-  } else {
-    // Already connected, just set online
-    socketService.setOnline();
-  }
+  console.log('[ChatCache] Setting up WebSocket event listeners...');
+
+  // Set user as online when connected
+  socketService.setOnline();
+
+  // Auto-load conversations
+  getConversations(true).then(() => {
+    // Request presence for all participants after loading conversations
+    requestPresenceForAllParticipants();
+  });
 
   // Listen for 'connected' event from server (authentication confirmation)
   socketService.on(WS_EVENTS.CONNECTED, (data) => {

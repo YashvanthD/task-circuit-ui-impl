@@ -93,6 +93,7 @@ class SocketService {
         this.maxReconnectAttempts = 5;
         this.listeners = new Map();
         this.pendingEmits = [];
+        this._connectingPromise = null; // Track pending connection
     }
 
     /**
@@ -101,36 +102,68 @@ class SocketService {
      * @returns {Promise<boolean>} Connection success
      */
     connect(url) {
-        return new Promise((resolve) => {
-            if (this.socket?.connected) {
-                resolve(true);
-                return;
-            }
+        // If already connected, return immediately
+        if (this.socket?.connected) {
+            console.log('[SocketService] Already connected');
+            return Promise.resolve(true);
+        }
 
-            const token = getAccessToken();
-            if (!token) {
-                console.warn('[SocketService] No access token, skipping connection');
-                resolve(false);
-                return;
-            }
+        // If connection is in progress, return the existing promise
+        if (this._connectingPromise) {
+            console.log('[SocketService] Connection already in progress, waiting...');
+            return this._connectingPromise;
+        }
 
-            // Use provided URL, or BASE_URL from config, or fallback to window.location.origin
-            const serverUrl = url || BASE_URL || window.location.origin;
+        // If socket exists but disconnected, try to reconnect
+        if (this.socket && !this.socket.connected) {
+            console.log('[SocketService] Socket exists but disconnected, reconnecting...');
+            this.socket.connect();
+            return new Promise((resolve) => {
+                const onConnect = () => {
+                    this.socket.off('connect', onConnect);
+                    this.socket.off('connect_error', onError);
+                    resolve(true);
+                };
+                const onError = () => {
+                    this.socket.off('connect', onConnect);
+                    this.socket.off('connect_error', onError);
+                    resolve(false);
+                };
+                this.socket.once('connect', onConnect);
+                this.socket.once('connect_error', onError);
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    this.socket.off('connect', onConnect);
+                    this.socket.off('connect_error', onError);
+                    resolve(this.socket?.connected || false);
+                }, 10000);
+            });
+        }
 
-            console.log('[SocketService] Connecting to:', serverUrl);
-            console.log('[SocketService] Using token:', token ? token.substring(0, 20) + '...' : 'none');
+        const token = getAccessToken();
+        if (!token) {
+            console.warn('[SocketService] No access token, skipping connection');
+            return Promise.resolve(false);
+        }
 
+        // Use provided URL, or BASE_URL from config, or fallback to window.location.origin
+        const serverUrl = url || BASE_URL || window.location.origin;
+
+        console.log('[SocketService] Connecting to:', serverUrl);
+
+        // Create connection promise
+        this._connectingPromise = new Promise((resolve) => {
             this.socket = io(serverUrl, {
-                path: '/socket.io',  // Explicit path
-                auth: { token },     // Primary auth method
-                query: { token },    // Fallback auth via query param
+                path: '/socket.io',
+                auth: { token },
+                query: { token },
                 transports: ['websocket', 'polling'],
                 reconnection: true,
                 reconnectionAttempts: this.maxReconnectAttempts,
                 reconnectionDelay: 1000,
                 reconnectionDelayMax: 5000,
                 timeout: 10000,
-                forceNew: true,      // Force new connection
+                // Don't use forceNew - reuse existing connection
             });
 
             // Connection events
@@ -138,6 +171,7 @@ class SocketService {
                 console.log('[SocketService] Socket connected, ID:', this.socket.id);
                 this.connected = true;
                 this.reconnectAttempts = 0;
+                this._connectingPromise = null;
                 this._processPendingEmits();
                 this._emit('connection', { status: 'connected' });
                 resolve(true);
@@ -155,6 +189,7 @@ class SocketService {
                 this._emit('connection', { status: 'error', error: error.message });
 
                 if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                    this._connectingPromise = null;
                     resolve(false);
                 }
             });
