@@ -80,7 +80,27 @@ export default function MessageBubble({
     edited_at,
     status,
     reactions = [],
+    delivered_at,
+    read_at,
   } = message;
+
+  // Derive effective status to handle cases where backend provides timestamps
+  // but not a status string (or after reload before WS events arrive).
+  // Priority: read_at > delivered_at > status > sent/sending
+  // Always check timestamps first as they are authoritative from server
+  let effectiveStatus = status;
+  if (read_at) {
+    effectiveStatus = 'read';
+  } else if (delivered_at) {
+    effectiveStatus = 'delivered';
+  } else if (!effectiveStatus || effectiveStatus === 'sending') {
+    // If no timestamps and no valid status, derive from status string or default
+    effectiveStatus = status || (isOwn ? 'sent' : null);
+  }
+  // Ensure own messages show at least 'sent' as fallback
+  if (!effectiveStatus && isOwn) {
+    effectiveStatus = 'sent';
+  }
 
   const handleMenuOpen = (e) => {
     e.stopPropagation();
@@ -234,7 +254,7 @@ export default function MessageBubble({
             >
               {formatMessageTime(created_at)}
             </Typography>
-            {isOwn && getStatusIcon(status)}
+            {isOwn && getStatusIcon(effectiveStatus)}
           </Box>
         </Box>
 

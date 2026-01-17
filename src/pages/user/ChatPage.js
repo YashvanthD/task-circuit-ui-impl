@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, useMediaQuery, useTheme, Drawer } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import {
   ConversationList,
   ChatWindow,
@@ -24,6 +25,7 @@ import {
   trackConversationOpen,
   setUserOnline,
   setUserOffline,
+  getConversationById,
 } from '../../utils/cache/chatCache';
 import { getCurrentUserKey } from '../../api/chat';
 
@@ -34,6 +36,7 @@ import { getCurrentUserKey } from '../../api/chat';
 export default function ChatPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const location = useLocation();
 
   // Get current user key
   const currentUserId = getCurrentUserKey();
@@ -47,10 +50,29 @@ export default function ChatPage() {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(true);
   const [newChatDialogOpen, setNewChatDialogOpen] = useState(false);
 
+  // Handle navigation state (when coming from dashboard with conversationId)
+  useEffect(() => {
+    const conversationId = location.state?.conversationId;
+    if (conversationId) {
+      // Try to find and select the conversation
+      const conversation = getConversationById(conversationId);
+      if (conversation) {
+        setSelectedConversation(conversation);
+        trackConversationOpen(conversationId);
+        if (isMobile) {
+          setMobileDrawerOpen(false);
+        }
+      }
+      // Clear the state to prevent re-selecting on subsequent renders
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, isMobile]);
+
   // Subscribe to cache changes
   useEffect(() => {
     const unsubUpdated = onConversationsChange('updated', (data) => {
-      setConversations([...data]);
+      // Create deep copy to ensure React detects changes in participants_info
+      setConversations(data.map(conv => ({...conv})));
       setTotalUnread(getTotalUnreadCount());
     });
     const unsubLoading = onConversationsChange('loading', (val) => setLoading(val));
@@ -69,6 +91,13 @@ export default function ChatPage() {
       }
     });
 
+    // Subscribe to presence updates specifically
+    const unsubPresence = onConversationsChange('presence', (presenceData) => {
+      console.log('[ChatPage] Presence update:', presenceData);
+      // Force re-render with updated conversations
+      setConversations(getConversationsSync().map(conv => ({...conv})));
+    });
+
     // Subscribe to WebSocket events and set user as online
     subscribeToChatWebSocket();
 
@@ -83,6 +112,7 @@ export default function ChatPage() {
       unsubLoading();
       unsubError();
       unsubCreated();
+      unsubPresence();
       // Set user as offline when leaving chat page
       setUserOffline();
     };

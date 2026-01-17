@@ -21,7 +21,7 @@ import {
   getMessages,
   getCurrentUserKey,
 } from '../../api/chat';
-import { getUsers, getUsersSync } from './usersCache';
+import { getUsersSync } from './usersCache';
 import { socketService, WS_EVENTS } from '../websocket';
 import { showErrorAlert } from '../alertManager';
 
@@ -41,14 +41,11 @@ const typingState = new Map(); // Map<conversationId, Set<userKey>>
 // Track currently active/open conversation (for unread count handling)
 let activeConversationId = null;
 
-// Clear old mock data on init (uncomment to clear once)
-// localStorage.removeItem(STORAGE_KEY_CONVERSATIONS);
-
-// Load conversations from localStorage
-loadPersistedCache(conversationsCache, STORAGE_KEY_CONVERSATIONS, 'conversation_id');
-
-// Add total unread count
+// Always start fresh - don't load stale persisted data that may have incorrect read/unread state
+// The server is the source of truth for conversation and message state
+clearCache(conversationsCache);
 conversationsCache.totalUnread = 0;
+localStorage.removeItem(STORAGE_KEY_CONVERSATIONS);
 
 // ============================================================================
 // WebSocket Integration
@@ -59,11 +56,48 @@ let wsConnectionFailed = false; // Track if WebSocket connection has failed
 let visibilityListenerAdded = false; // Track if visibility listener is added
 
 /**
+ * Check if WebSocket is connected and working
+ */
+export function isWebSocketConnected() {
+  return socketService.isConnected();
+}
+
+/**
+ * Reset WebSocket connection state (call if you want to retry connection)
+ */
+export function resetWebSocketState() {
+  wsConnectionFailed = false;
+  wsSubscribed = false;
+}
+
+/**
  * Subscribe to WebSocket chat events
  * Also connects to WebSocket if not already connected
  */
 export function subscribeToChatWebSocket() {
-  if (wsSubscribed) return;
+  // If already subscribed and connected, just return
+  if (wsSubscribed && socketService.isConnected()) {
+    return;
+  }
+
+  // If previously failed but not subscribed, allow retry
+  if (wsConnectionFailed && !wsSubscribed) {
+    wsConnectionFailed = false;
+  }
+
+  // If already subscribed (event listeners set up), just ensure connection
+  if (wsSubscribed) {
+    if (!socketService.isConnected()) {
+      socketService.connect().then((connected) => {
+        if (connected) {
+          console.log('[ChatCache] WebSocket reconnected');
+          socketService.setOnline();
+          getConversations(true);
+        }
+      });
+    }
+    return;
+  }
 
   // Don't try to connect if previous connection failed
   if (wsConnectionFailed) {
@@ -161,10 +195,56 @@ export function subscribeToChatWebSocket() {
     }
 
     // Update conversation and move to top
-    const convIndex = conversationsCache.data.findIndex(
+    let convIndex = conversationsCache.data.findIndex(
       (c) => c.conversation_id === conversationId
     );
-    if (convIndex !== -1) {
+
+    // If conversation doesn't exist in cache, create it
+    if (convIndex === -1) {
+      console.log('[ChatCache] Conversation not in cache, creating:', conversationId);
+
+      // Get user info for participants_info
+      const users = getUsersSync() || [];
+      const senderUser = users.find((u) => (u.user_key || u.id) === senderKey);
+      const currentUserInfo = {
+        user_key: currentUserKey,
+        name: 'You',
+        is_online: true,
+      };
+      const senderInfo = {
+        user_key: senderKey,
+        name: senderUser?.name || senderUser?.username || senderName || senderKey,
+        avatar_url: senderUser?.avatar_url || senderUser?.profile_picture || null,
+        is_online: true,
+      };
+
+      const newConv = {
+        conversation_id: conversationId,
+        conversation_type: 'direct',
+        participants: [currentUserKey, senderKey],
+        participants_info: [currentUserInfo, senderInfo],
+        last_message: {
+          content: normalizedMessage.content,
+          sender_key: senderKey,
+          created_at: normalizedMessage.created_at,
+        },
+        last_activity: normalizedMessage.created_at,
+        unread_count: 1,
+        is_muted: false,
+        is_pinned: false,
+        created_at: normalizedMessage.created_at,
+      };
+
+      conversationsCache.data.unshift(newConv);
+      conversationsCache.byId.set(String(conversationId), newConv);
+      conversationsCache.totalUnread++;
+      convIndex = 0;
+
+      conversationsCache.events.emit('updated', conversationsCache.data);
+      conversationsCache.events.emit('created', newConv);
+      conversationsCache.events.emit('message', { conversation_id: conversationId, message: normalizedMessage });
+      persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+    } else {
       const conv = conversationsCache.data[convIndex];
       conv.last_message = {
         content: normalizedMessage.content,
@@ -476,12 +556,18 @@ export function subscribeToChatWebSocket() {
   // Presence updates with last_seen
   socketService.on(WS_EVENTS.PRESENCE_ONLINE, (data) => {
     const userKey = data.user_key || data.userKey;
+    const currentUserKey = getCurrentUserKey();
+    // Don't update our own presence from server events
+    if (userKey === currentUserKey) return;
     console.log('[ChatCache] User online:', userKey);
     updateUserPresence(userKey, true, null);
   });
 
   socketService.on(WS_EVENTS.PRESENCE_OFFLINE, (data) => {
     const userKey = data.user_key || data.userKey;
+    const currentUserKey = getCurrentUserKey();
+    // Don't update our own presence from server events
+    if (userKey === currentUserKey) return;
     const lastSeen = data.last_seen || data.lastSeen || new Date().toISOString();
     console.log('[ChatCache] User offline:', userKey, 'lastSeen:', lastSeen);
     updateUserPresence(userKey, false, lastSeen);
@@ -490,6 +576,9 @@ export function subscribeToChatWebSocket() {
   // General presence update
   socketService.on(WS_EVENTS.PRESENCE_UPDATE, (data) => {
     const userKey = data.user_key || data.userKey;
+    const currentUserKey = getCurrentUserKey();
+    // Don't update our own presence from server events
+    if (userKey === currentUserKey) return;
     const isOnline = data.is_online || data.isOnline || data.status === 'online';
     const lastSeen = data.last_seen || data.lastSeen;
     console.log('[ChatCache] Presence update:', userKey, isOnline, lastSeen);
@@ -511,21 +600,28 @@ function updateUserPresence(userKey, isOnline, lastSeen = null) {
   conversationsCache.data.forEach((conv) => {
     const participant = conv.participants_info?.find((p) => p.user_key === userKey);
     if (participant) {
+      const wasOnline = participant.is_online;
       participant.is_online = isOnline;
       if (!isOnline && lastSeen) {
         participant.last_seen = lastSeen;
       }
-      updated = true;
+      // Mark as updated only if status actually changed
+      if (wasOnline !== isOnline) {
+        updated = true;
+      }
     }
   });
 
   if (updated) {
+    console.log('[ChatCache] Presence updated for', userKey, '-> online:', isOnline);
     conversationsCache.events.emit('updated', conversationsCache.data);
     conversationsCache.events.emit('presence', {
       user_key: userKey,
       is_online: isOnline,
       last_seen: lastSeen
     });
+    // Persist to keep presence state across page reloads
+    persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
   }
 }
 
@@ -537,38 +633,35 @@ function updateUserPresence(userKey, isOnline, lastSeen = null) {
 function setupVisibilityListener() {
   if (visibilityListenerAdded || typeof document === 'undefined') return;
 
+  // Track current visibility state to avoid duplicate events
+  let isCurrentlyOnline = true;
+
   // Handle page visibility change (tab switch, minimize)
   const handleVisibilityChange = () => {
-    if (document.visibilityState === 'visible') {
-      console.log('[ChatCache] Tab visible - setting online');
-      socketService.setOnline();
-    } else {
-      console.log('[ChatCache] Tab hidden - setting offline');
-      socketService.setOffline();
+    const shouldBeOnline = document.visibilityState === 'visible';
+    if (shouldBeOnline !== isCurrentlyOnline) {
+      isCurrentlyOnline = shouldBeOnline;
+      if (shouldBeOnline) {
+        console.log('[ChatCache] Tab visible - setting online');
+        socketService.setOnline();
+      } else {
+        console.log('[ChatCache] Tab hidden - setting offline');
+        socketService.setOffline();
+      }
     }
-  };
-
-  // Handle window focus/blur
-  const handleFocus = () => {
-    console.log('[ChatCache] Window focused - setting online');
-    socketService.setOnline();
-  };
-
-  const handleBlur = () => {
-    console.log('[ChatCache] Window blurred - setting offline');
-    socketService.setOffline();
   };
 
   // Handle page unload (close tab, navigate away)
   const handleBeforeUnload = () => {
     console.log('[ChatCache] Page unloading - setting offline');
-    socketService.setOffline();
+    // Use sync beacon for reliability during unload
+    if (socketService.isConnected()) {
+      socketService.setOffline();
+    }
   };
 
   // Add event listeners
   document.addEventListener('visibilitychange', handleVisibilityChange);
-  window.addEventListener('focus', handleFocus);
-  window.addEventListener('blur', handleBlur);
   window.addEventListener('beforeunload', handleBeforeUnload);
 
   visibilityListenerAdded = true;
@@ -618,7 +711,7 @@ async function requestPresenceForAllParticipants() {
 
   try {
     // Call presence API
-    const { getUserPresence } = await import('../api/chat');
+    const { getUserPresence } = await import('../../api/chat');
     const userKeysArray = Array.from(userKeys);
     const response = await getUserPresence(userKeysArray);
 
@@ -658,7 +751,7 @@ function getOrCreateMessagesCache(conversationId) {
  * Get conversations list (lazy loaded)
  * Uses users from cache to generate mock conversations
  */
-export async function getConversations(force = false, params = {}) {
+export async function getConversations(force = false) {
   if (!force && hasValidCache(conversationsCache)) {
     return conversationsCache.data;
   }
@@ -667,30 +760,24 @@ export async function getConversations(force = false, params = {}) {
     return conversationsCache.data;
   }
 
+  // Clear existing cache on force reload to avoid stale data mixing
+  if (force) {
+    conversationsCache.data = [];
+    conversationsCache.byId.clear();
+    conversationsCache.totalUnread = 0;
+  }
+
   setCacheLoading(conversationsCache, true);
 
   try {
-    // Get users from cache for mock data generation
-    let users = getUsersSync();
-    if (!users || users.length === 0) {
-      // Try to fetch users if not in cache
-      try {
-        users = await getUsers();
-      } catch (e) {
-        users = [];
-      }
-    }
+    const response = await listConversations();
+    const raw = response?.data?.conversations || [];
 
-    const response = await listConversations(params, users);
-    const rawConversations = response?.data?.conversations || [];
+    // Users cache snapshot to enrich conversation participant info
+    const usersForEnrichment = getUsersSync() || [];
 
-    console.log('[ChatCache] Received conversations:', rawConversations.length);
-
-    // Get users for enriching participants_info
-    const usersForEnrichment = users || getUsersSync() || [];
-
-    // Normalize conversations to snake_case format and enrich participants_info
-    const normalizedConversations = rawConversations.map((conv) => {
+    // Normalize conversations
+    const normalizedConversations = raw.map((conv) => {
       const participants = conv.participants || [];
       let participantsInfo = conv.participants_info || conv.participantsInfo || [];
 
@@ -719,7 +806,7 @@ export async function getConversations(force = false, params = {}) {
         participants: participants,
         participants_info: participantsInfo,
         last_message: conv.last_message || conv.lastMessage || null,
-        unread_count: conv.unread_count || conv.unreadCount || 0,
+        unread_count: Number(conv.unread_count || conv.unreadCount) || 0,
         is_muted: conv.is_muted || conv.isMuted || false,
         is_pinned: conv.is_pinned || conv.isPinned || false,
         last_activity: conv.last_activity || conv.lastActivity || conv.updatedAt || conv.createdAt,
@@ -824,6 +911,12 @@ export async function getMessagesForConversation(conversationId, force = false, 
     return cache.data;
   }
 
+  // Clear existing cache data on force reload to avoid stale data mixing
+  if (force) {
+    cache.data = [];
+    cache.byId.clear();
+  }
+
   setCacheLoading(cache, true);
 
   try {
@@ -836,34 +929,72 @@ export async function getMessagesForConversation(conversationId, force = false, 
 
     // Get users for enriching sender names
     const users = getUsersSync() || [];
+    const currentUserKey = getCurrentUserKey();
 
     // Normalize messages to snake_case format and enrich sender names
+    // Trust server data completely on fresh fetch
     const normalizedMessages = rawMessages.map((msg) => {
-      const senderKey = msg.sender_key || msg.senderKey;
-      let senderName = msg.sender_name || msg.senderName;
+        const senderKey = msg.sender_key || msg.senderKey;
+        let senderName = msg.sender_name || msg.senderName;
+        const msgId = msg.message_id || msg.messageId || msg.id;
 
-      // Enrich sender_name from users cache if not provided
-      if (!senderName && senderKey) {
-        const user = users.find((u) => (u.user_key || u.id) === senderKey);
-        senderName = user?.name || user?.username || senderKey;
-      }
+        // Enrich sender_name from users cache if not provided
+        if (!senderName && senderKey) {
+          const user = users.find((u) => (u.user_key || u.id) === senderKey);
+          senderName = user?.name || user?.username || senderKey;
+        }
 
-      return {
-        message_id: msg.message_id || msg.messageId || msg.id,
-        conversation_id: msg.conversation_id || msg.conversationId || conversationId,
-        sender_key: senderKey,
-        sender_name: senderName,
-        content: msg.content,
-        message_type: msg.message_type || msg.type || 'text',
-        status: msg.status || 'sent',
-        created_at: msg.created_at || msg.createdAt,
-        edited_at: msg.edited_at || msg.editedAt || null,
-        reply_to: msg.reply_to || msg.replyTo || null,
-        reactions: msg.reactions || [],
-      };
-    });
+        // Get server-provided timestamps
+        const deliveredAt = msg.delivered_at || msg.deliveredAt || null;
+        const readAt = msg.read_at || msg.readAt || null;
+
+        // Derive status from timestamps if server provides them (authoritative)
+        let status = msg.status || 'sent';
+        if (readAt) {
+          status = 'read';
+        } else if (deliveredAt) {
+          status = 'delivered';
+        }
+
+        return {
+          message_id: msgId,
+          conversation_id: msg.conversation_id || msg.conversationId || conversationId,
+          sender_key: senderKey,
+          sender_name: senderName,
+          content: msg.content,
+          message_type: msg.message_type || msg.type || 'text',
+          status: status,
+          created_at: msg.created_at || msg.createdAt,
+          edited_at: msg.edited_at || msg.editedAt || null,
+          reply_to: msg.reply_to || msg.replyTo || null,
+          reactions: msg.reactions || [],
+          delivered_at: deliveredAt,
+          read_at: readAt,
+       };
+     });
 
     updateCache(cache, normalizedMessages, 'message_id');
+
+    // Recompute conversation unread count from server data
+    const conv = conversationsCache.byId.get(String(conversationId));
+    if (conv) {
+      // Count messages not sent by me that are not read
+      const unreadCount = normalizedMessages.filter((m) => {
+        return m.sender_key !== currentUserKey && m.status !== 'read' && !m.read_at;
+      }).length;
+
+      // Update conversation unread count if different
+      if (conv.unread_count !== unreadCount) {
+        conv.unread_count = unreadCount;
+        // Recompute total unread across all conversations
+        conversationsCache.totalUnread = Math.max(0,
+          conversationsCache.data.reduce((sum, c) => sum + (c.unread_count || 0), 0)
+        );
+        conversationsCache.events.emit('updated', conversationsCache.data);
+        persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+      }
+    }
+
     setCacheLoading(cache, false);
 
     return normalizedMessages;
@@ -992,7 +1123,8 @@ export async function markConversationAsRead(conversationId) {
   const currentUserKey = getCurrentUserKey();
   const conv = conversationsCache.byId.get(String(conversationId));
   if (conv && conv.unread_count > 0) {
-    conversationsCache.totalUnread -= conv.unread_count;
+    // Ensure totalUnread never goes negative
+    conversationsCache.totalUnread = Math.max(0, conversationsCache.totalUnread - conv.unread_count);
     conv.unread_count = 0;
     conversationsCache.events.emit('updated', conversationsCache.data);
   }
@@ -1403,6 +1535,8 @@ export const chatCache = {
   subscribeToChatWebSocket,
   createConversation,
   startDirectConversation,
+  isWebSocketConnected,
+  resetWebSocketState,
 };
 
 export default chatCache;

@@ -51,6 +51,9 @@ import {
 import { subscribeAllToWebSocket } from '../utils/cache';
 import { socketService } from '../utils/websocket';
 
+// Load notification sound path (browser-only)
+const NOTIFICATION_SOUND = '/assets/sounds/notification.mp3';
+
 // ============================================================================
 // Context
 // ============================================================================
@@ -83,6 +86,28 @@ export function DataProvider({ children }) {
       onAlertsChange('updated', rerender),
     ];
 
+    // Also listen for new notifications to play a sound
+    let unsubNewNotification = null;
+    try {
+      unsubNewNotification = onNotificationsChange('new', (notification) => {
+        try {
+          // Play sound for new notifications if running in browser
+          if (typeof window !== 'undefined' && document) {
+            const audio = new Audio(NOTIFICATION_SOUND);
+            // Don't await play to avoid blocking; browsers may prevent autoplay
+            audio.play().catch(() => {
+              // Autoplay prevented or other error - ignore silently
+            });
+          }
+        } catch (e) {
+          // Ignore audio errors
+          console.warn('[DataContext] Failed to play notification sound:', e);
+        }
+      });
+    } catch (e) {
+      // If subscription fails, continue without sound
+    }
+
     // Initial load of notifications and alerts for authenticated users
     // Check if user is authenticated (has token)
     const token = localStorage.getItem('access_token');
@@ -99,7 +124,10 @@ export function DataProvider({ children }) {
       getAlerts().catch(() => {});
     }
 
-    return () => unsubs.forEach((unsub) => unsub());
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+      if (typeof unsubNewNotification === 'function') unsubNewNotification();
+    };
   }, []);
 
   const value = {

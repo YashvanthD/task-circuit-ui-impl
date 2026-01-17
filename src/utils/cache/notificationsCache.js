@@ -38,6 +38,20 @@ cache.unreadCount = 0;
 // Load from localStorage on init
 loadPersistedCache(cache, STORAGE_KEY, 'notification_id');
 
+// If persisted cache is stale (older than TTL), clear it to avoid showing stale unread flags
+if (cache.lastFetch && Date.now() - cache.lastFetch > cache.ttl) {
+  clearCache(cache);
+  cache.unreadCount = 0;
+  localStorage.removeItem(STORAGE_KEY);
+} else {
+  // Normalize read flag to boolean to avoid undefined -> treated as unread
+  cache.data = (cache.data || []).map((n) => ({ ...(n || {}), read: !!n.read }));
+  cache.byId.clear();
+  cache.data.forEach((item) => cache.byId.set(String(item.notification_id), item));
+  // Ensure unreadCount is accurate after loading persisted cache
+  cache.unreadCount = Math.max(0, (cache.data || []).filter((n) => !n.read).length);
+}
+
 // ============================================================================
 // WebSocket Integration
 // ============================================================================
@@ -74,55 +88,114 @@ export function subscribeToWebSocket() {
 
   // New notification received
   socketService.on(WS_EVENTS.NOTIFICATION_NEW, (notification) => {
-    // Add to beginning of cache
-    cache.data.unshift(notification);
-    cache.byId.set(String(notification.notification_id), notification);
-    cache.unreadCount++;
-    cache.events.emit('updated', cache.data);
-    cache.events.emit('new', notification);
-    persistCache(cache, STORAGE_KEY);
+    try {
+      const id = String(notification.notification_id);
+
+      // If we already have this notification, update it and move to front
+      if (cache.byId.has(id)) {
+        // Replace existing item and move to front
+        cache.data = [
+          notification,
+          ...cache.data.filter((n) => String(n.notification_id) !== id),
+        ];
+      } else {
+        // Add to beginning of cache
+        cache.data.unshift(notification);
+      }
+
+      // Rebuild id map (ensure no duplicates)
+      cache.byId.clear();
+      cache.data.forEach((item) => cache.byId.set(String(item.notification_id), item));
+
+      // Recompute unread count deterministically (avoid increment/decrement drift)
+      cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
+
+      // Emit events
+      cache.events.emit('updated', cache.data);
+      cache.events.emit('new', notification);
+
+      // Persist cache
+      persistCache(cache, STORAGE_KEY);
+    } catch (e) {
+      console.error('[NotificationsCache] Error handling NOTIFICATION_NEW:', e);
+    }
   });
 
   // Notification marked as read
   socketService.on(WS_EVENTS.NOTIFICATION_READ, ({ notification_id }) => {
-    const index = cache.data.findIndex((n) => n.notification_id === notification_id);
-    if (index !== -1 && !cache.data[index].read) {
-      cache.data[index] = { ...cache.data[index], read: true };
-      cache.byId.set(String(notification_id), cache.data[index]);
-      cache.unreadCount = Math.max(0, cache.unreadCount - 1);
-      cache.events.emit('updated', cache.data);
-      persistCache(cache, STORAGE_KEY);
+    try {
+      const id = String(notification_id);
+      // Mark all matching items as read (defensive: remove duplicate unread items)
+      let changed = false;
+      cache.data = cache.data.map((n) => {
+        if (String(n.notification_id) === id && !n.read) {
+          changed = true;
+          return { ...n, read: true };
+        }
+        return n;
+      });
+
+      if (changed) {
+        // Rebuild id map
+        cache.byId.clear();
+        cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
+
+        // Recompute unread count
+        cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
+
+        cache.events.emit('updated', cache.data);
+        persistCache(cache, STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error('[NotificationsCache] Error handling NOTIFICATION_READ:', e);
     }
   });
 
   // All notifications marked as read
   socketService.on(WS_EVENTS.NOTIFICATION_READ_ALL, () => {
-    cache.data = cache.data.map((n) => ({ ...n, read: true }));
-    cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
-    cache.unreadCount = 0;
-    cache.events.emit('updated', cache.data);
-    persistCache(cache, STORAGE_KEY);
+    try {
+      cache.data = cache.data.map((n) => ({ ...n, read: true }));
+      cache.byId.clear();
+      cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
+      cache.unreadCount = 0;
+      cache.events.emit('updated', cache.data);
+      persistCache(cache, STORAGE_KEY);
+    } catch (e) {
+      console.error('[NotificationsCache] Error handling NOTIFICATION_READ_ALL:', e);
+    }
   });
 
   // Notification deleted
   socketService.on(WS_EVENTS.NOTIFICATION_DELETED, ({ notification_id }) => {
-    const index = cache.data.findIndex((n) => n.notification_id === notification_id);
-    if (index !== -1) {
-      const wasUnread = !cache.data[index].read;
-      cache.data.splice(index, 1);
-      cache.byId.delete(String(notification_id));
-      if (wasUnread) {
-        cache.unreadCount = Math.max(0, cache.unreadCount - 1);
+    try {
+      const id = String(notification_id);
+      const beforeLen = cache.data.length;
+      // Remove all occurrences of this id (defensive)
+      cache.data = cache.data.filter((n) => String(n.notification_id) !== id);
+      cache.byId.delete(id);
+
+      // If we removed items, rebuild id map and recompute unread
+      if (cache.data.length !== beforeLen) {
+        cache.byId.clear();
+        cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
+        cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
+        cache.events.emit('updated', cache.data);
+        persistCache(cache, STORAGE_KEY);
       }
-      cache.events.emit('updated', cache.data);
-      persistCache(cache, STORAGE_KEY);
+    } catch (e) {
+      console.error('[NotificationsCache] Error handling NOTIFICATION_DELETED:', e);
     }
   });
 
   // Unread count update from server
   socketService.on(WS_EVENTS.NOTIFICATION_COUNT, ({ count }) => {
-    cache.unreadCount = count;
-    cache.events.emit('countUpdated', count);
+    try {
+      // Ensure server-sent counts are used safely and never negative
+      cache.unreadCount = (typeof count === 'number' && !isNaN(count)) ? Math.max(0, count) : Math.max(0, cache.data.filter((n) => !n.read).length);
+      cache.events.emit('countUpdated', cache.unreadCount);
+    } catch (e) {
+      console.error('[NotificationsCache] Error handling NOTIFICATION_COUNT:', e);
+    }
   });
 
   wsSubscribed = true;
@@ -164,7 +237,8 @@ export async function getNotifications(force = false, params = {}) {
     // Only update full cache if no filters
     if (!params.unread) {
       updateCache(cache, data, 'notification_id');
-      cache.unreadCount = data.filter((n) => !n.read).length;
+      // Recompute unread count deterministically
+      cache.unreadCount = Math.max(0, (cache.data || []).filter((n) => !n.read).length);
       persistCache(cache, STORAGE_KEY);
     }
 
@@ -298,7 +372,8 @@ export async function markNotificationAsRead(id) {
     if (index !== -1) {
       cache.data[index] = { ...cache.data[index], read: true };
       cache.byId.set(String(id), cache.data[index]);
-      cache.unreadCount = cache.data.filter((n) => !n.read).length;
+      // Recompute unread count
+      cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
       cache.events.emit('updated', cache.data);
       persistCache(cache, STORAGE_KEY);
     }
@@ -325,7 +400,7 @@ export async function deleteNotification(id) {
     if (index !== -1) {
       cache.data.splice(index, 1);
       cache.byId.delete(String(id));
-      cache.unreadCount = cache.data.filter((n) => !n.read).length;
+      cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
       cache.events.emit('updated', cache.data);
       persistCache(cache, STORAGE_KEY);
     }

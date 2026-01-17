@@ -18,6 +18,7 @@ import {
   InputLabel,
   Typography,
   Button,
+  Box,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
@@ -35,6 +36,7 @@ import {
   ActionsSection,
   DashboardHeader,
   NotificationsSection,
+  UnreadMessagesSection,
 } from '../../components/dashboard';
 
 // Config
@@ -267,7 +269,14 @@ export default function DashboardPage() {
         onSeeMore={() => navigate(BASE_APP_PATH_USER_TASKS)}
       />
 
-      <NotificationsSection maxItems={5} />
+      <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 3 }}>
+        <Box sx={{ flex: 1, minWidth: 300 }}>
+          <NotificationsSection maxItems={5} />
+        </Box>
+        <Box sx={{ flex: 1, minWidth: 300 }}>
+          <UnreadMessagesSection maxItems={5} />
+        </Box>
+      </Box>
 
       <ActionsSection actions={QUICK_ACTIONS} onNavigate={handleNavigate} />
 

@@ -11,5 +11,6 @@ export { default as ActionsSection } from './ActionsSection';
 export { default as CriticalSummary } from './CriticalSummary';
 export { default as DashboardStats } from './DashboardStats';
 export { default as NotificationsSection } from './NotificationsSection';
+export { default as UnreadMessagesSection } from './UnreadMessagesSection';
 export { default as DashboardHeader } from './DashboardHeader';
 
