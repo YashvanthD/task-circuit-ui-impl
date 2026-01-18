@@ -290,8 +290,9 @@ export function ThemeContextProvider({ children }) {
       isDarkMode: mode === 'dark',
       loading,
       resetToDefault,
+      refreshFromSession,
     }),
-    [mode, toggleTheme, setMode, loading, resetToDefault]
+    [mode, toggleTheme, setMode, loading, resetToDefault, refreshFromSession]
   );
 
   return (
