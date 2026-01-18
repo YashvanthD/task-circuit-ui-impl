@@ -37,6 +37,7 @@ export default function UpdatePasswordForm({ onSuccess, onClose }) {
     }
 
     setLoading(true);
+    setError('');
     try {
       await updateUserPassword({
         current_password: form.old_password,
@@ -44,14 +45,16 @@ export default function UpdatePasswordForm({ onSuccess, onClose }) {
       });
       setSuccess('Password updated successfully!');
       setForm({ old_password: '', new_password: '', confirm_password: '' });
-      if (onSuccess) onSuccess();
+      setLoading(false);
+
       // Close dialog after short delay
       setTimeout(() => {
         if (onClose) onClose();
-      }, 1500);
+        if (onSuccess) onSuccess();
+      }, 800);
     } catch (err) {
+      console.error('[UpdatePasswordForm] Update failed:', err);
       setError(err.message || 'Failed to update password');
-    } finally {
       setLoading(false);
     }
   };

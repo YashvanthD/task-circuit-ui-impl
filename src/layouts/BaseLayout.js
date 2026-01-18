@@ -114,6 +114,15 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
   const handleLogout = () => {
     // close menu first
     handleProfileMenuClose();
+
+    // Reset theme to light on logout
+    try {
+      localStorage.removeItem('themeMode');
+      localStorage.removeItem('user_settings');
+    } catch (e) {
+      // Ignore
+    }
+
     try {
       // stop any token refresh timers
       clearAccessTokenManagement();
@@ -149,6 +158,9 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
       // otherwise redirect to login using navigate (respects router basename)
       navigate(BASE_APP_PATH_LOGIN);
     }
+
+    // Force page reload to reset all state including theme
+    window.location.reload();
   };
 
   // delegate admin detection to shared util
@@ -163,15 +175,17 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
             Task Circuit
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            {/* Theme Toggle Button - always visible */}
-            <Tooltip title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
-              <IconButton
-                color="inherit"
-                onClick={toggleTheme}
-              >
-                {isDarkMode ? <Brightness7Icon /> : <Brightness4Icon />}
-              </IconButton>
-            </Tooltip>
+            {/* Theme Toggle Button - only for logged in users */}
+            {loggedIn && (
+              <Tooltip title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+                <IconButton
+                  color="inherit"
+                  onClick={toggleTheme}
+                >
+                  {isDarkMode ? <Brightness7Icon /> : <Brightness4Icon />}
+                </IconButton>
+              </Tooltip>
+            )}
             {!loggedIn && (
               <>
                 <Button

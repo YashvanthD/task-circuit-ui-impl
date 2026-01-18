@@ -19,7 +19,7 @@ import {
   API_COMPANY,
   API_SAMPLING,
   API_FISH,
-} from '../api/constants';
+} from '../api';
 
 // ============================================================================
 // Auth endpoints (with full URL - legacy)

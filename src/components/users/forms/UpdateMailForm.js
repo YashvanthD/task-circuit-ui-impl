@@ -31,17 +31,21 @@ export default function UpdateMailForm({ onSuccess, onClose }) {
     }
 
     setLoading(true);
+    setError('');
     try {
-      await updateUserEmail(email);
+      const result = await updateUserEmail(email);
+      console.log('[UpdateMailForm] Update result:', result);
       setSuccess('Email updated successfully!');
-      if (onSuccess) onSuccess();
-      // Close dialog after short delay
+      setLoading(false);
+
+      // Close dialog and trigger refresh
       setTimeout(() => {
         if (onClose) onClose();
-      }, 1500);
+        if (onSuccess) onSuccess();
+      }, 800);
     } catch (err) {
+      console.error('[UpdateMailForm] Update failed:', err);
       setError(err.message || 'Failed to update email');
-    } finally {
       setLoading(false);
     }
   };

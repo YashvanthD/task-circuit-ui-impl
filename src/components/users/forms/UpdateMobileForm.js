@@ -31,17 +31,21 @@ export default function UpdateMobileForm({ onSuccess, onClose }) {
     }
 
     setLoading(true);
+    setError('');
     try {
-      await updateUserMobile(mobile);
+      const result = await updateUserMobile(mobile);
+      console.log('[UpdateMobileForm] Update result:', result);
       setSuccess('Mobile number updated successfully!');
-      if (onSuccess) onSuccess();
-      // Close dialog after short delay
+      setLoading(false);
+
+      // Close dialog and trigger refresh
       setTimeout(() => {
         if (onClose) onClose();
-      }, 1500);
+        if (onSuccess) onSuccess();
+      }, 800);
     } catch (err) {
+      console.error('[UpdateMobileForm] Update failed:', err);
       setError(err.message || 'Failed to update mobile number');
-    } finally {
       setLoading(false);
     }
   };

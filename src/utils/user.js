@@ -169,14 +169,19 @@ export async function refreshUserSession() {
     // Fetch fresh profile from API
     const res = await apiUser.getProfile();
     const data = await parseResponse(res);
-    const userData = data?.data || data?.user || data;
 
-    if (userData) {
+    // Extract user from response - API returns { data: { user: {...} } }
+    const rawUserData = data?.data?.user || data?.user || data?.data || data;
+
+    if (rawUserData) {
+      // Normalize the user data
+      const userData = normalizeUserData(rawUserData);
+
       // Update userSession with fresh data
       try {
         const { userSession } = require('./auth/userSession');
         userSession.updateProfile(userData);
-        console.log('[User] Session refreshed with updated profile');
+        console.log('[User] Session refreshed with updated profile:', userData);
       } catch (e) {
         console.warn('[User] Failed to update userSession:', e);
       }
@@ -188,9 +193,11 @@ export async function refreshUserSession() {
       } catch (e) {
         // Ignore storage errors
       }
+
+      return userData;
     }
 
-    return userData;
+    return null;
   } catch (e) {
     logError('refreshUserSession', e);
     return null;
@@ -214,20 +221,56 @@ export async function getCurrentUser(forceApi = false) {
     // userSession not available
   }
 
-  // If we have session user and not forcing API, return it
-  if (sessionUser && !forceApi) {
-    // Still try to get fresh data from API in background (fire and forget)
+  // If forcing API or no session user, fetch from API
+  if (forceApi || !sessionUser) {
+    try {
+      const res = await apiUser.getProfile();
+      const data = await parseResponse(res);
+
+      // Extract user from response - API returns { data: { user: {...} } }
+      let userData = data?.data?.user || data?.user || data?.data || data;
+
+      if (userData) {
+        // Normalize field names from API response
+        const normalizedUser = normalizeUserData(userData);
+
+        // Update session with fresh data
+        try {
+          const { userSession } = require('./auth/userSession');
+          userSession.updateProfile(normalizedUser);
+        } catch (e) { /* ignore */ }
+
+        // Merge: API data takes full precedence, session fills gaps only for missing fields
+        if (sessionUser) {
+          return {
+            ...sessionUser,  // Base from session
+            ...normalizedUser,     // API overwrites everything it has
+          };
+        }
+
+        return normalizedUser;
+      }
+    } catch (e) {
+      logError('getCurrentUser', e);
+      // Return session user as fallback if API fails
+      return sessionUser;
+    }
+  }
+
+  // Have session user and not forcing API - return session but refresh in background
+  if (sessionUser) {
+    // Fire and forget background refresh
     (async () => {
       try {
         const res = await apiUser.getProfile();
         if (res) {
           const data = await parseResponse(res);
-          const apiUserData = data?.data || data?.user || data;
-          if (apiUserData) {
-            // Update session with fresh data
+          const userData = data?.data?.user || data?.user || data?.data || data;
+          if (userData) {
+            const normalizedUser = normalizeUserData(userData);
             try {
               const { userSession } = require('./auth/userSession');
-              userSession.updateProfile(apiUserData);
+              userSession.updateProfile(normalizedUser);
             } catch (e) { /* ignore */ }
           }
         }
@@ -239,37 +282,36 @@ export async function getCurrentUser(forceApi = false) {
     return sessionUser;
   }
 
-  // Fetch from API
-  try {
-    const res = await apiUser.getProfile();
-    const data = await parseResponse(res);
+  return null;
+}
 
-    // Extract user from response
-    let userData = data?.data || data?.user || data;
+/**
+ * Normalize user data from API response to consistent field names
+ * @param {object} userData - Raw user data from API
+ * @returns {object} Normalized user data
+ */
+function normalizeUserData(userData) {
+  if (!userData) return null;
 
-    // Merge with session user data to ensure all fields are populated
-    if (sessionUser && userData) {
-      userData = {
-        ...sessionUser,
-        ...userData,
-        // Ensure key fields from session are preserved if API doesn't return them
-        user_key: userData.user_key || userData.userKey || sessionUser.user_key,
-        account_key: userData.account_key || userData.accountKey || sessionUser.account_key,
-        username: userData.username || sessionUser.username,
-        email: userData.email || sessionUser.email,
-        mobile: userData.mobile || sessionUser.mobile,
-        display_name: userData.display_name || userData.displayName || sessionUser.display_name,
-        roles: userData.roles || sessionUser.roles,
-        settings: userData.settings || sessionUser.settings,
-      };
-    }
-
-    return userData;
-  } catch (e) {
-    logError('getCurrentUser', e);
-    // Return session user as fallback if API fails
-    return sessionUser;
-  }
+  return {
+    ...userData,
+    // Map API fields to consistent names
+    user_key: userData.user_key || userData.userKey || userData.id,
+    userKey: userData.userKey || userData.user_key || userData.id,
+    account_key: userData.account_key || userData.accountKey,
+    username: userData.username || userData.name,
+    name: userData.name || userData.username,
+    display_name: userData.display_name || userData.displayName || userData.name || userData.username,
+    email: userData.email,
+    mobile: userData.mobile || userData.phone,
+    phone: userData.phone || userData.mobile,
+    role: userData.role,
+    roles: userData.roles || (userData.role ? [userData.role] : []),
+    avatar_url: userData.avatar_url || userData.profile_photo || userData.profilePhoto,
+    description: userData.description || userData.bio || '',
+    created_at: userData.created_at || userData.createdAt,
+    createdAt: userData.createdAt || userData.created_at,
+  };
 }
 
 /**
@@ -412,13 +454,15 @@ export async function updateUserEmail(newEmail) {
  */
 export async function updateUserMobile(newMobile) {
   try {
-    const res = await apiUser.updateProfile({ phone: newMobile });
+    // Send both 'mobile' and 'phone' for API compatibility
+    const res = await apiUser.updateProfile({ mobile: newMobile, phone: newMobile });
     const data = await parseResponse(res);
 
-    // Refresh user session with updated data
-    await refreshUserSession();
+    // Refresh user session with updated data from API
+    const updatedUser = await refreshUserSession();
 
-    return data;
+    // Return the updated user data
+    return updatedUser || data;
   } catch (e) {
     logError('updateUserMobile', e);
     throw e;
@@ -465,17 +509,48 @@ export async function updateUsername(newUsername) {
 
 /**
  * Get user settings.
+ * @param {boolean} forceApi - Force API call
  * @returns {Promise<object>}
  * @throws {Error} On API failure
  */
-export async function getUserSettings() {
+export async function getUserSettings(forceApi = false) {
   try {
+    // Try to get from session first
+    if (!forceApi) {
+      try {
+        const { userSession } = require('./auth/userSession');
+        if (userSession.settings) {
+          return userSession.settings;
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    // Fetch from API
     const res = await apiUser.getSettings();
     const data = await parseResponse(res);
-    if (data && data.data) return data.data;
-    return data;
+    const settings = data?.data?.settings || data?.data || data?.settings || data;
+
+    // Update session with fetched settings
+    if (settings) {
+      try {
+        const { userSession } = require('./auth/userSession');
+        userSession.updateSettings(settings);
+      } catch (e) { /* ignore */ }
+
+      // Also update localStorage
+      try {
+        localStorage.setItem('user_settings', JSON.stringify(settings));
+      } catch (e) { /* ignore */ }
+    }
+
+    return settings;
   } catch (e) {
     logError('getUserSettings', e);
+    // Try to return cached settings on error
+    try {
+      const cached = localStorage.getItem('user_settings');
+      if (cached) return JSON.parse(cached);
+    } catch (e) { /* ignore */ }
     throw e;
   }
 }
@@ -489,9 +564,70 @@ export async function getUserSettings() {
 export async function updateUserSettings(settings) {
   try {
     const res = await apiUser.updateSettings(settings);
-    return parseResponse(res);
+    const data = await parseResponse(res);
+
+    // Update session with new settings
+    try {
+      const { userSession } = require('./auth/userSession');
+      userSession.updateSettings(settings);
+    } catch (e) { /* ignore */ }
+
+    // Update localStorage
+    try {
+      const existing = JSON.parse(localStorage.getItem('user_settings') || '{}');
+      localStorage.setItem('user_settings', JSON.stringify({ ...existing, ...settings }));
+    } catch (e) { /* ignore */ }
+
+    return data;
   } catch (e) {
     logError('updateUserSettings', e);
+    throw e;
+  }
+}
+
+/**
+ * Update theme settings.
+ * @param {string} theme - Theme mode ('light' or 'dark')
+ * @returns {Promise<object>}
+ * @throws {Error} On API failure
+ */
+export async function updateThemeSettings(theme) {
+  try {
+    const res = await apiUser.updateSettings({ theme });
+    const data = await parseResponse(res);
+
+    // Update userSession singleton
+    try {
+      const { userSession } = require('./auth/userSession');
+      userSession.updateSettings({ theme });
+    } catch (e) { /* ignore */ }
+
+    // Update tc_user_session in localStorage
+    try {
+      const sessionStr = localStorage.getItem('tc_user_session');
+      if (sessionStr) {
+        const session = JSON.parse(sessionStr);
+        if (!session.settings) {
+          session.settings = {};
+        }
+        session.settings.theme = theme;
+        session.updatedAt = Date.now();
+        localStorage.setItem('tc_user_session', JSON.stringify(session));
+      }
+    } catch (e) { /* ignore */ }
+
+    // Update themeMode for backward compatibility
+    try {
+      localStorage.setItem('themeMode', theme);
+    } catch (e) { /* ignore */ }
+
+    return data;
+  } catch (e) {
+    logError('updateThemeSettings', e);
+    // Still update localStorage even if API fails
+    try {
+      localStorage.setItem('themeMode', theme);
+    } catch (e) { /* ignore */ }
     throw e;
   }
 }
@@ -511,6 +647,12 @@ export async function updateNotificationSettings(notificationSettings) {
     try {
       const { userSession } = require('./auth/userSession');
       userSession.updateSettings({ notifications: notificationSettings });
+    } catch (e) { /* ignore */ }
+
+    // Update localStorage
+    try {
+      const existing = JSON.parse(localStorage.getItem('user_settings') || '{}');
+      localStorage.setItem('user_settings', JSON.stringify({ ...existing, notifications: notificationSettings }));
     } catch (e) { /* ignore */ }
 
     return data;
@@ -580,6 +722,7 @@ const userUtil = {
   updateUsername,
   getUserSettings,
   updateUserSettings,
+  updateThemeSettings,
   updateNotificationSettings,
   uploadProfilePicture,
   updateProfileDescription,

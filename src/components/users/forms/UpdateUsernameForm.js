@@ -36,17 +36,21 @@ export default function UpdateUsernameForm({ onSuccess, onClose }) {
     }
 
     setLoading(true);
+    setError('');
     try {
-      await updateUsername(username);
+      const result = await updateUsername(username);
+      console.log('[UpdateUsernameForm] Update result:', result);
       setSuccess('Username updated successfully!');
-      if (onSuccess) onSuccess();
-      // Close dialog after short delay
+      setLoading(false);
+
+      // Close dialog and trigger refresh
       setTimeout(() => {
         if (onClose) onClose();
-      }, 1500);
+        if (onSuccess) onSuccess();
+      }, 800);
     } catch (err) {
+      console.error('[UpdateUsernameForm] Update failed:', err);
       setError(err.message || 'Failed to update username');
-    } finally {
       setLoading(false);
     }
   };

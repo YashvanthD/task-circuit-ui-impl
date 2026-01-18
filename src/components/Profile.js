@@ -52,54 +52,31 @@ export default function Profile() {
     setSnackbar({ open: true, message, severity });
   };
 
-  const loadUser = useCallback(async () => {
+  const loadUser = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     try {
-      // First try to get from userSession (has data from login)
-      let sessionUser = null;
-      try {
-        const { userSession } = await import('../utils/auth/userSession');
-        sessionUser = userSession.user;
-      } catch (e) { /* ignore */ }
+      // Get user data - force API call if refreshing
+      const userData = await getCurrentUser(forceRefresh);
 
-      // Then get from API
-      const apiUserData = await getCurrentUser();
+      console.log('[Profile] User data loaded:', userData);
 
-      // Merge session and API data, preferring API but falling back to session
-      const u = {
-        ...(sessionUser || {}),
-        ...(apiUserData || {}),
-        // Ensure key fields are populated from either source
-        user_key: apiUserData?.user_key || apiUserData?.userKey || sessionUser?.user_key || null,
-        account_key: apiUserData?.account_key || apiUserData?.accountKey || sessionUser?.account_key || null,
-        username: apiUserData?.username || sessionUser?.username || null,
-        email: apiUserData?.email || sessionUser?.email || null,
-        mobile: apiUserData?.mobile || apiUserData?.phone || sessionUser?.mobile || null,
-        display_name: apiUserData?.display_name || apiUserData?.displayName || apiUserData?.name || sessionUser?.display_name || null,
-        avatar_url: apiUserData?.avatar_url || apiUserData?.profile_photo || apiUserData?.profilePhoto || sessionUser?.profile_photo || null,
-        description: apiUserData?.description || apiUserData?.bio || sessionUser?.description || '',
-        roles: apiUserData?.roles || sessionUser?.roles || [],
-        settings: apiUserData?.settings || sessionUser?.settings || {},
-        created_at: apiUserData?.created_at || apiUserData?.createdAt || apiUserData?.joined_date || sessionUser?.createdAt || null,
-        last_login: apiUserData?.last_login || apiUserData?.lastLogin || apiUserData?.last_active || sessionUser?.last_login || null,
-      };
+      if (userData && (userData.user_key || userData.userKey || userData.username || userData.email)) {
+        setUser(userData);
+        setProfilePic(userData.avatar_url || userData.profile_photo || '');
+        setDesc(userData.description || '');
 
-      if (u && (u.user_key || u.username || u.email)) {
-        setUser(u);
-        setProfilePic(u.avatar_url || '');
-        setDesc(u.description || '');
         // Load notification settings
-        const notifSettings = u.settings?.notifications || {};
+        const notifSettings = userData.settings?.notifications || {};
         setNotifEnabled(!!notifSettings.enabled);
         setNotifPush(!!notifSettings.push);
         setNotifEmail(!!notifSettings.email);
         setNotifSms(!!notifSettings.sms);
       } else {
-        console.warn('No user data found from session or API');
+        console.warn('[Profile] No user data found');
         showSnackbar('Unable to load profile data', 'warning');
       }
     } catch (e) {
-      console.error('Failed to load user:', e);
+      console.error('[Profile] Failed to load user:', e);
       showSnackbar('Failed to load profile', 'error');
     } finally {
       setLoading(false);
@@ -179,8 +156,8 @@ export default function Profile() {
   };
 
   const handleFormSuccess = () => {
-    // Reload user data after successful update
-    loadUser();
+    // Reload user data after successful update - force fresh API call
+    loadUser(true);
   };
 
   // Get display name properly
