@@ -51,12 +51,14 @@ export function useWebSocketEvent(event, callback) {
  * @param {object} options - Options
  * @param {function} options.onNew - Callback for new notification
  * @param {function} options.onRead - Callback for read notification
+ * @param {function} options.onReadAll - Callback for all notifications read
  * @param {function} options.onDeleted - Callback for deleted notification
  * @param {function} options.onCountUpdate - Callback for count update
  */
-export function useNotificationWebSocket({ onNew, onRead, onDeleted, onCountUpdate } = {}) {
+export function useNotificationWebSocket({ onNew, onRead, onReadAll, onDeleted, onCountUpdate } = {}) {
   useWebSocketEvent(WS_EVENTS.NOTIFICATION_NEW, onNew);
   useWebSocketEvent(WS_EVENTS.NOTIFICATION_READ, onRead);
+  useWebSocketEvent(WS_EVENTS.NOTIFICATION_READ_ALL, onReadAll);
   useWebSocketEvent(WS_EVENTS.NOTIFICATION_DELETED, onDeleted);
   useWebSocketEvent(WS_EVENTS.NOTIFICATION_COUNT, onCountUpdate);
 }
@@ -66,14 +68,18 @@ export function useNotificationWebSocket({ onNew, onRead, onDeleted, onCountUpda
  * @param {object} options - Options
  * @param {function} options.onNew - Callback for new alert
  * @param {function} options.onAcknowledged - Callback for acknowledged alert
+ * @param {function} options.onAcknowledgedAll - Callback for all alerts acknowledged
  * @param {function} options.onDeleted - Callback for deleted alert
  * @param {function} options.onCountUpdate - Callback for count update
+ * @param {function} options.onError - Callback for alert errors
  */
-export function useAlertWebSocket({ onNew, onAcknowledged, onDeleted, onCountUpdate } = {}) {
+export function useAlertWebSocket({ onNew, onAcknowledged, onAcknowledgedAll, onDeleted, onCountUpdate, onError } = {}) {
   useWebSocketEvent(WS_EVENTS.ALERT_NEW, onNew);
   useWebSocketEvent(WS_EVENTS.ALERT_ACKNOWLEDGED, onAcknowledged);
+  useWebSocketEvent(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, onAcknowledgedAll);
   useWebSocketEvent(WS_EVENTS.ALERT_DELETED, onDeleted);
   useWebSocketEvent(WS_EVENTS.ALERT_COUNT, onCountUpdate);
+  useWebSocketEvent(WS_EVENTS.ALERT_ERROR, onError);
 }
 
 /**

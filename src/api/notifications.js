@@ -7,27 +7,7 @@
 
 import { apiFetch } from './client';
 import { getAuthHeaders } from './auth';
-
-// ============================================================================
-// API Endpoints (matching BE)
-// ============================================================================
-const API_NOTIFICATION = {
-  // Notifications
-  LIST: '/api/notification/',
-  CREATE: '/api/notification/',
-  DETAIL: (id) => `/api/notification/${id}`,
-  MARK_READ: (id) => `/api/notification/${id}/read`,
-  MARK_ALL_READ: '/api/notification/read-all',
-  DELETE: (id) => `/api/notification/${id}`,
-  BROADCAST: '/api/notification/broadcast',
-
-  // Alerts
-  ALERT_LIST: '/api/notification/alert/',
-  ALERT_CREATE: '/api/notification/alert/',
-  ALERT_DETAIL: (id) => `/api/notification/alert/${id}`,
-  ALERT_ACKNOWLEDGE: (id) => `/api/notification/alert/${id}/acknowledge`,
-  ALERT_DELETE: (id) => `/api/notification/alert/${id}`,
-};
+import { API_NOTIFICATION } from './constants';
 
 // ============================================================================
 // Mock Data for Development

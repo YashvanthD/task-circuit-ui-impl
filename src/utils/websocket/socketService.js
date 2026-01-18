@@ -51,7 +51,7 @@ export const WS_EVENTS = {
   CONVERSATION_UPDATED: 'chat:conversation:updated',
 
   // =========================================================================
-  // Notification events
+  // Notification events (server -> client)
   // =========================================================================
   NOTIFICATION_NEW: 'notification:new',
   NOTIFICATION_READ: 'notification:read',
@@ -59,16 +59,30 @@ export const WS_EVENTS = {
   NOTIFICATION_DELETED: 'notification:deleted',
   NOTIFICATION_COUNT: 'notification:count',
 
-  // Alert events (server -> client)
-  ALERT_NEW: 'alert:new',
-  ALERT_ACKNOWLEDGED: 'alert:acknowledged',
-  ALERT_DELETED: 'alert:deleted',
-  ALERT_COUNT: 'alert:count',
-
-  // Notification client -> server events
+  // Notification events (client -> server)
   MARK_NOTIFICATION_READ: 'notification:mark_read',
   MARK_ALL_NOTIFICATIONS_READ: 'notification:mark_all_read',
+
+  // =========================================================================
+  // Alert events (server -> client)
+  // =========================================================================
+  ALERT_NEW: 'alert:new',
+  ALERT_ACKNOWLEDGED: 'alert:acknowledged',
+  ALERT_ACKNOWLEDGED_ALL: 'alert:acknowledged_all',
+  ALERT_DELETED: 'alert:deleted',
+  ALERT_COUNT: 'alert:count',
+  ALERT_ERROR: 'alert:error',
+
+  // Alert events (client -> server)
   ACKNOWLEDGE_ALERT: 'alert:acknowledge',
+  ACKNOWLEDGE_ALL_ALERTS: 'alert:acknowledge_all',
+  DISMISS_ALERT: 'alert:dismiss',
+  GET_ALERT_COUNT: 'alert:get_count',
+
+  // =========================================================================
+  // Cross-Pod Broadcast (server -> client)
+  // =========================================================================
+  TEST_BROADCAST: 'test:broadcast',
 
   // Presence events
   PRESENCE_ONLINE: 'presence:online',
@@ -360,15 +374,36 @@ class SocketService {
         });
 
         this.socket.on(WS_EVENTS.ALERT_ACKNOWLEDGED, (data) => {
+            console.log('[SocketService] Alert acknowledged:', data);
             this._emit(WS_EVENTS.ALERT_ACKNOWLEDGED, data);
         });
 
+        this.socket.on(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, (data) => {
+            console.log('[SocketService] All alerts acknowledged:', data);
+            this._emit(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, data);
+        });
+
         this.socket.on(WS_EVENTS.ALERT_DELETED, (data) => {
+            console.log('[SocketService] Alert deleted:', data);
             this._emit(WS_EVENTS.ALERT_DELETED, data);
         });
 
         this.socket.on(WS_EVENTS.ALERT_COUNT, (data) => {
+            console.log('[SocketService] Alert count:', data);
             this._emit(WS_EVENTS.ALERT_COUNT, data);
+        });
+
+        this.socket.on(WS_EVENTS.ALERT_ERROR, (data) => {
+            console.error('[SocketService] Alert error:', data);
+            this._emit(WS_EVENTS.ALERT_ERROR, data);
+        });
+
+        // =========================================================================
+        // Cross-Pod Broadcast
+        // =========================================================================
+        this.socket.on(WS_EVENTS.TEST_BROADCAST, (data) => {
+            console.log('[SocketService] Broadcast received:', data);
+            this._emit(WS_EVENTS.TEST_BROADCAST, data);
         });
 
         // =========================================================================
@@ -483,32 +518,6 @@ class SocketService {
         });
     }
 
-    // ============================================================================
-    // Convenience Methods for Notifications
-    // ============================================================================
-
-    /**
-     * Mark notification as read via WebSocket
-     * @param {string} notificationId - Notification ID
-     */
-    markNotificationRead(notificationId) {
-        return this.emit(WS_EVENTS.MARK_NOTIFICATION_READ, { notification_id: notificationId });
-    }
-
-    /**
-     * Mark all notifications as read via WebSocket
-     */
-    markAllNotificationsRead() {
-        return this.emit(WS_EVENTS.MARK_ALL_NOTIFICATIONS_READ, {});
-    }
-
-    /**
-     * Acknowledge alert via WebSocket
-     * @param {string} alertId - Alert ID
-     */
-    acknowledgeAlert(alertId) {
-        return this.emit(WS_EVENTS.ACKNOWLEDGE_ALERT, { alert_id: alertId });
-    }
 
     // ============================================================================
     // Convenience Methods for Chat (matching backend exactly)
@@ -628,6 +637,75 @@ class SocketService {
         // Join the conversation room when opening
         return this.joinConversation(conversationId);
     }
+
+    // =========================================================================
+    // Notification Methods (client -> server)
+    // =========================================================================
+
+    /**
+     * Mark a notification as read via WebSocket
+     * Event: notification:mark_read
+     * @param {string} notificationId - Notification ID
+     */
+    markNotificationRead(notificationId) {
+        console.log('[SocketService] Marking notification read:', notificationId);
+        return this.emit(WS_EVENTS.MARK_NOTIFICATION_READ, { notification_id: notificationId });
+    }
+
+    /**
+     * Mark all notifications as read via WebSocket
+     * Event: notification:mark_all_read
+     */
+    markAllNotificationsRead() {
+        console.log('[SocketService] Marking all notifications read');
+        return this.emit(WS_EVENTS.MARK_ALL_NOTIFICATIONS_READ, {});
+    }
+
+    // =========================================================================
+    // Alert Methods (client -> server)
+    // =========================================================================
+
+    /**
+     * Acknowledge a single alert via WebSocket
+     * Event: alert:acknowledge
+     * @param {string} alertId - Alert ID
+     */
+    acknowledgeAlert(alertId) {
+        console.log('[SocketService] Acknowledging alert:', alertId);
+        return this.emit(WS_EVENTS.ACKNOWLEDGE_ALERT, { alert_id: alertId });
+    }
+
+    /**
+     * Acknowledge all alerts via WebSocket
+     * Event: alert:acknowledge_all
+     */
+    acknowledgeAllAlerts() {
+        console.log('[SocketService] Acknowledging all alerts');
+        return this.emit(WS_EVENTS.ACKNOWLEDGE_ALL_ALERTS, {});
+    }
+
+    /**
+     * Dismiss/delete an alert via WebSocket
+     * Event: alert:dismiss
+     * @param {string} alertId - Alert ID
+     */
+    dismissAlert(alertId) {
+        console.log('[SocketService] Dismissing alert:', alertId);
+        return this.emit(WS_EVENTS.DISMISS_ALERT, { alert_id: alertId });
+    }
+
+    /**
+     * Request unacknowledged alert count via WebSocket
+     * Event: alert:get_count
+     */
+    getAlertCount() {
+        console.log('[SocketService] Requesting alert count');
+        return this.emit(WS_EVENTS.GET_ALERT_COUNT, {});
+    }
+
+    // =========================================================================
+    // Presence Methods
+    // =========================================================================
 
     /**
      * Set user as online (call when chat tab/window is opened/focused)

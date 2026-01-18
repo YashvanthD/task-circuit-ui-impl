@@ -1,6 +1,6 @@
 /**
  * Alerts Store
- * Manages alerts cache with API integration.
+ * Manages alerts cache with API and WebSocket integration.
  *
  * @module utils/notifications/alertsStore
  */
@@ -10,6 +10,7 @@ import { notificationEvents, NOTIFICATION_EVENTS, createEventEmitter } from './e
 import { normalizeAlert } from './normalizers';
 import { listAlerts, acknowledgeAlert, deleteAlert } from '../../api/notifications';
 import { playNotificationSound } from './sound';
+import { socketService, WS_EVENTS } from '../websocket';
 
 // ============================================================================
 // Store State
@@ -208,6 +209,7 @@ export function clearCache() {
 
 /**
  * Acknowledge alert
+ * Uses WebSocket if connected, falls back to REST API
  * @param {string} alertId
  */
 export async function acknowledge(alertId) {
@@ -224,22 +226,66 @@ export async function acknowledge(alertId) {
   notificationEvents.emit(NOTIFICATION_EVENTS.ALERT_ACKNOWLEDGED, alertId);
   notificationEvents.emit(NOTIFICATION_EVENTS.ACTIVE_ALERTS_CHANGED, state.activeCount);
 
-  // API call
-  try {
-    await acknowledgeAlert(alertId);
-  } catch (error) {
-    console.error('[AlertsStore] Failed to acknowledge:', error);
-    // Revert on error
-    alert.acknowledged = false;
-    alert.acknowledged_at = null;
-    recalculateActiveCount();
-    persistToStorage();
-    events.emit('updated', state.data);
+  // Use WebSocket if connected, otherwise fall back to REST API
+  if (socketService.isConnected()) {
+    try {
+      await socketService.acknowledgeAlert(alertId);
+    } catch (error) {
+      console.error('[AlertsStore] WebSocket acknowledge failed, trying API:', error);
+      await acknowledgeAlert(alertId);
+    }
+  } else {
+    try {
+      await acknowledgeAlert(alertId);
+    } catch (error) {
+      console.error('[AlertsStore] Failed to acknowledge:', error);
+      // Revert on error
+      alert.acknowledged = false;
+      alert.acknowledged_at = null;
+      recalculateActiveCount();
+      persistToStorage();
+      events.emit('updated', state.data);
+    }
   }
 }
 
 /**
- * Delete alert
+ * Acknowledge all alerts
+ * Uses WebSocket if connected, falls back to REST API
+ */
+export async function acknowledgeAll() {
+  const activeIds = state.data.filter((a) => !a.acknowledged).map((a) => a.alert_id);
+  if (activeIds.length === 0) return;
+
+  // Optimistic update
+  const now = new Date().toISOString();
+  state.data.forEach((a) => {
+    if (!a.acknowledged) {
+      a.acknowledged = true;
+      a.acknowledged_at = now;
+    }
+  });
+  state.activeCount = 0;
+
+  persistToStorage();
+  events.emit('updated', state.data);
+  notificationEvents.emit(NOTIFICATION_EVENTS.ACTIVE_ALERTS_CHANGED, 0);
+
+  // Use WebSocket if connected
+  if (socketService.isConnected()) {
+    try {
+      await socketService.acknowledgeAllAlerts();
+    } catch (error) {
+      console.error('[AlertsStore] WebSocket acknowledge all failed:', error);
+      // Refresh from API on error
+      await getAlerts(true);
+    }
+  }
+}
+
+/**
+ * Delete/dismiss alert
+ * Uses WebSocket if connected, falls back to REST API
  * @param {string} alertId
  */
 export async function removeAlert(alertId) {
@@ -258,17 +304,35 @@ export async function removeAlert(alertId) {
   notificationEvents.emit(NOTIFICATION_EVENTS.ALERT_DELETED, alertId);
   notificationEvents.emit(NOTIFICATION_EVENTS.ACTIVE_ALERTS_CHANGED, state.activeCount);
 
-  // API call
-  try {
-    await deleteAlert(alertId);
-  } catch (error) {
-    console.error('[AlertsStore] Failed to delete:', error);
-    // Restore on error
-    state.data.splice(index, 0, removed);
-    state.byId.set(String(alertId), removed);
-    recalculateActiveCount();
-    persistToStorage();
-    events.emit('updated', state.data);
+  // Use WebSocket if connected, otherwise fall back to REST API
+  if (socketService.isConnected()) {
+    try {
+      await socketService.dismissAlert(alertId);
+    } catch (error) {
+      console.error('[AlertsStore] WebSocket dismiss failed, trying API:', error);
+      await deleteAlert(alertId);
+    }
+  } else {
+    try {
+      await deleteAlert(alertId);
+    } catch (error) {
+      console.error('[AlertsStore] Failed to delete:', error);
+      // Restore on error
+      state.data.splice(index, 0, removed);
+      state.byId.set(String(alertId), removed);
+      recalculateActiveCount();
+      persistToStorage();
+      events.emit('updated', state.data);
+    }
+  }
+}
+
+/**
+ * Request alert count from server via WebSocket
+ */
+export function requestAlertCount() {
+  if (socketService.isConnected()) {
+    socketService.getAlertCount();
   }
 }
 
@@ -299,6 +363,105 @@ export function addAlert(alert) {
 // Initialize from storage
 loadFromStorage();
 
+// ============================================================================
+// WebSocket Event Handlers
+// ============================================================================
+
+/**
+ * Handle new alert from WebSocket
+ * @param {object} data - Alert data from server
+ */
+function handleWebSocketNewAlert(data) {
+  console.log('[AlertsStore] WebSocket new alert:', data);
+  addAlert(data);
+}
+
+/**
+ * Handle alert acknowledged from WebSocket (another device/tab)
+ * @param {object} data - { alert_id }
+ */
+function handleWebSocketAlertAcknowledged(data) {
+  console.log('[AlertsStore] WebSocket alert acknowledged:', data);
+  const alert = state.byId.get(String(data.alert_id));
+  if (alert && !alert.acknowledged) {
+    alert.acknowledged = true;
+    alert.acknowledged_at = new Date().toISOString();
+    recalculateActiveCount();
+    persistToStorage();
+    events.emit('updated', state.data);
+    notificationEvents.emit(NOTIFICATION_EVENTS.ACTIVE_ALERTS_CHANGED, state.activeCount);
+  }
+}
+
+/**
+ * Handle all alerts acknowledged from WebSocket
+ * @param {object} data - { count }
+ */
+function handleWebSocketAcknowledgedAll(data) {
+  console.log('[AlertsStore] WebSocket all alerts acknowledged:', data);
+  const now = new Date().toISOString();
+  state.data.forEach((a) => {
+    if (!a.acknowledged) {
+      a.acknowledged = true;
+      a.acknowledged_at = now;
+    }
+  });
+  state.activeCount = 0;
+  persistToStorage();
+  events.emit('updated', state.data);
+  notificationEvents.emit(NOTIFICATION_EVENTS.ACTIVE_ALERTS_CHANGED, 0);
+}
+
+/**
+ * Handle alert deleted from WebSocket
+ * @param {object} data - { alert_id }
+ */
+function handleWebSocketAlertDeleted(data) {
+  console.log('[AlertsStore] WebSocket alert deleted:', data);
+  const id = String(data.alert_id);
+  const index = state.data.findIndex((a) => String(a.alert_id) === id);
+  if (index !== -1) {
+    state.data.splice(index, 1);
+    state.byId.delete(id);
+    recalculateActiveCount();
+    persistToStorage();
+    events.emit('updated', state.data);
+    notificationEvents.emit(NOTIFICATION_EVENTS.ALERT_DELETED, data.alert_id);
+    notificationEvents.emit(NOTIFICATION_EVENTS.ACTIVE_ALERTS_CHANGED, state.activeCount);
+  }
+}
+
+/**
+ * Handle alert count update from WebSocket
+ * @param {object} data - { count }
+ */
+function handleWebSocketCountUpdate(data) {
+  console.log('[AlertsStore] WebSocket count update:', data);
+  if (typeof data.count === 'number') {
+    state.activeCount = Math.max(0, data.count);
+    persistToStorage();
+    notificationEvents.emit(NOTIFICATION_EVENTS.ACTIVE_ALERTS_CHANGED, state.activeCount);
+  }
+}
+
+/**
+ * Handle alert error from WebSocket
+ * @param {object} data - { code, message }
+ */
+function handleWebSocketAlertError(data) {
+  console.error('[AlertsStore] WebSocket alert error:', data);
+  state.error = data;
+  events.emit('error', data);
+}
+
+// Register WebSocket event listeners
+socketService.on(WS_EVENTS.ALERT_NEW, handleWebSocketNewAlert);
+socketService.on(WS_EVENTS.ALERT_ACKNOWLEDGED, handleWebSocketAlertAcknowledged);
+socketService.on(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, handleWebSocketAcknowledgedAll);
+socketService.on(WS_EVENTS.ALERT_DELETED, handleWebSocketAlertDeleted);
+socketService.on(WS_EVENTS.ALERT_COUNT, handleWebSocketCountUpdate);
+socketService.on(WS_EVENTS.ALERT_ERROR, handleWebSocketAlertError);
+
 export default {
   getAlerts,
   getAlertsSync,
@@ -311,7 +474,9 @@ export default {
   subscribe,
   clearCache,
   acknowledge,
+  acknowledgeAll,
   removeAlert,
   addAlert,
+  requestAlertCount,
 };
 

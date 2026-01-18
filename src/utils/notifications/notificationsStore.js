@@ -1,6 +1,6 @@
 /**
  * Notifications Store
- * Manages notifications cache with API integration.
+ * Manages notifications cache with API and WebSocket integration.
  *
  * @module utils/notifications/notificationsStore
  */
@@ -10,6 +10,7 @@ import { notificationEvents, NOTIFICATION_EVENTS, createEventEmitter } from './e
 import { normalizeNotification } from './normalizers';
 import { listNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from '../../api/notifications';
 import { playNotificationSound } from './sound';
+import { socketService, WS_EVENTS } from '../websocket';
 
 // ============================================================================
 // Store State
@@ -191,6 +192,7 @@ export function clearCache() {
 
 /**
  * Mark notification as read
+ * Uses WebSocket if connected, falls back to REST API
  * @param {string} notificationId
  */
 export async function markAsRead(notificationId) {
@@ -207,22 +209,32 @@ export async function markAsRead(notificationId) {
   notificationEvents.emit(NOTIFICATION_EVENTS.NOTIFICATION_READ, notificationId);
   notificationEvents.emit(NOTIFICATION_EVENTS.UNREAD_COUNT_CHANGED, state.unreadCount);
 
-  // API call
-  try {
-    await markNotificationAsRead(notificationId);
-  } catch (error) {
-    console.error('[NotificationsStore] Failed to mark as read:', error);
-    // Revert on error
-    notif.read = false;
-    notif.read_at = null;
-    recalculateUnreadCount();
-    persistToStorage();
-    events.emit('updated', state.data);
+  // Use WebSocket if connected, otherwise fall back to REST API
+  if (socketService.isConnected()) {
+    try {
+      await socketService.markNotificationRead(notificationId);
+    } catch (error) {
+      console.error('[NotificationsStore] WebSocket mark read failed, trying API:', error);
+      await markNotificationAsRead(notificationId);
+    }
+  } else {
+    try {
+      await markNotificationAsRead(notificationId);
+    } catch (error) {
+      console.error('[NotificationsStore] Failed to mark as read:', error);
+      // Revert on error
+      notif.read = false;
+      notif.read_at = null;
+      recalculateUnreadCount();
+      persistToStorage();
+      events.emit('updated', state.data);
+    }
   }
 }
 
 /**
  * Mark all notifications as read
+ * Uses WebSocket if connected, falls back to REST API
  */
 export async function markAllAsRead() {
   const unreadIds = state.data.filter((n) => !n.read).map((n) => n.notification_id);
@@ -242,13 +254,22 @@ export async function markAllAsRead() {
   events.emit('updated', state.data);
   notificationEvents.emit(NOTIFICATION_EVENTS.UNREAD_COUNT_CHANGED, 0);
 
-  // API call
-  try {
-    await markAllNotificationsAsRead();
-  } catch (error) {
-    console.error('[NotificationsStore] Failed to mark all as read:', error);
-    // Refresh from API on error
-    await getNotifications(true);
+  // Use WebSocket if connected, otherwise fall back to REST API
+  if (socketService.isConnected()) {
+    try {
+      await socketService.markAllNotificationsRead();
+    } catch (error) {
+      console.error('[NotificationsStore] WebSocket mark all read failed, trying API:', error);
+      await markAllNotificationsAsRead();
+    }
+  } else {
+    try {
+      await markAllNotificationsAsRead();
+    } catch (error) {
+      console.error('[NotificationsStore] Failed to mark all as read:', error);
+      // Refresh from API on error
+      await getNotifications(true);
+    }
   }
 }
 
@@ -312,6 +333,93 @@ export function addNotification(notification) {
 
 // Initialize from storage
 loadFromStorage();
+
+// ============================================================================
+// WebSocket Event Handlers
+// ============================================================================
+
+/**
+ * Handle new notification from WebSocket
+ * @param {object} data - Notification data from server
+ */
+function handleWebSocketNewNotification(data) {
+  console.log('[NotificationsStore] WebSocket new notification:', data);
+  addNotification(data);
+}
+
+/**
+ * Handle notification read from WebSocket (another device/tab)
+ * @param {object} data - { notification_id }
+ */
+function handleWebSocketNotificationRead(data) {
+  console.log('[NotificationsStore] WebSocket notification read:', data);
+  const notif = state.byId.get(String(data.notification_id));
+  if (notif && !notif.read) {
+    notif.read = true;
+    notif.read_at = new Date().toISOString();
+    recalculateUnreadCount();
+    persistToStorage();
+    events.emit('updated', state.data);
+    notificationEvents.emit(NOTIFICATION_EVENTS.UNREAD_COUNT_CHANGED, state.unreadCount);
+  }
+}
+
+/**
+ * Handle all notifications read from WebSocket
+ */
+function handleWebSocketReadAll() {
+  console.log('[NotificationsStore] WebSocket all notifications read');
+  const now = new Date().toISOString();
+  state.data.forEach((n) => {
+    if (!n.read) {
+      n.read = true;
+      n.read_at = now;
+    }
+  });
+  state.unreadCount = 0;
+  persistToStorage();
+  events.emit('updated', state.data);
+  notificationEvents.emit(NOTIFICATION_EVENTS.UNREAD_COUNT_CHANGED, 0);
+}
+
+/**
+ * Handle notification deleted from WebSocket
+ * @param {object} data - { notification_id }
+ */
+function handleWebSocketNotificationDeleted(data) {
+  console.log('[NotificationsStore] WebSocket notification deleted:', data);
+  const id = String(data.notification_id);
+  const index = state.data.findIndex((n) => String(n.notification_id) === id);
+  if (index !== -1) {
+    state.data.splice(index, 1);
+    state.byId.delete(id);
+    recalculateUnreadCount();
+    persistToStorage();
+    events.emit('updated', state.data);
+    notificationEvents.emit(NOTIFICATION_EVENTS.NOTIFICATION_DELETED, data.notification_id);
+    notificationEvents.emit(NOTIFICATION_EVENTS.UNREAD_COUNT_CHANGED, state.unreadCount);
+  }
+}
+
+/**
+ * Handle unread count update from WebSocket
+ * @param {object} data - { count }
+ */
+function handleWebSocketCountUpdate(data) {
+  console.log('[NotificationsStore] WebSocket count update:', data);
+  if (typeof data.count === 'number') {
+    state.unreadCount = Math.max(0, data.count);
+    persistToStorage();
+    notificationEvents.emit(NOTIFICATION_EVENTS.UNREAD_COUNT_CHANGED, state.unreadCount);
+  }
+}
+
+// Register WebSocket event listeners
+socketService.on(WS_EVENTS.NOTIFICATION_NEW, handleWebSocketNewNotification);
+socketService.on(WS_EVENTS.NOTIFICATION_READ, handleWebSocketNotificationRead);
+socketService.on(WS_EVENTS.NOTIFICATION_READ_ALL, handleWebSocketReadAll);
+socketService.on(WS_EVENTS.NOTIFICATION_DELETED, handleWebSocketNotificationDeleted);
+socketService.on(WS_EVENTS.NOTIFICATION_COUNT, handleWebSocketCountUpdate);
 
 export default {
   getNotifications,
