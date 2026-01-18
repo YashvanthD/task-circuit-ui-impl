@@ -97,6 +97,7 @@ export function buildApiUrl(url) {
     process.env?.NODE_ENV === 'development';
 
   const normalizedUrl = url.startsWith('/') ? url : '/' + url;
+  // console.debug('API URL:',preferRelativeProxy, BASE_URL, preferRelativeProxy ? normalizedUrl : `${BASE_URL}${normalizedUrl}`);
   return preferRelativeProxy ? normalizedUrl : `${BASE_URL}${normalizedUrl}`;
 }
 
