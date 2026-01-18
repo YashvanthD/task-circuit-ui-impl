@@ -1,6 +1,7 @@
 /**
  * AlertCard Component
- * Displays a single alert/task card with priority styling.
+ * Displays a single alert/task card with priority/severity styling.
+ * Supports both task alerts (priority) and system alerts (severity).
  * Mobile-first responsive design.
  *
  * @module components/dashboard/AlertCard
@@ -13,11 +14,17 @@ import {
   Warning as MediumPriorityIcon,
   Info as LowPriorityIcon,
   Schedule as ScheduleIcon,
+  Error as CriticalIcon,
 } from '@mui/icons-material';
 import { formatTimestamp } from '../../utils/helpers/date';
 
-// Priority configuration
-const PRIORITY_CONFIG = {
+// Priority/Severity configuration
+const SEVERITY_CONFIG = {
+  critical: {
+    color: '#9c27b0',
+    icon: CriticalIcon,
+    label: 'Critical',
+  },
   high: {
     color: '#d32f2f',
     icon: HighPriorityIcon,
@@ -41,29 +48,60 @@ const PRIORITY_CONFIG = {
 };
 
 /**
+ * Get severity/priority key from alert data
+ * Handles both task alerts (priority) and system alerts (severity)
+ */
+function getSeverityKey(alert) {
+  // Check severity first (system alerts)
+  const severity = alert.severity;
+  if (typeof severity === 'string') {
+    return severity.toLowerCase();
+  }
+
+  // Check priority (task alerts)
+  const priority = alert.priority;
+  if (typeof priority === 'string') {
+    return priority.toLowerCase();
+  }
+  if (typeof priority === 'number') {
+    if (priority <= 1) return 'high';
+    if (priority === 2) return 'medium';
+    return 'low';
+  }
+
+  return 'default';
+}
+
+/**
  * AlertCard - Single alert display card.
  * Touch-friendly card with improved visual hierarchy.
+ * Works with both task alerts and system alerts.
  *
  * @param {Object} props
- * @param {Object} props.alert - Alert data
+ * @param {Object} props.alert - Alert data (task or system alert)
  * @param {Function} props.onClick - Click handler
  */
 export default function AlertCard({ alert, onClick }) {
-  // Handle priority that might be a number, string, or undefined
-  const rawPriority = alert.priority;
-  let priorityKey = 'default';
+  const severityKey = getSeverityKey(alert);
+  const config = SEVERITY_CONFIG[severityKey] || SEVERITY_CONFIG.default;
+  const SeverityIcon = config.icon;
 
-  if (typeof rawPriority === 'string') {
-    priorityKey = rawPriority.toLowerCase();
-  } else if (typeof rawPriority === 'number') {
-    // Map numeric priorities: 1=high, 2=medium, 3=low
-    if (rawPriority <= 1) priorityKey = 'high';
-    else if (rawPriority === 2) priorityKey = 'medium';
-    else if (rawPriority >= 3) priorityKey = 'low';
-  }
+  // Status flags
+  const isAcknowledged = alert.acknowledged;
+  const isResolved = alert.resolved;
+  const isUnread = alert.unread;
 
-  const config = PRIORITY_CONFIG[priorityKey] || PRIORITY_CONFIG.default;
-  const PriorityIcon = config.icon;
+
+  // Get title and description
+  const title = alert.title || alert.name || 'Alert';
+  const description = alert.message || alert.description || alert.content || '';
+
+  // Get due date (for tasks) or created date (for system alerts)
+  const dueDate = alert.completeBy || alert.due_date;
+  const createdAt = alert.created_at || alert.createdAt;
+
+  // Get alert type or source
+  const alertType = alert.alert_type || alert.type || alert.source;
 
   return (
     <Card
@@ -76,6 +114,7 @@ export default function AlertCard({ alert, onClick }) {
         transition: 'all 0.2s ease-in-out',
         position: 'relative',
         overflow: 'hidden',
+        opacity: isResolved ? 0.5 : isAcknowledged ? 0.7 : 1,
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -83,7 +122,7 @@ export default function AlertCard({ alert, onClick }) {
           left: 0,
           width: 4,
           height: '100%',
-          bgcolor: config.color,
+          bgcolor: isResolved ? 'success.main' : isAcknowledged ? 'info.main' : config.color,
         },
         '&:hover': {
           borderColor: config.color,
@@ -100,12 +139,12 @@ export default function AlertCard({ alert, onClick }) {
         }}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {/* Header: Title and Priority */}
+          {/* Header: Title and Severity */}
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
             <Typography
               variant="subtitle2"
-              fontWeight={alert.unread ? 700 : 600}
-              color={alert.unread ? 'error.main' : 'text.primary'}
+              fontWeight={isUnread || (!isAcknowledged && !isResolved) ? 700 : 600}
+              color={isUnread ? 'error.main' : isResolved ? 'text.disabled' : 'text.primary'}
               sx={{
                 flex: 1,
                 lineHeight: 1.3,
@@ -113,12 +152,13 @@ export default function AlertCard({ alert, onClick }) {
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
+                textDecoration: isResolved ? 'line-through' : 'none',
               }}
             >
-              {alert.title}
+              {title}
             </Typography>
             <Chip
-              icon={<PriorityIcon sx={{ fontSize: 14 }} />}
+              icon={<SeverityIcon sx={{ fontSize: 14 }} />}
               label={config.label}
               size="small"
               sx={{
@@ -135,7 +175,7 @@ export default function AlertCard({ alert, onClick }) {
           </Box>
 
           {/* Description */}
-          {alert.description && (
+          {description && (
             <Typography
               variant="body2"
               color="text.secondary"
@@ -148,19 +188,58 @@ export default function AlertCard({ alert, onClick }) {
                 fontSize: { xs: '0.75rem', sm: '0.8125rem' },
               }}
             >
-              {alert.description}
+              {description}
             </Typography>
           )}
 
-          {/* Due Date */}
-          {alert.completeBy && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-              <ScheduleIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-              <Typography variant="caption" color="text.secondary">
-                Due: {formatTimestamp(alert.completeBy)}
+          {/* Footer: Alert type, due date, or created date */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+            {alertType && (
+              <Chip
+                label={alertType.replace(/_/g, ' ')}
+                size="small"
+                variant="outlined"
+                sx={{
+                  height: 18,
+                  fontSize: '0.6rem',
+                  textTransform: 'capitalize',
+                }}
+              />
+            )}
+
+            {dueDate && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <ScheduleIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+                <Typography variant="caption" color="text.secondary">
+                  Due: {formatTimestamp(dueDate)}
+                </Typography>
+              </Box>
+            )}
+
+            {!dueDate && createdAt && (
+              <Typography variant="caption" color="text.disabled">
+                {formatTimestamp(createdAt)}
               </Typography>
-            </Box>
-          )}
+            )}
+
+            {isResolved && (
+              <Chip
+                label="Resolved"
+                size="small"
+                color="success"
+                sx={{ height: 18, fontSize: '0.6rem' }}
+              />
+            )}
+
+            {!isResolved && isAcknowledged && (
+              <Chip
+                label="Acknowledged"
+                size="small"
+                color="info"
+                sx={{ height: 18, fontSize: '0.6rem' }}
+              />
+            )}
+          </Box>
         </Box>
       </CardActionArea>
     </Card>

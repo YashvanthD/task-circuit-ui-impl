@@ -519,6 +519,66 @@ export async function deleteAlert(id) {
 }
 
 /**
+ * Resolve an alert.
+ * Marks alert as resolved and removes from active alerts display.
+ * @param {string} id - Alert ID
+ * @returns {Promise<object|null>} Updated alert
+ */
+export async function resolveAlert(id) {
+  const index = cache.data.findIndex((a) => a.alert_id === id);
+  const previousState = index !== -1 ? { ...cache.data[index] } : null;
+
+  try {
+    // Optimistic update - mark as resolved
+    if (index !== -1) {
+      const wasUnacknowledged = !cache.data[index].acknowledged;
+      const updatedAlert = {
+        ...cache.data[index],
+        resolved: true,
+        resolved_at: new Date().toISOString(),
+        acknowledged: true, // Resolving also acknowledges
+        acknowledged_at: cache.data[index].acknowledged_at || new Date().toISOString(),
+      };
+      cache.data = [
+        ...cache.data.slice(0, index),
+        updatedAlert,
+        ...cache.data.slice(index + 1)
+      ];
+      cache.byId.set(String(id), updatedAlert);
+      if (wasUnacknowledged) {
+        cache.unacknowledgedCount = Math.max(0, cache.unacknowledgedCount - 1);
+      }
+      cache.events.emit('updated', [...cache.data]);
+    }
+
+    // Use dismiss via WebSocket/API since there's no specific resolve endpoint
+    // The resolved state is tracked locally for UI purposes
+    if (isConnected()) {
+      wsAlerts.dismiss(id);
+    } else {
+      await apiDeleteAlert(id);
+    }
+
+    return index !== -1 ? cache.data[index] : null;
+  } catch (error) {
+    console.error('[AlertsCache] Failed to resolve:', error);
+    // Revert optimistic update on error
+    if (previousState && index !== -1) {
+      cache.data = [
+        ...cache.data.slice(0, index),
+        previousState,
+        ...cache.data.slice(index + 1)
+      ];
+      cache.byId.set(String(id), previousState);
+      cache.unacknowledgedCount = cache.data.filter((a) => !a.acknowledged).length;
+      cache.events.emit('updated', [...cache.data]);
+    }
+    showErrorAlert('Failed to resolve alert.', 'Alerts');
+    throw error;
+  }
+}
+
+/**
  * Acknowledge all alerts via WebSocket.
  * @returns {Promise<number>} Count of acknowledged alerts
  */

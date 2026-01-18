@@ -43,195 +43,195 @@
     </style>
 </head>
 <body>
-    <h1>🔔 Notifications & ⚠️ Alerts Test</h1>
-    <p>Test real-time notifications and alerts via WebSocket</p>
+<h1>🔔 Notifications & ⚠️ Alerts Test</h1>
+<p>Test real-time notifications and alerts via WebSocket</p>
 
-    <div class="section">
-        <h3>1. Connect</h3>
-        <span class="status disconnected" id="status">Disconnected</span><br><br>
-        <label>Server URL:</label><br>
-        <input type="text" id="serverUrl" value="http://localhost:5000" /><br>
-        <label>JWT Token:</label><br>
-        <input type="text" id="token" placeholder="Paste your JWT token here" /><br>
-        <div class="btn-group">
-            <button onclick="connect()">Connect</button>
-            <button onclick="disconnect()" id="disconnectBtn" disabled class="btn-danger">Disconnect</button>
-            <button onclick="sendPing()" id="pingBtn" disabled>Ping</button>
-        </div>
+<div class="section">
+    <h3>1. Connect</h3>
+    <span class="status disconnected" id="status">Disconnected</span><br><br>
+    <label>Server URL:</label><br>
+    <input type="text" id="serverUrl" value="http://localhost:5000" /><br>
+    <label>JWT Token:</label><br>
+    <input type="text" id="token" placeholder="Paste your JWT token here" /><br>
+    <div class="btn-group">
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()" id="disconnectBtn" disabled class="btn-danger">Disconnect</button>
+        <button onclick="sendPing()" id="pingBtn" disabled>Ping</button>
+    </div>
+</div>
+
+<div class="section">
+    <h3>2. Notifications <span class="badge" id="notificationBadge">0</span></h3>
+    <div class="btn-group">
+        <button onclick="loadNotifications()" id="loadNotifBtn" disabled class="btn-purple">Load Notifications</button>
+        <button onclick="markAllNotificationsRead()" id="markAllReadBtn" disabled>Mark All Read</button>
+    </div>
+    <div class="notification-box" id="notificationBox">
+        <div style="color: #666; text-align: center;">Notifications will appear here...</div>
     </div>
 
-    <div class="section">
-        <h3>2. Notifications <span class="badge" id="notificationBadge">0</span></h3>
-        <div class="btn-group">
-            <button onclick="loadNotifications()" id="loadNotifBtn" disabled class="btn-purple">Load Notifications</button>
-            <button onclick="markAllNotificationsRead()" id="markAllReadBtn" disabled>Mark All Read</button>
-        </div>
-        <div class="notification-box" id="notificationBox">
-            <div style="color: #666; text-align: center;">Notifications will appear here...</div>
-        </div>
+    <h4>Create Test Notification (via REST API)</h4>
+    <label>Target User Key (required):</label><br>
+    <input type="text" id="notifUserKey" placeholder="Enter target user_key (will be auto-filled after connect)" /><br>
+    <label>Title:</label><br>
+    <input type="text" id="notifTitle" value="Test Notification" /><br>
+    <label>Message:</label><br>
+    <input type="text" id="notifMessage" value="This is a test notification message" /><br>
+    <label>Type:</label><br>
+    <select id="notifType">
+        <option value="info">Info</option>
+        <option value="success">Success</option>
+        <option value="warning">Warning</option>
+        <option value="error">Error</option>
+    </select><br>
+    <button onclick="createNotification()" id="createNotifBtn" disabled class="btn-purple">Create Notification</button>
+</div>
 
-        <h4>Create Test Notification (via REST API)</h4>
-        <label>Target User Key (required):</label><br>
-        <input type="text" id="notifUserKey" placeholder="Enter target user_key (will be auto-filled after connect)" /><br>
-        <label>Title:</label><br>
-        <input type="text" id="notifTitle" value="Test Notification" /><br>
-        <label>Message:</label><br>
-        <input type="text" id="notifMessage" value="This is a test notification message" /><br>
-        <label>Type:</label><br>
-        <select id="notifType">
-            <option value="info">Info</option>
-            <option value="success">Success</option>
-            <option value="warning">Warning</option>
-            <option value="error">Error</option>
-        </select><br>
-        <button onclick="createNotification()" id="createNotifBtn" disabled class="btn-purple">Create Notification</button>
+<div class="section">
+    <h3>3. Alerts <span class="badge" id="alertBadge" style="background: #ff9800;">0</span></h3>
+    <div class="btn-group">
+        <button onclick="loadAlerts()" id="loadAlertsBtn" disabled class="btn-warning">Load Alerts</button>
+        <button onclick="getAlertCount()" id="alertCountBtn" disabled>Get Count</button>
+        <button onclick="acknowledgeAllAlerts()" id="ackAllBtn" disabled>Acknowledge All</button>
+    </div>
+    <div class="alert-box" id="alertBox">
+        <div style="color: #666; text-align: center;">Alerts will appear here...</div>
     </div>
 
-    <div class="section">
-        <h3>3. Alerts <span class="badge" id="alertBadge" style="background: #ff9800;">0</span></h3>
-        <div class="btn-group">
-            <button onclick="loadAlerts()" id="loadAlertsBtn" disabled class="btn-warning">Load Alerts</button>
-            <button onclick="getAlertCount()" id="alertCountBtn" disabled>Get Count</button>
-            <button onclick="acknowledgeAllAlerts()" id="ackAllBtn" disabled>Acknowledge All</button>
-        </div>
-        <div class="alert-box" id="alertBox">
-            <div style="color: #666; text-align: center;">Alerts will appear here...</div>
-        </div>
+    <h4>Create Test Alert (via REST API)</h4>
+    <label>Title:</label><br>
+    <input type="text" id="alertTitle" value="Water Temperature Alert" /><br>
+    <label>Message:</label><br>
+    <input type="text" id="alertMessage" value="Temperature exceeded threshold in Pond A" /><br>
+    <label>Severity:</label><br>
+    <select id="alertSeverity">
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high" selected>High</option>
+        <option value="critical">Critical</option>
+    </select><br>
+    <label>Alert Type:</label><br>
+    <select id="alertType">
+        <option value="water_quality">Water Quality</option>
+        <option value="temperature" selected>Temperature</option>
+        <option value="feeding">Feeding</option>
+        <option value="system">System</option>
+        <option value="maintenance">Maintenance</option>
+    </select><br>
+    <label>Source (Pond ID, etc.):</label><br>
+    <input type="text" id="alertSource" value="pond_001" /><br>
+    <button onclick="createAlert()" id="createAlertBtn" disabled class="btn-warning">Create Alert</button>
+</div>
 
-        <h4>Create Test Alert (via REST API)</h4>
-        <label>Title:</label><br>
-        <input type="text" id="alertTitle" value="Water Temperature Alert" /><br>
-        <label>Message:</label><br>
-        <input type="text" id="alertMessage" value="Temperature exceeded threshold in Pond A" /><br>
-        <label>Severity:</label><br>
-        <select id="alertSeverity">
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high" selected>High</option>
-            <option value="critical">Critical</option>
-        </select><br>
-        <label>Alert Type:</label><br>
-        <select id="alertType">
-            <option value="water_quality">Water Quality</option>
-            <option value="temperature" selected>Temperature</option>
-            <option value="feeding">Feeding</option>
-            <option value="system">System</option>
-            <option value="maintenance">Maintenance</option>
-        </select><br>
-        <label>Source (Pond ID, etc.):</label><br>
-        <input type="text" id="alertSource" value="pond_001" /><br>
-        <button onclick="createAlert()" id="createAlertBtn" disabled class="btn-warning">Create Alert</button>
+<div class="section">
+    <h3>4. Alert Actions (via WebSocket)</h3>
+    <label>Alert ID:</label><br>
+    <input type="text" id="alertId" placeholder="Enter alert ID to acknowledge/dismiss" /><br>
+    <div class="btn-group">
+        <button onclick="acknowledgeAlert()" id="ackAlertBtn" disabled>Acknowledge</button>
+        <button onclick="dismissAlert()" id="dismissAlertBtn" disabled class="btn-danger">Dismiss</button>
     </div>
+</div>
 
-    <div class="section">
-        <h3>4. Alert Actions (via WebSocket)</h3>
-        <label>Alert ID:</label><br>
-        <input type="text" id="alertId" placeholder="Enter alert ID to acknowledge/dismiss" /><br>
-        <div class="btn-group">
-            <button onclick="acknowledgeAlert()" id="ackAlertBtn" disabled>Acknowledge</button>
-            <button onclick="dismissAlert()" id="dismissAlertBtn" disabled class="btn-danger">Dismiss</button>
-        </div>
+<div class="section">
+    <h3>5. Notification Actions (via WebSocket)</h3>
+    <label>Notification ID:</label><br>
+    <input type="text" id="notificationId" placeholder="Enter notification ID to mark as read" /><br>
+    <div class="btn-group">
+        <button onclick="markNotificationRead()" id="markReadBtn" disabled class="btn-purple">Mark as Read</button>
     </div>
+</div>
 
-    <div class="section">
-        <h3>5. Notification Actions (via WebSocket)</h3>
-        <label>Notification ID:</label><br>
-        <input type="text" id="notificationId" placeholder="Enter notification ID to mark as read" /><br>
-        <div class="btn-group">
-            <button onclick="markNotificationRead()" id="markReadBtn" disabled class="btn-purple">Mark as Read</button>
-        </div>
+<div class="section" style="border-color: #00bcd4;">
+    <h3 style="color: #00bcd4;">🌐 7. Cross-Pod Broadcast Test</h3>
+    <p style="font-size: 12px; color: #888;">Test if messages broadcast between localhost and hosted instance</p>
+    <div class="btn-group">
+        <button onclick="getPodInfo()" id="podInfoBtn" style="background: #00bcd4;">Get Pod Info</button>
+        <button onclick="getBroadcastStatus()" id="broadcastStatusBtn" disabled style="background: #00bcd4;">Broadcast Status</button>
     </div>
-
-    <div class="section" style="border-color: #00bcd4;">
-        <h3 style="color: #00bcd4;">🌐 7. Cross-Pod Broadcast Test</h3>
-        <p style="font-size: 12px; color: #888;">Test if messages broadcast between localhost and hosted instance</p>
-        <div class="btn-group">
-            <button onclick="getPodInfo()" id="podInfoBtn" style="background: #00bcd4;">Get Pod Info</button>
-            <button onclick="getBroadcastStatus()" id="broadcastStatusBtn" disabled style="background: #00bcd4;">Broadcast Status</button>
-        </div>
-        <br>
-        <label>Target User Key (to send cross-pod message):</label><br>
-        <input type="text" id="crossPodTargetUser" placeholder="Enter another user's user_key" /><br>
-        <label>Message:</label><br>
-        <input type="text" id="crossPodMessage" value="Hello from cross-pod!" /><br>
-        <div class="btn-group">
-            <button onclick="testCrossPodBroadcast()" id="crossPodBtn" disabled style="background: #00bcd4;">Send Cross-Pod Message</button>
-            <button onclick="testAccountBroadcast()" id="accountBroadcastBtn" disabled style="background: #009688;">Broadcast to Account</button>
-        </div>
+    <br>
+    <label>Target User Key (to send cross-pod message):</label><br>
+    <input type="text" id="crossPodTargetUser" placeholder="Enter another user's user_key" /><br>
+    <label>Message:</label><br>
+    <input type="text" id="crossPodMessage" value="Hello from cross-pod!" /><br>
+    <div class="btn-group">
+        <button onclick="testCrossPodBroadcast()" id="crossPodBtn" disabled style="background: #00bcd4;">Send Cross-Pod Message</button>
+        <button onclick="testAccountBroadcast()" id="accountBroadcastBtn" disabled style="background: #009688;">Broadcast to Account</button>
     </div>
+</div>
 
-    <div class="section">
-        <h3>8. Event Log</h3>
-        <button onclick="clearLog()">Clear Log</button>
-        <div id="log"></div>
-    </div>
+<div class="section">
+    <h3>8. Event Log</h3>
+    <button onclick="clearLog()">Clear Log</button>
+    <div id="log"></div>
+</div>
 
-    <script>
-        let socket = null;
-        let userKey = null;
-        let accountKey = null;
-        let notifications = [];
-        let alerts = [];
+<script>
+    let socket = null;
+    let userKey = null;
+    let accountKey = null;
+    let notifications = [];
+    let alerts = [];
 
-        function log(message, type = 'info') {
-            const logDiv = document.getElementById('log');
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${type}`;
-            const timestamp = new Date().toLocaleTimeString();
-            entry.textContent = `[${timestamp}] ${message}`;
-            logDiv.appendChild(entry);
-            logDiv.scrollTop = logDiv.scrollHeight;
-            console.log(`[${type.toUpperCase()}] ${message}`);
+    function log(message, type = 'info') {
+        const logDiv = document.getElementById('log');
+        const entry = document.createElement('div');
+        entry.className = `log-entry ${type}`;
+        const timestamp = new Date().toLocaleTimeString();
+        entry.textContent = `[${timestamp}] ${message}`;
+        logDiv.appendChild(entry);
+        logDiv.scrollTop = logDiv.scrollHeight;
+        console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    function clearLog() {
+        document.getElementById('log').innerHTML = '';
+    }
+
+    function setStatus(connected) {
+        const status = document.getElementById('status');
+        status.textContent = connected ? 'Connected' : 'Disconnected';
+        status.className = `status ${connected ? 'connected' : 'disconnected'}`;
+    }
+
+    function setButtonsEnabled(enabled) {
+        document.getElementById('disconnectBtn').disabled = !enabled;
+        document.getElementById('pingBtn').disabled = !enabled;
+        document.getElementById('loadNotifBtn').disabled = !enabled;
+        document.getElementById('markAllReadBtn').disabled = !enabled;
+        document.getElementById('createNotifBtn').disabled = !enabled;
+        document.getElementById('loadAlertsBtn').disabled = !enabled;
+        document.getElementById('alertCountBtn').disabled = !enabled;
+        document.getElementById('ackAllBtn').disabled = !enabled;
+        document.getElementById('createAlertBtn').disabled = !enabled;
+        document.getElementById('ackAlertBtn').disabled = !enabled;
+        document.getElementById('dismissAlertBtn').disabled = !enabled;
+        document.getElementById('markReadBtn').disabled = !enabled;
+        // Cross-pod test buttons
+        document.getElementById('broadcastStatusBtn').disabled = !enabled;
+        document.getElementById('crossPodBtn').disabled = !enabled;
+        document.getElementById('accountBroadcastBtn').disabled = !enabled;
+    }
+
+    function updateNotificationBadge(count) {
+        document.getElementById('notificationBadge').textContent = count;
+    }
+
+    function updateAlertBadge(count) {
+        document.getElementById('alertBadge').textContent = count;
+    }
+
+    function renderNotifications() {
+        const box = document.getElementById('notificationBox');
+        if (notifications.length === 0) {
+            box.innerHTML = '<div style="color: #666; text-align: center;">No notifications</div>';
+            return;
         }
-
-        function clearLog() {
-            document.getElementById('log').innerHTML = '';
-        }
-
-        function setStatus(connected) {
-            const status = document.getElementById('status');
-            status.textContent = connected ? 'Connected' : 'Disconnected';
-            status.className = `status ${connected ? 'connected' : 'disconnected'}`;
-        }
-
-        function setButtonsEnabled(enabled) {
-            document.getElementById('disconnectBtn').disabled = !enabled;
-            document.getElementById('pingBtn').disabled = !enabled;
-            document.getElementById('loadNotifBtn').disabled = !enabled;
-            document.getElementById('markAllReadBtn').disabled = !enabled;
-            document.getElementById('createNotifBtn').disabled = !enabled;
-            document.getElementById('loadAlertsBtn').disabled = !enabled;
-            document.getElementById('alertCountBtn').disabled = !enabled;
-            document.getElementById('ackAllBtn').disabled = !enabled;
-            document.getElementById('createAlertBtn').disabled = !enabled;
-            document.getElementById('ackAlertBtn').disabled = !enabled;
-            document.getElementById('dismissAlertBtn').disabled = !enabled;
-            document.getElementById('markReadBtn').disabled = !enabled;
-            // Cross-pod test buttons
-            document.getElementById('broadcastStatusBtn').disabled = !enabled;
-            document.getElementById('crossPodBtn').disabled = !enabled;
-            document.getElementById('accountBroadcastBtn').disabled = !enabled;
-        }
-
-        function updateNotificationBadge(count) {
-            document.getElementById('notificationBadge').textContent = count;
-        }
-
-        function updateAlertBadge(count) {
-            document.getElementById('alertBadge').textContent = count;
-        }
-
-        function renderNotifications() {
-            const box = document.getElementById('notificationBox');
-            if (notifications.length === 0) {
-                box.innerHTML = '<div style="color: #666; text-align: center;">No notifications</div>';
-                return;
-            }
-            box.innerHTML = '';
-            notifications.forEach(notif => {
-                const div = document.createElement('div');
-                div.className = `notification-item ${notif.read ? 'read' : ''}`;
-                div.innerHTML = `
+        box.innerHTML = '';
+        notifications.forEach(notif => {
+            const div = document.createElement('div');
+            div.className = `notification-item ${notif.read ? 'read' : ''}`;
+            div.innerHTML = `
                     <strong>${notif.title || 'Notification'}</strong>
                     <div>${notif.message || notif.content}</div>
                     <div class="meta">
@@ -241,22 +241,22 @@
                         • ${new Date(notif.created_at || notif.createdAt).toLocaleString()}
                     </div>
                 `;
-                box.appendChild(div);
-            });
-        }
+            box.appendChild(div);
+        });
+    }
 
-        function renderAlerts() {
-            const box = document.getElementById('alertBox');
-            if (alerts.length === 0) {
-                box.innerHTML = '<div style="color: #666; text-align: center;">No alerts</div>';
-                return;
-            }
-            box.innerHTML = '';
-            alerts.forEach(alert => {
-                const div = document.createElement('div');
-                div.className = `alert-item ${alert.acknowledged ? 'acknowledged' : ''}`;
-                const severityColors = { low: '#4CAF50', medium: '#ff9800', high: '#f44336', critical: '#9c27b0' };
-                div.innerHTML = `
+    function renderAlerts() {
+        const box = document.getElementById('alertBox');
+        if (alerts.length === 0) {
+            box.innerHTML = '<div style="color: #666; text-align: center;">No alerts</div>';
+            return;
+        }
+        box.innerHTML = '';
+        alerts.forEach(alert => {
+            const div = document.createElement('div');
+            div.className = `alert-item ${alert.acknowledged ? 'acknowledged' : ''}`;
+            const severityColors = { low: '#4CAF50', medium: '#ff9800', high: '#f44336', critical: '#9c27b0' };
+            div.innerHTML = `
                     <strong style="color: ${severityColors[alert.severity] || '#f44336'}">
                         ${alert.severity?.toUpperCase() || 'ALERT'}: ${alert.title || 'Alert'}
                     </strong>
@@ -269,586 +269,586 @@
                         • ${new Date(alert.created_at || alert.createdAt).toLocaleString()}
                     </div>
                 `;
-                box.appendChild(div);
-            });
+            box.appendChild(div);
+        });
+    }
+
+    function addNewNotification(notif) {
+        notifications.unshift(notif);
+        renderNotifications();
+        const unreadCount = notifications.filter(n => !n.read).length;
+        updateNotificationBadge(unreadCount);
+    }
+
+    function addNewAlert(alert) {
+        alerts.unshift(alert);
+        renderAlerts();
+        const unackCount = alerts.filter(a => !a.acknowledged).length;
+        updateAlertBadge(unackCount);
+    }
+
+    function connect() {
+        const serverUrl = document.getElementById('serverUrl').value;
+        const token = document.getElementById('token').value;
+
+        if (!token) {
+            log('ERROR: Please enter a JWT token!', 'error');
+            return;
         }
 
-        function addNewNotification(notif) {
-            notifications.unshift(notif);
-            renderNotifications();
-            const unreadCount = notifications.filter(n => !n.read).length;
-            updateNotificationBadge(unreadCount);
-        }
+        log(`Connecting to ${serverUrl}...`, 'info');
 
-        function addNewAlert(alert) {
-            alerts.unshift(alert);
-            renderAlerts();
-            const unackCount = alerts.filter(a => !a.acknowledged).length;
-            updateAlertBadge(unackCount);
-        }
-
-        function connect() {
-            const serverUrl = document.getElementById('serverUrl').value;
-            const token = document.getElementById('token').value;
-
-            if (!token) {
-                log('ERROR: Please enter a JWT token!', 'error');
-                return;
-            }
-
-            log(`Connecting to ${serverUrl}...`, 'info');
-
-            try {
-                // Disconnect existing socket if any
-                if (socket) {
-                    socket.disconnect();
-                    socket = null;
-                }
-
-                socket = io(serverUrl, {
-                    auth: { token: token },
-                    // Try polling first, then upgrade to websocket (more reliable)
-                    transports: ['polling', 'websocket'],
-                    upgrade: true,
-                    reconnection: true,
-                    reconnectionAttempts: 3,
-                    reconnectionDelay: 1000,
-                    timeout: 20000,
-                    forceNew: true,
-                });
-
-                // Connection Events
-                socket.on('connect', () => {
-                    log(`✅ CONNECTED! Socket ID: ${socket.id}`, 'success');
-                    log(`Transport: ${socket.io.engine.transport.name}`, 'info');
-                    setStatus(true);
-                    setButtonsEnabled(true);
-                });
-
-                socket.on('disconnect', (reason) => {
-                    log(`❌ DISCONNECTED: ${reason}`, 'warn');
-                    setStatus(false);
-                    setButtonsEnabled(false);
-                    if (reason === 'io server disconnect') {
-                        log('Server forcibly disconnected. Check token validity.', 'error');
-                    }
-                });
-
-                socket.on('connect_error', (error) => {
-                    log(`❌ CONNECTION ERROR: ${error.message}`, 'error');
-                    console.error('Connection error details:', error);
-                });
-
-                socket.io.on('error', (error) => {
-                    log(`❌ TRANSPORT ERROR: ${error}`, 'error');
-                });
-
-                socket.io.on('reconnect_attempt', (attempt) => {
-                    log(`🔄 Reconnect attempt ${attempt}...`, 'info');
-                });
-
-                socket.io.on('reconnect_failed', () => {
-                    log(`❌ Reconnection failed after all attempts`, 'error');
-                });
-
-                socket.on('connected', (data) => {
-                    log(`✅ AUTHENTICATED as: ${data.user_key}`, 'success');
-                    userKey = data.user_key;
-                    accountKey = data.account_key;
-                    log(`📋 Your user_key: ${userKey}`, 'info');
-                    // Auto-fill user_key field for notification creation
-                    document.getElementById('notifUserKey').value = userKey;
-                    // Auto-load notifications and alerts
-                    loadNotifications();
-                    loadAlerts();
-                });
-
-                socket.on('error', (error) => {
-                    log(`❌ SERVER ERROR: ${JSON.stringify(error)}`, 'error');
-                });
-
-                // ==================== NOTIFICATION EVENTS ====================
-                socket.on('notification:new', (data) => {
-                    log(`🔔 NEW NOTIFICATION: ${data.title || data.message}`, 'notification');
-                    addNewNotification(data);
-                });
-
-                socket.on('notification:read', (data) => {
-                    log(`✓ Notification marked read: ${data.notification_id}`, 'success');
-                    const notif = notifications.find(n => (n.notification_id || n.id) === data.notification_id);
-                    if (notif) notif.read = true;
-                    renderNotifications();
-                });
-
-                socket.on('notification:read_all', (data) => {
-                    log(`✓ All notifications marked read`, 'success');
-                    notifications.forEach(n => n.read = true);
-                    renderNotifications();
-                    updateNotificationBadge(0);
-                });
-
-                socket.on('notification:deleted', (data) => {
-                    log(`🗑️ Notification deleted: ${data.notification_id}`, 'warn');
-                    notifications = notifications.filter(n => (n.notification_id || n.id) !== data.notification_id);
-                    renderNotifications();
-                });
-
-                socket.on('notification:count', (data) => {
-                    log(`📊 Notification count: ${data.count}`, 'info');
-                    updateNotificationBadge(data.count);
-                });
-
-                // ==================== CROSS-POD TEST EVENT ====================
-                socket.on('test:broadcast', (data) => {
-                    log(`🌐 CROSS-POD BROADCAST RECEIVED!`, 'success');
-                    log(`   From Pod: ${data.from_pod}`, 'info');
-                    log(`   From User: ${data.from_user}`, 'info');
-                    log(`   Message: ${data.message}`, 'info');
-                    log(`   Type: ${data.type}`, 'info');
-                });
-
-                // ==================== ALERT EVENTS ====================
-                socket.on('alert:new', (data) => {
-                    log(`⚠️ NEW ALERT: ${data.severity?.toUpperCase()} - ${data.title || data.message}`, 'alert');
-                    addNewAlert(data);
-                });
-
-                socket.on('alert:acknowledged', (data) => {
-                    log(`✓ Alert acknowledged: ${data.alert_id}`, 'success');
-                    const alert = alerts.find(a => (a.alert_id || a.id) === data.alert_id);
-                    if (alert) alert.acknowledged = true;
-                    renderAlerts();
-                    const unackCount = alerts.filter(a => !a.acknowledged).length;
-                    updateAlertBadge(unackCount);
-                });
-
-                socket.on('alert:acknowledged_all', (data) => {
-                    log(`✓ All alerts acknowledged (${data.count} alerts)`, 'success');
-                    alerts.forEach(a => a.acknowledged = true);
-                    renderAlerts();
-                    updateAlertBadge(0);
-                });
-
-                socket.on('alert:deleted', (data) => {
-                    log(`🗑️ Alert dismissed: ${data.alert_id}`, 'warn');
-                    alerts = alerts.filter(a => (a.alert_id || a.id) !== data.alert_id);
-                    renderAlerts();
-                    const unackCount = alerts.filter(a => !a.acknowledged).length;
-                    updateAlertBadge(unackCount);
-                });
-
-                socket.on('alert:count', (data) => {
-                    log(`📊 Unacknowledged alert count: ${data.count}`, 'info');
-                    updateAlertBadge(data.count);
-                });
-
-                socket.on('alert:error', (data) => {
-                    log(`❌ Alert error: ${data.code} - ${data.message || ''}`, 'error');
-                });
-
-                // Ping/Pong
-                socket.on('pong', (data) => {
-                    log(`🏓 PONG: ${JSON.stringify(data)}`, 'success');
-                });
-
-            } catch (error) {
-                log(`❌ EXCEPTION: ${error.message}`, 'error');
-            }
-        }
-
-        function disconnect() {
+        try {
+            // Disconnect existing socket if any
             if (socket) {
                 socket.disconnect();
                 socket = null;
-                log('Disconnected manually', 'warn');
+            }
+
+            socket = io(serverUrl, {
+                auth: { token: token },
+                // Try polling first, then upgrade to websocket (more reliable)
+                transports: ['polling', 'websocket'],
+                upgrade: true,
+                reconnection: true,
+                reconnectionAttempts: 3,
+                reconnectionDelay: 1000,
+                timeout: 20000,
+                forceNew: true,
+            });
+
+            // Connection Events
+            socket.on('connect', () => {
+                log(`✅ CONNECTED! Socket ID: ${socket.id}`, 'success');
+                log(`Transport: ${socket.io.engine.transport.name}`, 'info');
+                setStatus(true);
+                setButtonsEnabled(true);
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`❌ DISCONNECTED: ${reason}`, 'warn');
                 setStatus(false);
                 setButtonsEnabled(false);
-            }
-        }
+                if (reason === 'io server disconnect') {
+                    log('Server forcibly disconnected. Check token validity.', 'error');
+                }
+            });
 
-        function sendPing() {
-            if (socket && socket.connected) {
-                log('🏓 Sending PING...', 'info');
-                socket.emit('ping');
+            socket.on('connect_error', (error) => {
+                log(`❌ CONNECTION ERROR: ${error.message}`, 'error');
+                console.error('Connection error details:', error);
+            });
+
+            socket.io.on('error', (error) => {
+                log(`❌ TRANSPORT ERROR: ${error}`, 'error');
+            });
+
+            socket.io.on('reconnect_attempt', (attempt) => {
+                log(`🔄 Reconnect attempt ${attempt}...`, 'info');
+            });
+
+            socket.io.on('reconnect_failed', () => {
+                log(`❌ Reconnection failed after all attempts`, 'error');
+            });
+
+            socket.on('connected', (data) => {
+                log(`✅ AUTHENTICATED as: ${data.user_key}`, 'success');
+                userKey = data.user_key;
+                accountKey = data.account_key;
+                log(`📋 Your user_key: ${userKey}`, 'info');
+                // Auto-fill user_key field for notification creation
+                document.getElementById('notifUserKey').value = userKey;
+                // Auto-load notifications and alerts
+                loadNotifications();
+                loadAlerts();
+            });
+
+            socket.on('error', (error) => {
+                log(`❌ SERVER ERROR: ${JSON.stringify(error)}`, 'error');
+            });
+
+            // ==================== NOTIFICATION EVENTS ====================
+            socket.on('notification:new', (data) => {
+                log(`🔔 NEW NOTIFICATION: ${data.title || data.message}`, 'notification');
+                addNewNotification(data);
+            });
+
+            socket.on('notification:read', (data) => {
+                log(`✓ Notification marked read: ${data.notification_id}`, 'success');
+                const notif = notifications.find(n => (n.notification_id || n.id) === data.notification_id);
+                if (notif) notif.read = true;
+                renderNotifications();
+            });
+
+            socket.on('notification:read_all', (data) => {
+                log(`✓ All notifications marked read`, 'success');
+                notifications.forEach(n => n.read = true);
+                renderNotifications();
+                updateNotificationBadge(0);
+            });
+
+            socket.on('notification:deleted', (data) => {
+                log(`🗑️ Notification deleted: ${data.notification_id}`, 'warn');
+                notifications = notifications.filter(n => (n.notification_id || n.id) !== data.notification_id);
+                renderNotifications();
+            });
+
+            socket.on('notification:count', (data) => {
+                log(`📊 Notification count: ${data.count}`, 'info');
+                updateNotificationBadge(data.count);
+            });
+
+            // ==================== CROSS-POD TEST EVENT ====================
+            socket.on('test:broadcast', (data) => {
+                log(`🌐 CROSS-POD BROADCAST RECEIVED!`, 'success');
+                log(`   From Pod: ${data.from_pod}`, 'info');
+                log(`   From User: ${data.from_user}`, 'info');
+                log(`   Message: ${data.message}`, 'info');
+                log(`   Type: ${data.type}`, 'info');
+            });
+
+            // ==================== ALERT EVENTS ====================
+            socket.on('alert:new', (data) => {
+                log(`⚠️ NEW ALERT: ${data.severity?.toUpperCase()} - ${data.title || data.message}`, 'alert');
+                addNewAlert(data);
+            });
+
+            socket.on('alert:acknowledged', (data) => {
+                log(`✓ Alert acknowledged: ${data.alert_id}`, 'success');
+                const alert = alerts.find(a => (a.alert_id || a.id) === data.alert_id);
+                if (alert) alert.acknowledged = true;
+                renderAlerts();
+                const unackCount = alerts.filter(a => !a.acknowledged).length;
+                updateAlertBadge(unackCount);
+            });
+
+            socket.on('alert:acknowledged_all', (data) => {
+                log(`✓ All alerts acknowledged (${data.count} alerts)`, 'success');
+                alerts.forEach(a => a.acknowledged = true);
+                renderAlerts();
+                updateAlertBadge(0);
+            });
+
+            socket.on('alert:deleted', (data) => {
+                log(`🗑️ Alert dismissed: ${data.alert_id}`, 'warn');
+                alerts = alerts.filter(a => (a.alert_id || a.id) !== data.alert_id);
+                renderAlerts();
+                const unackCount = alerts.filter(a => !a.acknowledged).length;
+                updateAlertBadge(unackCount);
+            });
+
+            socket.on('alert:count', (data) => {
+                log(`📊 Unacknowledged alert count: ${data.count}`, 'info');
+                updateAlertBadge(data.count);
+            });
+
+            socket.on('alert:error', (data) => {
+                log(`❌ Alert error: ${data.code} - ${data.message || ''}`, 'error');
+            });
+
+            // Ping/Pong
+            socket.on('pong', (data) => {
+                log(`🏓 PONG: ${JSON.stringify(data)}`, 'success');
+            });
+
+        } catch (error) {
+            log(`❌ EXCEPTION: ${error.message}`, 'error');
+        }
+    }
+
+    function disconnect() {
+        if (socket) {
+            socket.disconnect();
+            socket = null;
+            log('Disconnected manually', 'warn');
+            setStatus(false);
+            setButtonsEnabled(false);
+        }
+    }
+
+    function sendPing() {
+        if (socket && socket.connected) {
+            log('🏓 Sending PING...', 'info');
+            socket.emit('ping');
+        } else {
+            log('Not connected!', 'error');
+        }
+    }
+
+    // ==================== NOTIFICATION API ====================
+    async function loadNotifications() {
+        const token = document.getElementById('token').value;
+        const serverUrl = document.getElementById('serverUrl').value;
+
+        log('📋 Loading notifications via REST API...', 'info');
+
+        try {
+            const response = await fetch(`${serverUrl}/api/notification/`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                notifications = data.data.notifications || data.data || [];
+                log(`✅ Loaded ${notifications.length} notifications`, 'success');
+                renderNotifications();
+                const unreadCount = notifications.filter(n => !n.read).length;
+                updateNotificationBadge(unreadCount);
             } else {
-                log('Not connected!', 'error');
+                log(`❌ Error: ${data.message || 'Unknown error'}`, 'error');
             }
+        } catch (error) {
+            log(`❌ API Error: ${error.message}`, 'error');
+        }
+    }
+
+    async function createNotification() {
+        const token = document.getElementById('token').value;
+        const serverUrl = document.getElementById('serverUrl').value;
+        const targetUserKey = document.getElementById('notifUserKey').value;
+
+        if (!targetUserKey) {
+            log('❌ Please enter target user_key!', 'error');
+            return;
         }
 
-        // ==================== NOTIFICATION API ====================
-        async function loadNotifications() {
-            const token = document.getElementById('token').value;
-            const serverUrl = document.getElementById('serverUrl').value;
+        const notifData = {
+            user_key: targetUserKey,
+            title: document.getElementById('notifTitle').value,
+            message: document.getElementById('notifMessage').value,
+            type: document.getElementById('notifType').value
+        };
 
-            log('📋 Loading notifications via REST API...', 'info');
+        log(`📤 Creating notification for ${targetUserKey}: ${notifData.title}`, 'info');
 
-            try {
-                const response = await fetch(`${serverUrl}/api/notification/`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
+        try {
+            const response = await fetch(`${serverUrl}/api/notification/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(notifData)
+            });
 
-                const data = await response.json();
+            const data = await response.json();
 
-                if (data.success) {
-                    notifications = data.data.notifications || data.data || [];
-                    log(`✅ Loaded ${notifications.length} notifications`, 'success');
-                    renderNotifications();
-                    const unreadCount = notifications.filter(n => !n.read).length;
-                    updateNotificationBadge(unreadCount);
-                } else {
-                    log(`❌ Error: ${data.message || 'Unknown error'}`, 'error');
-                }
-            } catch (error) {
-                log(`❌ API Error: ${error.message}`, 'error');
-            }
-        }
-
-        async function createNotification() {
-            const token = document.getElementById('token').value;
-            const serverUrl = document.getElementById('serverUrl').value;
-            const targetUserKey = document.getElementById('notifUserKey').value;
-
-            if (!targetUserKey) {
-                log('❌ Please enter target user_key!', 'error');
-                return;
-            }
-
-            const notifData = {
-                user_key: targetUserKey,
-                title: document.getElementById('notifTitle').value,
-                message: document.getElementById('notifMessage').value,
-                type: document.getElementById('notifType').value
-            };
-
-            log(`📤 Creating notification for ${targetUserKey}: ${notifData.title}`, 'info');
-
-            try {
-                const response = await fetch(`${serverUrl}/api/notification/`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(notifData)
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    log(`✅ Notification created: ${data.data?.notification_id || 'OK'}`, 'success');
-                    // The WebSocket should receive the new notification automatically
-                } else {
-                    log(`❌ Error: ${data.message || 'Unknown error'}`, 'error');
-                }
-            } catch (error) {
-                log(`❌ API Error: ${error.message}`, 'error');
-            }
-        }
-
-        function markNotificationRead() {
-            const notificationId = document.getElementById('notificationId').value;
-
-            if (!notificationId) {
-                log('❌ Please enter a notification ID!', 'error');
-                return;
-            }
-
-            if (socket && socket.connected) {
-                log(`📤 Marking notification as read: ${notificationId}`, 'info');
-                socket.emit('notification:mark_read', { notification_id: notificationId });
+            if (data.success) {
+                log(`✅ Notification created: ${data.data?.notification_id || 'OK'}`, 'success');
+                // The WebSocket should receive the new notification automatically
             } else {
-                log('Not connected!', 'error');
+                log(`❌ Error: ${data.message || 'Unknown error'}`, 'error');
             }
+        } catch (error) {
+            log(`❌ API Error: ${error.message}`, 'error');
+        }
+    }
+
+    function markNotificationRead() {
+        const notificationId = document.getElementById('notificationId').value;
+
+        if (!notificationId) {
+            log('❌ Please enter a notification ID!', 'error');
+            return;
         }
 
-        function markAllNotificationsRead() {
-            if (socket && socket.connected) {
-                log(`📤 Marking all notifications as read...`, 'info');
-                socket.emit('notification:mark_all_read', {});
+        if (socket && socket.connected) {
+            log(`📤 Marking notification as read: ${notificationId}`, 'info');
+            socket.emit('notification:mark_read', { notification_id: notificationId });
+        } else {
+            log('Not connected!', 'error');
+        }
+    }
+
+    function markAllNotificationsRead() {
+        if (socket && socket.connected) {
+            log(`📤 Marking all notifications as read...`, 'info');
+            socket.emit('notification:mark_all_read', {});
+        } else {
+            log('Not connected!', 'error');
+        }
+    }
+
+    // ==================== ALERT API ====================
+    async function loadAlerts() {
+        const token = document.getElementById('token').value;
+        const serverUrl = document.getElementById('serverUrl').value;
+
+        log('📋 Loading alerts via REST API...', 'info');
+
+        try {
+            const response = await fetch(`${serverUrl}/api/notification/alert/`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alerts = data.data.alerts || data.data || [];
+                log(`✅ Loaded ${alerts.length} alerts`, 'success');
+                renderAlerts();
+                const unackCount = alerts.filter(a => !a.acknowledged).length;
+                updateAlertBadge(unackCount);
             } else {
-                log('Not connected!', 'error');
+                log(`❌ Error: ${data.message || 'Unknown error'}`, 'error');
             }
+        } catch (error) {
+            log(`❌ API Error: ${error.message}`, 'error');
         }
+    }
 
-        // ==================== ALERT API ====================
-        async function loadAlerts() {
-            const token = document.getElementById('token').value;
-            const serverUrl = document.getElementById('serverUrl').value;
+    async function createAlert() {
+        const token = document.getElementById('token').value;
+        const serverUrl = document.getElementById('serverUrl').value;
 
-            log('📋 Loading alerts via REST API...', 'info');
+        const alertData = {
+            title: document.getElementById('alertTitle').value,
+            message: document.getElementById('alertMessage').value,
+            severity: document.getElementById('alertSeverity').value,
+            alert_type: document.getElementById('alertType').value,
+            source: document.getElementById('alertSource').value
+        };
 
-            try {
-                const response = await fetch(`${serverUrl}/api/notification/alert/`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
+        log(`📤 Creating alert: ${alertData.severity.toUpperCase()} - ${alertData.title}`, 'info');
 
-                const data = await response.json();
+        try {
+            const response = await fetch(`${serverUrl}/api/notification/alert/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(alertData)
+            });
 
-                if (data.success) {
-                    alerts = data.data.alerts || data.data || [];
-                    log(`✅ Loaded ${alerts.length} alerts`, 'success');
-                    renderAlerts();
-                    const unackCount = alerts.filter(a => !a.acknowledged).length;
-                    updateAlertBadge(unackCount);
-                } else {
-                    log(`❌ Error: ${data.message || 'Unknown error'}`, 'error');
-                }
-            } catch (error) {
-                log(`❌ API Error: ${error.message}`, 'error');
-            }
-        }
+            const data = await response.json();
 
-        async function createAlert() {
-            const token = document.getElementById('token').value;
-            const serverUrl = document.getElementById('serverUrl').value;
-
-            const alertData = {
-                title: document.getElementById('alertTitle').value,
-                message: document.getElementById('alertMessage').value,
-                severity: document.getElementById('alertSeverity').value,
-                alert_type: document.getElementById('alertType').value,
-                source: document.getElementById('alertSource').value
-            };
-
-            log(`📤 Creating alert: ${alertData.severity.toUpperCase()} - ${alertData.title}`, 'info');
-
-            try {
-                const response = await fetch(`${serverUrl}/api/notification/alert/`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(alertData)
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    log(`✅ Alert created: ${data.data?.alert_id || 'OK'}`, 'success');
-                    // The WebSocket should receive the new alert automatically
-                } else {
-                    log(`❌ Error: ${data.message || 'Unknown error'}`, 'error');
-                }
-            } catch (error) {
-                log(`❌ API Error: ${error.message}`, 'error');
-            }
-        }
-
-        function getAlertCount() {
-            if (socket && socket.connected) {
-                log(`📤 Getting alert count...`, 'info');
-                socket.emit('alert:get_count', {}, (response) => {
-                    if (response.success) {
-                        log(`📊 Alert count: ${response.count}`, 'success');
-                        updateAlertBadge(response.count);
-                    } else {
-                        log(`❌ Error: ${response.error}`, 'error');
-                    }
-                });
+            if (data.success) {
+                log(`✅ Alert created: ${data.data?.alert_id || 'OK'}`, 'success');
+                // The WebSocket should receive the new alert automatically
             } else {
-                log('Not connected!', 'error');
+                log(`❌ Error: ${data.message || 'Unknown error'}`, 'error');
             }
+        } catch (error) {
+            log(`❌ API Error: ${error.message}`, 'error');
+        }
+    }
+
+    function getAlertCount() {
+        if (socket && socket.connected) {
+            log(`📤 Getting alert count...`, 'info');
+            socket.emit('alert:get_count', {}, (response) => {
+                if (response.success) {
+                    log(`📊 Alert count: ${response.count}`, 'success');
+                    updateAlertBadge(response.count);
+                } else {
+                    log(`❌ Error: ${response.error}`, 'error');
+                }
+            });
+        } else {
+            log('Not connected!', 'error');
+        }
+    }
+
+    function acknowledgeAlert() {
+        const alertId = document.getElementById('alertId').value;
+
+        if (!alertId) {
+            log('❌ Please enter an alert ID!', 'error');
+            return;
         }
 
-        function acknowledgeAlert() {
-            const alertId = document.getElementById('alertId').value;
+        if (socket && socket.connected) {
+            log(`📤 Acknowledging alert: ${alertId}`, 'info');
+            socket.emit('alert:acknowledge', { alert_id: alertId }, (response) => {
+                if (response && response.success) {
+                    log(`✅ Alert acknowledged: ${alertId}`, 'success');
+                } else {
+                    log(`❌ Error: ${response?.error || 'Unknown error'}`, 'error');
+                }
+            });
+        } else {
+            log('Not connected!', 'error');
+        }
+    }
 
-            if (!alertId) {
-                log('❌ Please enter an alert ID!', 'error');
-                return;
-            }
+    function dismissAlert() {
+        const alertId = document.getElementById('alertId').value;
 
-            if (socket && socket.connected) {
-                log(`📤 Acknowledging alert: ${alertId}`, 'info');
-                socket.emit('alert:acknowledge', { alert_id: alertId }, (response) => {
-                    if (response && response.success) {
-                        log(`✅ Alert acknowledged: ${alertId}`, 'success');
-                    } else {
-                        log(`❌ Error: ${response?.error || 'Unknown error'}`, 'error');
-                    }
-                });
+        if (!alertId) {
+            log('❌ Please enter an alert ID!', 'error');
+            return;
+        }
+
+        if (!confirm('Dismiss this alert permanently?')) {
+            return;
+        }
+
+        if (socket && socket.connected) {
+            log(`📤 Dismissing alert: ${alertId}`, 'info');
+            socket.emit('alert:dismiss', { alert_id: alertId }, (response) => {
+                if (response && response.success) {
+                    log(`✅ Alert dismissed: ${alertId}`, 'success');
+                } else {
+                    log(`❌ Error: ${response?.error || 'Unknown error'}`, 'error');
+                }
+            });
+        } else {
+            log('Not connected!', 'error');
+        }
+    }
+
+    function acknowledgeAllAlerts() {
+        if (!confirm('Acknowledge ALL alerts?')) {
+            return;
+        }
+
+        if (socket && socket.connected) {
+            log(`📤 Acknowledging all alerts...`, 'info');
+            socket.emit('alert:acknowledge_all', {}, (response) => {
+                if (response && response.success) {
+                    log(`✅ All alerts acknowledged (${response.count} alerts)`, 'success');
+                } else {
+                    log(`❌ Error: ${response?.error || 'Unknown error'}`, 'error');
+                }
+            });
+        } else {
+            log('Not connected!', 'error');
+        }
+    }
+
+    // ==================== CROSS-POD TEST FUNCTIONS ====================
+
+    async function getPodInfo() {
+        const serverUrl = document.getElementById('serverUrl').value;
+        log(`🌐 Getting pod info from ${serverUrl}...`, 'info');
+
+        try {
+            const response = await fetch(`${serverUrl}/api/test/pod-info`);
+            const data = await response.json();
+
+            if (data.success) {
+                log(`📍 Pod ID: ${data.data.pod_id}`, 'success');
+                log(`   PID: ${data.data.pid}`, 'info');
             } else {
-                log('Not connected!', 'error');
+                log(`❌ Error: ${data.message}`, 'error');
             }
+        } catch (error) {
+            log(`❌ Error: ${error.message}`, 'error');
         }
+    }
 
-        function dismissAlert() {
-            const alertId = document.getElementById('alertId').value;
+    async function getBroadcastStatus() {
+        const serverUrl = document.getElementById('serverUrl').value;
+        const token = document.getElementById('token').value;
+        log(`🌐 Getting broadcast service status...`, 'info');
 
-            if (!alertId) {
-                log('❌ Please enter an alert ID!', 'error');
-                return;
-            }
+        try {
+            const response = await fetch(`${serverUrl}/api/test/broadcast/status`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
 
-            if (!confirm('Dismiss this alert permanently?')) {
-                return;
-            }
-
-            if (socket && socket.connected) {
-                log(`📤 Dismissing alert: ${alertId}`, 'info');
-                socket.emit('alert:dismiss', { alert_id: alertId }, (response) => {
-                    if (response && response.success) {
-                        log(`✅ Alert dismissed: ${alertId}`, 'success');
-                    } else {
-                        log(`❌ Error: ${response?.error || 'Unknown error'}`, 'error');
-                    }
-                });
+            if (data.success) {
+                log(`📍 Pod ID: ${data.data.pod_id}`, 'success');
+                log(`   Change Stream Active: ${data.data.change_stream_active}`, data.data.change_stream_active ? 'success' : 'warn');
+                if (data.data.broadcast_service) {
+                    log(`   Connected Users: ${data.data.broadcast_service.connected_users}`, 'info');
+                    log(`   Unique Users: ${data.data.broadcast_service.unique_users}`, 'info');
+                }
+                if (data.data.error) {
+                    log(`   Error: ${data.data.error}`, 'warn');
+                }
             } else {
-                log('Not connected!', 'error');
+                log(`❌ Error: ${data.message}`, 'error');
             }
+        } catch (error) {
+            log(`❌ Error: ${error.message}`, 'error');
+        }
+    }
+
+    async function testCrossPodBroadcast() {
+        const serverUrl = document.getElementById('serverUrl').value;
+        const token = document.getElementById('token').value;
+        const targetUserKey = document.getElementById('crossPodTargetUser').value;
+        const message = document.getElementById('crossPodMessage').value;
+
+        if (!targetUserKey) {
+            log('❌ Please enter target user key!', 'error');
+            return;
         }
 
-        function acknowledgeAllAlerts() {
-            if (!confirm('Acknowledge ALL alerts?')) {
-                return;
-            }
+        log(`🌐 Sending cross-pod message to ${targetUserKey}...`, 'info');
 
-            if (socket && socket.connected) {
-                log(`📤 Acknowledging all alerts...`, 'info');
-                socket.emit('alert:acknowledge_all', {}, (response) => {
-                    if (response && response.success) {
-                        log(`✅ All alerts acknowledged (${response.count} alerts)`, 'success');
-                    } else {
-                        log(`❌ Error: ${response?.error || 'Unknown error'}`, 'error');
-                    }
-                });
+        try {
+            const response = await fetch(`${serverUrl}/api/test/broadcast/user`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    target_user_key: targetUserKey,
+                    message: message
+                })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                log(`✅ Message sent from pod: ${data.data.from_pod}`, 'success');
+                log(`   Target: ${data.data.target_user}`, 'info');
+                log(`   Local delivery: ${data.data.local_delivery}`, 'info');
+                log(`   Cross-pod broadcast: ${data.data.cross_pod_broadcast}`, 'info');
             } else {
-                log('Not connected!', 'error');
+                log(`❌ Error: ${data.message}`, 'error');
             }
+        } catch (error) {
+            log(`❌ Error: ${error.message}`, 'error');
         }
+    }
 
-        // ==================== CROSS-POD TEST FUNCTIONS ====================
+    async function testAccountBroadcast() {
+        const serverUrl = document.getElementById('serverUrl').value;
+        const token = document.getElementById('token').value;
+        const message = document.getElementById('crossPodMessage').value;
 
-        async function getPodInfo() {
-            const serverUrl = document.getElementById('serverUrl').value;
-            log(`🌐 Getting pod info from ${serverUrl}...`, 'info');
+        log(`🌐 Broadcasting to all users in account...`, 'info');
 
-            try {
-                const response = await fetch(`${serverUrl}/api/test/pod-info`);
-                const data = await response.json();
+        try {
+            const response = await fetch(`${serverUrl}/api/test/broadcast/account`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message })
+            });
+            const data = await response.json();
 
-                if (data.success) {
-                    log(`📍 Pod ID: ${data.data.pod_id}`, 'success');
-                    log(`   PID: ${data.data.pid}`, 'info');
-                } else {
-                    log(`❌ Error: ${data.message}`, 'error');
-                }
-            } catch (error) {
-                log(`❌ Error: ${error.message}`, 'error');
+            if (data.success) {
+                log(`✅ Account broadcast sent from pod: ${data.data.from_pod}`, 'success');
+                log(`   Account: ${data.data.account_key}`, 'info');
+                log(`   Cross-pod broadcast: ${data.data.cross_pod_broadcast}`, 'info');
+            } else {
+                log(`❌ Error: ${data.message}`, 'error');
             }
+        } catch (error) {
+            log(`❌ Error: ${error.message}`, 'error');
         }
+    }
 
-        async function getBroadcastStatus() {
-            const serverUrl = document.getElementById('serverUrl').value;
-            const token = document.getElementById('token').value;
-            log(`🌐 Getting broadcast service status...`, 'info');
-
-            try {
-                const response = await fetch(`${serverUrl}/api/test/broadcast/status`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
-
-                if (data.success) {
-                    log(`📍 Pod ID: ${data.data.pod_id}`, 'success');
-                    log(`   Change Stream Active: ${data.data.change_stream_active}`, data.data.change_stream_active ? 'success' : 'warn');
-                    if (data.data.broadcast_service) {
-                        log(`   Connected Users: ${data.data.broadcast_service.connected_users}`, 'info');
-                        log(`   Unique Users: ${data.data.broadcast_service.unique_users}`, 'info');
-                    }
-                    if (data.data.error) {
-                        log(`   Error: ${data.data.error}`, 'warn');
-                    }
-                } else {
-                    log(`❌ Error: ${data.message}`, 'error');
-                }
-            } catch (error) {
-                log(`❌ Error: ${error.message}`, 'error');
-            }
-        }
-
-        async function testCrossPodBroadcast() {
-            const serverUrl = document.getElementById('serverUrl').value;
-            const token = document.getElementById('token').value;
-            const targetUserKey = document.getElementById('crossPodTargetUser').value;
-            const message = document.getElementById('crossPodMessage').value;
-
-            if (!targetUserKey) {
-                log('❌ Please enter target user key!', 'error');
-                return;
-            }
-
-            log(`🌐 Sending cross-pod message to ${targetUserKey}...`, 'info');
-
-            try {
-                const response = await fetch(`${serverUrl}/api/test/broadcast/user`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        target_user_key: targetUserKey,
-                        message: message
-                    })
-                });
-                const data = await response.json();
-
-                if (data.success) {
-                    log(`✅ Message sent from pod: ${data.data.from_pod}`, 'success');
-                    log(`   Target: ${data.data.target_user}`, 'info');
-                    log(`   Local delivery: ${data.data.local_delivery}`, 'info');
-                    log(`   Cross-pod broadcast: ${data.data.cross_pod_broadcast}`, 'info');
-                } else {
-                    log(`❌ Error: ${data.message}`, 'error');
-                }
-            } catch (error) {
-                log(`❌ Error: ${error.message}`, 'error');
-            }
-        }
-
-        async function testAccountBroadcast() {
-            const serverUrl = document.getElementById('serverUrl').value;
-            const token = document.getElementById('token').value;
-            const message = document.getElementById('crossPodMessage').value;
-
-            log(`🌐 Broadcasting to all users in account...`, 'info');
-
-            try {
-                const response = await fetch(`${serverUrl}/api/test/broadcast/account`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message: message })
-                });
-                const data = await response.json();
-
-                if (data.success) {
-                    log(`✅ Account broadcast sent from pod: ${data.data.from_pod}`, 'success');
-                    log(`   Account: ${data.data.account_key}`, 'info');
-                    log(`   Cross-pod broadcast: ${data.data.cross_pod_broadcast}`, 'info');
-                } else {
-                    log(`❌ Error: ${data.message}`, 'error');
-                }
-            } catch (error) {
-                log(`❌ Error: ${error.message}`, 'error');
-            }
-        }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            log('🔔 Notification & Alert Test Ready. Enter token and click Connect.', 'info');
-            log('🌐 Cross-pod broadcast test available in section 7.', 'info');
-        });
-    </script>
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        log('🔔 Notification & Alert Test Ready. Enter token and click Connect.', 'info');
+        log('🌐 Cross-pod broadcast test available in section 7.', 'info');
+    });
+</script>
 </body>
 </html>

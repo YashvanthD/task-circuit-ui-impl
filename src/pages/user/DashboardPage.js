@@ -33,6 +33,7 @@ import {
   CriticalSummary,
   DashboardStats,
   AlertsSection,
+  SystemAlertsSection,
   ActionsSection,
   DashboardHeader,
   NotificationsSection,
@@ -261,6 +262,10 @@ export default function DashboardPage() {
 
       <DashboardStats activeTasks={activeTasks} criticalTasks={criticalTasks} />
 
+      {/* System Alerts from WebSocket */}
+      <SystemAlertsSection maxItems={5} />
+
+      {/* Task-based Alerts */}
       <AlertsSection
         alerts={alerts}
         loading={loading}
