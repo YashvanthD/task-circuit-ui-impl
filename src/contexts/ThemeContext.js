@@ -130,7 +130,54 @@ export function ThemeContextProvider({ children }) {
   const [mode, setModeState] = useState(getInitialMode);
   const [loading, setLoading] = useState(false);
 
-  // Listen for session changes (login/logout)
+  // Refresh theme from session - call this after login
+  const refreshFromSession = useCallback(() => {
+    if (isAuthenticated()) {
+      const sessionTheme = getThemeFromSession();
+      if (sessionTheme && sessionTheme !== mode) {
+        console.log('[ThemeContext] Refreshing theme from session:', sessionTheme);
+        setModeState(sessionTheme);
+      }
+    } else {
+      setModeState('light');
+    }
+  }, [mode]);
+
+  // Check for session changes periodically (handles same-tab login)
+  useEffect(() => {
+    let lastSessionStr = localStorage.getItem(SESSION_STORAGE_KEY);
+
+    const checkSession = () => {
+      const currentSessionStr = localStorage.getItem(SESSION_STORAGE_KEY);
+
+      // Session changed
+      if (currentSessionStr !== lastSessionStr) {
+        lastSessionStr = currentSessionStr;
+
+        if (currentSessionStr && isAuthenticated()) {
+          try {
+            const session = JSON.parse(currentSessionStr);
+            const theme = session?.settings?.theme;
+            if (theme === 'light' || theme === 'dark') {
+              setModeState(theme);
+            }
+          } catch (e) {
+            // Ignore parse errors
+          }
+        } else if (!isAuthenticated()) {
+          // Logged out
+          setModeState('light');
+        }
+      }
+    };
+
+    // Check every 500ms for session changes
+    const interval = setInterval(checkSession, 500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Listen for session changes from other tabs
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === 'access_token') {
