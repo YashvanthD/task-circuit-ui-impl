@@ -275,7 +275,7 @@ export function getConversationDisplayName(conversation, currentUserKey = null) 
   // Try participants_info first
   if (conversation.participants_info && conversation.participants_info.length > 0) {
     otherParticipantInfo = conversation.participants_info.find(
-      (p) => p.user_key !== userKey
+      (p) => String(p.user_key) !== String(userKey)
     );
     if (otherParticipantInfo) {
       otherUserKey = otherParticipantInfo.user_key;
@@ -287,7 +287,7 @@ export function getConversationDisplayName(conversation, currentUserKey = null) 
 
   // Get other user key from participants array if not found
   if (!otherUserKey && conversation.participants && conversation.participants.length > 0) {
-    otherUserKey = conversation.participants.find((p) => p !== userKey);
+    otherUserKey = conversation.participants.find((p) => String(p) !== String(userKey));
   }
 
   // If we have a good name, return it
@@ -300,9 +300,14 @@ export function getConversationDisplayName(conversation, currentUserKey = null) 
     try {
       const { getUsersSync } = require('../utils/cache/usersCache');
       const users = getUsersSync() || [];
-      const user = users.find((u) => (u.user_key || u.id) === otherUserKey);
+      // Match by multiple fields for compatibility
+      const user = users.find((u) =>
+        String(u.user_key) === String(otherUserKey) ||
+        String(u.id) === String(otherUserKey) ||
+        String(u.userKey) === String(otherUserKey)
+      );
       if (user) {
-        const name = user.name || user.username;
+        const name = user.name || user.username || user.display_name;
         if (name && !looksLikeUserKey(name)) {
           return name;
         }
@@ -311,7 +316,7 @@ export function getConversationDisplayName(conversation, currentUserKey = null) 
       // usersCache not available
     }
     // Return the user key as last resort
-    return otherUserKey;
+    return String(otherUserKey);
   }
 
   return 'Unknown';

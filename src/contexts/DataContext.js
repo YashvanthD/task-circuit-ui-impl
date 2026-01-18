@@ -51,8 +51,8 @@ import {
 import { subscribeAllToWebSocket } from '../utils/cache';
 import { socketService } from '../utils/websocket';
 
-// Load notification sound path (browser-only)
-const NOTIFICATION_SOUND = '/assets/sounds/notification.mp3';
+// Load notification sound path (hosted URL)
+const NOTIFICATION_SOUND = 'https://github.com/YashvanthD/assets/raw/1cdabc6b7877beda9a0a8d62722f74e2cf2231bf/sounds/notification.mp3';
 
 // ============================================================================
 // Context

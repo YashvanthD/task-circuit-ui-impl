@@ -9,6 +9,7 @@
 import * as notificationsStoreModule from './notificationsStore';
 import * as alertsStoreModule from './alertsStore';
 import * as soundModule from './sound';
+import * as wsHandlerModule from './wsHandler';
 
 // Constants
 export {
@@ -40,6 +41,16 @@ export {
   isSoundEnabled,
   setVolume,
 } from './sound';
+
+// WebSocket Handler
+export const wsHandler = wsHandlerModule;
+export {
+  subscribeToNotificationWebSocket,
+  unsubscribeFromNotificationWebSocket,
+  markNotificationReadWS,
+  markAllNotificationsReadWS,
+  acknowledgeAlertWS,
+} from './wsHandler';
 
 // ============================================================================
 // Convenience Re-exports
@@ -107,6 +118,7 @@ const notificationsUtil = {
   notifications: notificationsStoreModule,
   alerts: alertsStoreModule,
   sound: soundModule,
+  ws: wsHandlerModule,
 
   // Quick access - Notifications
   getNotifications: notificationsStoreModule.getNotifications,
@@ -126,6 +138,9 @@ const notificationsUtil = {
 
   // Sound
   playSound: soundModule.playNotificationSound,
+
+  // WebSocket
+  subscribeToWebSocket: wsHandlerModule.subscribeToNotificationWebSocket,
 };
 
 export default notificationsUtil;

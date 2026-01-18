@@ -21,9 +21,10 @@ import {
   getMessages,
   getCurrentUserKey,
 } from '../../api/chat';
-import { getUsersSync } from './usersCache';
+import { getUsersSync, onUsersChange } from './usersCache';
 import { socketService, WS_EVENTS } from '../websocket';
 import { showErrorAlert } from '../alertManager';
+import { playNotificationSound } from '../notifications/sound';
 
 // ============================================================================
 // Cache Instances
@@ -46,6 +47,59 @@ let activeConversationId = null;
 clearCache(conversationsCache);
 conversationsCache.totalUnread = 0;
 localStorage.removeItem(STORAGE_KEY_CONVERSATIONS);
+
+// ============================================================================
+// Users Cache Integration - Refresh names when users are loaded
+// ============================================================================
+
+// Listen for users cache updates to refresh participant names
+onUsersChange('updated', () => {
+  if (conversationsCache.data.length === 0) return;
+
+  const users = getUsersSync() || [];
+  if (users.length === 0) return;
+
+  // Helper to check if a string looks like a userKey
+  const looksLikeUserKey = (str) => {
+    if (!str) return true;
+    return /^\d+$/.test(str) || /^[a-f0-9-]{20,}$/i.test(str);
+  };
+
+  let updated = false;
+
+  // Update participant names in all conversations
+  conversationsCache.data.forEach((conv) => {
+    if (!conv.participants_info) return;
+
+    conv.participants_info.forEach((participant) => {
+      // Skip if already has a good name
+      if (participant.name && !looksLikeUserKey(participant.name)) return;
+
+      // Find user in cache
+      const user = users.find((u) =>
+        String(u.user_key) === String(participant.user_key) ||
+        String(u.id) === String(participant.user_key) ||
+        String(u.userKey) === String(participant.user_key)
+      );
+
+      if (user) {
+        const realName = user.name || user.username || user.display_name;
+        if (realName && !looksLikeUserKey(realName)) {
+          participant.name = realName;
+          participant.avatar_url = participant.avatar_url || user.avatar_url || user.profile_picture;
+          updated = true;
+        }
+      }
+    });
+  });
+
+  if (updated) {
+    // Rebuild byId map
+    conversationsCache.byId.clear();
+    conversationsCache.data.forEach((c) => conversationsCache.byId.set(String(c.conversation_id), c));
+    conversationsCache.events.emit('updated', conversationsCache.data);
+  }
+});
 
 // ============================================================================
 // WebSocket Integration
@@ -234,6 +288,11 @@ export function subscribeToChatWebSocket() {
       conversationsCache.events.emit('created', newConv);
       conversationsCache.events.emit('message', { conversation_id: conversationId, message: normalizedMessage });
       persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
+
+      // Play notification sound for new conversations (messages from others)
+      if (senderKey !== currentUserKey) {
+        playNotificationSound();
+      }
     } else {
       const conv = conversationsCache.data[convIndex];
       conv.last_message = {
@@ -249,6 +308,9 @@ export function subscribeToChatWebSocket() {
       if (senderKey !== currentUserKey && conversationId !== activeConversationId) {
         conv.unread_count = (conv.unread_count || 0) + 1;
         conversationsCache.totalUnread++;
+
+        // Play notification sound for messages from others
+        playNotificationSound();
       }
 
       // Move conversation to top if not already
@@ -798,11 +860,15 @@ export async function getConversations(force = false) {
       if (participants.length > 0) {
         participantsInfo = participants.map((userKey) => {
           // Check if we already have info for this participant
-          const existingInfo = participantsInfo.find((p) => p.user_key === userKey);
+          const existingInfo = participantsInfo.find((p) => String(p.user_key) === String(userKey));
 
-          // Look up user in cache to get real name
-          const user = usersForEnrichment.find((u) => (u.user_key || u.id) === userKey);
-          const realName = user?.name || user?.username || null;
+          // Look up user in cache to get real name (match by multiple fields)
+          const user = usersForEnrichment.find((u) =>
+            String(u.user_key) === String(userKey) ||
+            String(u.id) === String(userKey) ||
+            String(u.userKey) === String(userKey)
+          );
+          const realName = user?.name || user?.username || user?.display_name || null;
 
           // Use real name if available, or existing name if it doesn't look like a userKey
           let finalName = realName;
@@ -810,7 +876,7 @@ export async function getConversations(force = false) {
             finalName = existingInfo.name;
           }
           if (!finalName) {
-            finalName = userKey; // Last resort fallback
+            finalName = String(userKey); // Last resort fallback
           }
 
           return {

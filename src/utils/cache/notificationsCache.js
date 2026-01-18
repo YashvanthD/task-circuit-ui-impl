@@ -25,6 +25,7 @@ import {
 } from '../../api/notifications';
 import { socketService, WS_EVENTS } from '../websocket';
 import { showErrorAlert } from '../alertManager';
+import { playNotificationSound } from '../notifications/sound';
 
 // ============================================================================
 // Cache Instance
@@ -97,6 +98,9 @@ export function subscribeToWebSocket() {
       // Emit events
       cache.events.emit('updated', cache.data);
       cache.events.emit('new', notification);
+
+      // Play notification sound
+      playNotificationSound();
 
       // Persist cache
       persistCache(cache, STORAGE_KEY);

@@ -5,8 +5,8 @@
  * @module utils/notifications/sound
  */
 
-// Sound file path
-const NOTIFICATION_SOUND_PATH = '/assets/sounds/notification.mp3';
+// Sound file path (hosted URL)
+const NOTIFICATION_SOUND_PATH = 'https://github.com/YashvanthD/assets/raw/1cdabc6b7877beda9a0a8d62722f74e2cf2231bf/sounds/notification.mp3';
 
 // Audio instance (lazy loaded)
 let audioInstance = null;
