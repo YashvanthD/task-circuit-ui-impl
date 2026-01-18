@@ -30,8 +30,8 @@
     "build:production": "NODE_ENV=prod REACT_APP_BACKEND_URL='https://fin-engine-impl.onrender.com' react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "predeploy": "npm run build:production",
+    "deploy": "NODE_ENV=prod REACT_APP_BACKEND_URL='https://fin-engine-impl.onrender.com' gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
