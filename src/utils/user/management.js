@@ -225,7 +225,7 @@ export async function deleteUser(userId) {
   if (!userId) throw new Error('userId is required for delete');
 
   try {
-    const res = await apiFetch(`/auth/account/users/${encodeURIComponent(userId)}`, {
+    const res = await apiFetch(API_USER.DELETE(userId), {
       method: 'DELETE',
     });
     const data = await parseResponse(res);
