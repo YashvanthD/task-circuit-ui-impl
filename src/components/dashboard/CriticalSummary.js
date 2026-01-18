@@ -22,19 +22,20 @@ export default function CriticalSummary({ criticalCount = 0, alertCount = 0 }) {
 
   return (
     <Paper
-      elevation={2}
+      elevation={3}
       sx={{
         mb: 4,
         p: 2,
-        bgcolor: 'error.light',
-        border: '1px solid',
-        borderColor: 'error.main',
+        bgcolor: '#d32f2f',
+        border: '2px solid',
+        borderColor: '#b71c1c',
+        borderRadius: 2,
       }}
     >
-      <Typography variant="h6" color="error" sx={{ fontWeight: 'bold' }}>
-        Critical: {criticalCount} actions & {alertCount} alerts
+      <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#fff' }}>
+        ⚠️ Critical: {criticalCount} actions & {alertCount} alerts
       </Typography>
-      <Typography variant="body2" color="error">
+      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
         Immediate attention required for critical actions and alerts.
       </Typography>
     </Paper>
