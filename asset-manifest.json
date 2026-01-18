@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/task-circuit-ui-impl/static/js/main.a224a16c.js",
+    "main.js": "/task-circuit-ui-impl/static/js/main.dd594b53.js",
     "index.html": "/task-circuit-ui-impl/index.html",
-    "main.a224a16c.js.map": "/task-circuit-ui-impl/static/js/main.a224a16c.js.map"
+    "main.dd594b53.js.map": "/task-circuit-ui-impl/static/js/main.dd594b53.js.map"
   },
   "entrypoints": [
-    "static/js/main.a224a16c.js"
+    "static/js/main.dd594b53.js"
   ]
 }
