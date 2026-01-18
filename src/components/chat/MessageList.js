@@ -73,9 +73,15 @@ function DateSeparator({ label }) {
         label={label}
         size="small"
         sx={{
-          bgcolor: 'action.hover',
-          fontSize: '0.7rem',
+          bgcolor: 'rgba(255,255,255,0.9)', // WhatsApp style light chip
+          color: 'rgba(0,0,0,0.6)',
+          fontSize: '0.75rem',
           fontWeight: 500,
+          boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
+          '[data-mui-color-scheme="dark"] &': {
+            bgcolor: '#182229',
+            color: 'rgba(255,255,255,0.6)',
+          },
         }}
       />
     </Box>
@@ -178,6 +184,14 @@ export default function MessageList({
         display: 'flex',
         flexDirection: 'column',
         scrollBehavior: 'smooth',
+        // WhatsApp style chat background
+        bgcolor: '#efeae2', // Light theme - WhatsApp beige
+        backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23d4cfc4\' fill-opacity=\'0.4\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+        // Dark theme
+        '[data-mui-color-scheme="dark"] &': {
+          bgcolor: '#0b141a',
+          backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23182229\' fill-opacity=\'0.6\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
+        },
       }}
     >
       {/* Load more indicator */}

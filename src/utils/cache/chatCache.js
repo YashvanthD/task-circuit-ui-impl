@@ -305,7 +305,7 @@ export function subscribeToChatWebSocket() {
       // Only increment unread if:
       // 1. Message is from someone else
       // 2. This conversation is NOT currently active (user is viewing it)
-      if (senderKey !== currentUserKey && conversationId !== activeConversationId) {
+      if (senderKey !== currentUserKey && String(conversationId) !== String(activeConversationId)) {
         conv.unread_count = (conv.unread_count || 0) + 1;
         conversationsCache.totalUnread++;
 
@@ -1332,13 +1332,15 @@ export function getTypingUsers(conversationId) {
 export function trackConversationOpen(conversationId) {
   if (!conversationId) return;
 
-  console.log('[ChatCache] Opening conversation:', conversationId);
+  // Convert to string for consistent comparison
+  const convIdStr = String(conversationId);
+  console.log('[ChatCache] Opening conversation:', convIdStr);
 
   // Set as active conversation (messages received won't increase unread count)
-  activeConversationId = conversationId;
+  activeConversationId = convIdStr;
 
   // Update local last activity
-  const conv = conversationsCache.byId.get(String(conversationId));
+  const conv = conversationsCache.byId.get(convIdStr);
   if (conv) {
     conv.last_opened = new Date().toISOString();
   }

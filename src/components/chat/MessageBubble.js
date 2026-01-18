@@ -39,15 +39,18 @@ function formatMessageTime(dateString) {
 }
 
 function getStatusIcon(status) {
+  // WhatsApp style: grey ticks for sent/delivered, blue ticks for read
   switch (status) {
     case 'sending':
-      return <ScheduleIcon sx={{ fontSize: 14, color: 'text.disabled' }} />;
+      return <ScheduleIcon sx={{ fontSize: 14, color: 'rgba(0,0,0,0.4)' }} />;
     case 'sent':
-      return <DoneIcon sx={{ fontSize: 14, color: 'text.disabled' }} />;
+      return <DoneIcon sx={{ fontSize: 14, color: 'rgba(0,0,0,0.4)' }} />;
     case 'delivered':
-      return <DoneAllIcon sx={{ fontSize: 14, color: 'text.disabled' }} />;
+      return <DoneAllIcon sx={{ fontSize: 14, color: 'rgba(0,0,0,0.4)' }} />;
     case 'read':
-      return <DoneAllIcon sx={{ fontSize: 14, color: 'primary.main' }} />;
+      return <DoneAllIcon sx={{ fontSize: 14, color: '#53bdeb' }} />; // WhatsApp blue tick
+    case 'failed':
+      return <ScheduleIcon sx={{ fontSize: 14, color: '#f44336' }} />;
     default:
       return null;
   }
@@ -200,8 +203,9 @@ export default function MessageBubble({
         {/* Message content */}
         <Box
           sx={{
-            bgcolor: isOwn ? 'primary.main' : 'grey.100',
-            color: isOwn ? 'primary.contrastText' : 'text.primary',
+            // WhatsApp style colors - green for own messages, white/light for others
+            bgcolor: isOwn ? '#dcf8c6' : '#ffffff', // Light theme
+            color: '#303030', // Dark text for both
             borderRadius: 2,
             borderTopRightRadius: isOwn ? 4 : 16,
             borderTopLeftRadius: isOwn ? 16 : 4,
@@ -211,6 +215,12 @@ export default function MessageBubble({
             minWidth: 80,
             position: 'relative',
             flexShrink: 0,
+            boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
+            // Dark theme overrides
+            '.MuiBox-root[data-theme="dark"] &, [data-mui-color-scheme="dark"] &': {
+              bgcolor: isOwn ? '#005c4b' : '#202c33',
+              color: '#e9edef',
+            },
           }}
         >
           <Typography
@@ -237,8 +247,11 @@ export default function MessageBubble({
               <Typography
                 variant="caption"
                 sx={{
-                  color: isOwn ? 'rgba(255,255,255,0.7)' : 'text.disabled',
+                  color: 'rgba(0,0,0,0.45)',
                   fontSize: '0.65rem',
+                  '.MuiBox-root[data-theme="dark"] &, [data-mui-color-scheme="dark"] &': {
+                    color: 'rgba(255,255,255,0.6)',
+                  },
                 }}
               >
                 edited
@@ -247,8 +260,11 @@ export default function MessageBubble({
             <Typography
               variant="caption"
               sx={{
-                color: isOwn ? 'rgba(255,255,255,0.7)' : 'text.disabled',
+                color: 'rgba(0,0,0,0.45)',
                 fontSize: '0.65rem',
+                '.MuiBox-root[data-theme="dark"] &, [data-mui-color-scheme="dark"] &': {
+                  color: 'rgba(255,255,255,0.6)',
+                },
               }}
             >
               {formatMessageTime(created_at)}
