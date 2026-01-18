@@ -49,7 +49,7 @@ import {
 } from '../utils/cache/alertsCache';
 
 import { subscribeAllToWebSocket } from '../utils/cache';
-import { socketService } from '../utils/websocket';
+import { initializeWebSocket, isConnected as isWSConnected } from '../utils/websocket';
 
 // Load notification sound path (hosted URL)
 // const NOTIFICATION_SOUND = 'https://github.com/YashvanthD/assets/raw/1cdabc6b7877beda9a0a8d62722f74e2cf2231bf/sounds/notification.mp3';
@@ -113,11 +113,12 @@ export function DataProvider({ children }) {
     // Check if user is authenticated (has token)
     const token = localStorage.getItem('access_token');
     if (token) {
-      // Connect WebSocket for real-time updates
+      // Connect WebSocket for real-time updates using centralized wsManager
       (async () => {
         try {
-          const connected = await socketService.connect();
+          const connected = await initializeWebSocket();
           if (connected) {
+            // Subscribe all caches to WebSocket events
             subscribeAllToWebSocket();
           }
         } catch (e) {

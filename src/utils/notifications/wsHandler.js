@@ -21,7 +21,13 @@ let subscribed = false;
 
 /**
  * Subscribe to WebSocket notification/alert events
- * Call this after WebSocket is connected (via DataContext)
+ *
+ * NOTE: The actual WebSocket event handling is done by:
+ * - utils/cache/notificationsCache.js - for notifications
+ * - utils/cache/alertsCache.js - for alerts
+ *
+ * This function is kept for backward compatibility but does NOT register
+ * duplicate listeners anymore to avoid double-handling of events.
  */
 export function subscribeToNotificationWebSocket() {
   if (subscribed) return;
@@ -30,11 +36,11 @@ export function subscribeToNotificationWebSocket() {
     return;
   }
 
-  console.log('[NotificationWS] Setting up WebSocket event listeners...');
+  console.log('[NotificationWS] Subscription delegated to notificationsCache and alertsCache');
 
-  // Register handlers
-  registerNotificationHandlers();
-  registerAlertHandlers();
+  // NOTE: We do NOT call registerNotificationHandlers() or registerAlertHandlers()
+  // because notificationsCache.js and alertsCache.js already handle these events.
+  // Registering them here would cause duplicate event handling.
 
   subscribed = true;
 }

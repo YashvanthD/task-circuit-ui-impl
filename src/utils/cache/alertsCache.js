@@ -1,7 +1,7 @@
 /**
  * Alerts Cache
  * Caches system alerts with lazy loading.
- * Integrates with WebSocket for real-time updates.
+ * Integrates with WebSocket for real-time updates via centralized wsManager.
  *
  * @module utils/cache/alertsCache
  */
@@ -22,7 +22,7 @@ import {
   acknowledgeAlert as apiAcknowledgeAlert,
   deleteAlert as apiDeleteAlert,
 } from '../../api/notifications';
-import { socketService, WS_EVENTS } from '../websocket';
+import { WS_EVENTS, subscribeWS, isConnected, wsAlerts } from '../websocket';
 import { showErrorAlert } from '../alertManager';
 import { playNotificationSound } from '../notifications/sound';
 
@@ -78,33 +78,26 @@ loadPersistedCache(cache, STORAGE_KEY, 'alert_id');
 // ============================================================================
 
 let wsSubscribed = false;
-
-let wsConnectionFailed = false;
+let unsubscribeFns = []; // Store unsubscribe functions
 
 /**
- * Subscribe to WebSocket alert events
- * Note: Connection should be established before calling this (via DataContext)
+ * Subscribe to WebSocket alert events via centralized wsManager.
+ * Note: wsManager should be initialized before calling this (via DataContext).
  */
 export function subscribeToAlertWebSocket() {
   if (wsSubscribed) return;
 
-  // Don't try to subscribe if previous attempt failed
-  if (wsConnectionFailed) {
-    wsSubscribed = true;
+  // Check if connected - if not, wait for connection
+  if (!isConnected()) {
+    console.log('[AlertsCache] WebSocket not connected, waiting...');
     return;
   }
 
-  // Check if connected - if not, wait for connection
-  if (!socketService.isConnected()) {
-    console.log('[AlertsCache] WebSocket not connected, waiting...');
-    // Don't connect here - DataContext handles connection
-    return;
-  }
+  console.log('[AlertsCache] Subscribing to alert events via wsManager...');
 
   // New alert received
-  socketService.on(WS_EVENTS.ALERT_NEW, (rawAlert) => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.ALERT_NEW, (rawAlert) => {
     try {
-      // Normalize the alert to ensure consistent field names
       const alert = normalizeAlert(rawAlert);
       if (!alert || !alert.alert_id) {
         console.error('[AlertsCache] Invalid alert received:', rawAlert);
@@ -113,132 +106,126 @@ export function subscribeToAlertWebSocket() {
 
       const id = String(alert.alert_id);
 
-      // Check if we already have this alert
       if (cache.byId.has(id)) {
-        // Update existing and move to front
-        cache.data = [
-          alert,
-          ...cache.data.filter((a) => String(a.alert_id) !== id),
-        ];
+        cache.data = [alert, ...cache.data.filter((a) => String(a.alert_id) !== id)];
       } else {
-        // Add to beginning of cache
-        cache.data.unshift(alert);
+        cache.data = [alert, ...cache.data];
       }
 
-      // Rebuild id map
       cache.byId.clear();
       cache.data.forEach((a) => cache.byId.set(String(a.alert_id), a));
-
-      // Recompute unacknowledged count
       cache.unacknowledgedCount = cache.data.filter((a) => !a.acknowledged).length;
-
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
       cache.events.emit('new', alert);
       persistCache(cache, STORAGE_KEY);
-
-      // Play notification sound for new alerts
       playNotificationSound();
     } catch (e) {
       console.error('[AlertsCache] Error handling ALERT_NEW:', e);
     }
-  });
+  }));
 
   // Alert acknowledged
-  socketService.on(WS_EVENTS.ALERT_ACKNOWLEDGED, (data) => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.ALERT_ACKNOWLEDGED, (data) => {
     try {
-      // Handle various ID formats from server
       const alertId = data.alert_id || data.alertId || data.id;
-      if (!alertId) {
-        console.error('[AlertsCache] Invalid alert_id in ALERT_ACKNOWLEDGED:', data);
-        return;
-      }
+      if (!alertId) return;
 
       const id = String(alertId);
       const index = cache.data.findIndex((a) => String(a.alert_id) === id);
       if (index !== -1 && !cache.data[index].acknowledged) {
-        cache.data[index] = {
+        const updatedAlert = {
           ...cache.data[index],
           acknowledged: true,
           acknowledged_by: data.acknowledged_by || data.acknowledgedBy,
           acknowledged_at: data.acknowledged_at || data.acknowledgedAt || new Date().toISOString(),
         };
-        cache.byId.set(id, cache.data[index]);
+        cache.data = [
+          ...cache.data.slice(0, index),
+          updatedAlert,
+          ...cache.data.slice(index + 1)
+        ];
+        cache.byId.set(id, updatedAlert);
         cache.unacknowledgedCount = Math.max(0, cache.data.filter((a) => !a.acknowledged).length);
-        cache.events.emit('updated', cache.data);
+        cache.events.emit('updated', [...cache.data]);
         persistCache(cache, STORAGE_KEY);
       }
     } catch (e) {
       console.error('[AlertsCache] Error handling ALERT_ACKNOWLEDGED:', e);
     }
-  });
+  }));
 
   // All alerts acknowledged
-  socketService.on(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, () => {
-    const now = new Date().toISOString();
-    cache.data = cache.data.map((a) => ({
-      ...a,
-      acknowledged: true,
-      acknowledged_at: a.acknowledged_at || now,
-    }));
-    cache.byId.clear();
-    cache.data.forEach((a) => cache.byId.set(String(a.alert_id), a));
-    cache.unacknowledgedCount = 0;
-    cache.events.emit('updated', cache.data);
-    cache.events.emit('countUpdated', 0);
-    persistCache(cache, STORAGE_KEY);
-  });
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, () => {
+    try {
+      const now = new Date().toISOString();
+      cache.data = cache.data.map((a) => ({
+        ...a,
+        acknowledged: true,
+        acknowledged_at: a.acknowledged_at || now,
+      }));
+      cache.byId.clear();
+      cache.data.forEach((a) => cache.byId.set(String(a.alert_id), a));
+      cache.unacknowledgedCount = 0;
+      cache.events.emit('updated', [...cache.data]);
+      cache.events.emit('countUpdated', 0);
+      persistCache(cache, STORAGE_KEY);
+    } catch (e) {
+      console.error('[AlertsCache] Error handling ALERT_ACKNOWLEDGED_ALL:', e);
+    }
+  }));
 
   // Alert error from server
-  socketService.on(WS_EVENTS.ALERT_ERROR, (error) => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.ALERT_ERROR, (error) => {
     console.error('[AlertsCache] WebSocket alert error:', error);
     cache.events.emit('error', error);
-  });
+  }));
 
   // Alert deleted
-  socketService.on(WS_EVENTS.ALERT_DELETED, (data) => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.ALERT_DELETED, (data) => {
     try {
-      // Handle various ID formats from server
       const alertId = data.alert_id || data.alertId || data.id;
-      if (!alertId) {
-        console.error('[AlertsCache] Invalid alert_id in ALERT_DELETED:', data);
-        return;
-      }
+      if (!alertId) return;
 
       const id = String(alertId);
       const index = cache.data.findIndex((a) => String(a.alert_id) === id);
       if (index !== -1) {
         const wasUnacknowledged = !cache.data[index].acknowledged;
-        cache.data.splice(index, 1);
+        cache.data = [...cache.data.slice(0, index), ...cache.data.slice(index + 1)];
         cache.byId.delete(id);
         if (wasUnacknowledged) {
           cache.unacknowledgedCount = Math.max(0, cache.unacknowledgedCount - 1);
         }
-        cache.events.emit('updated', cache.data);
+        cache.events.emit('updated', [...cache.data]);
         persistCache(cache, STORAGE_KEY);
       }
     } catch (e) {
       console.error('[AlertsCache] Error handling ALERT_DELETED:', e);
     }
-  });
+  }));
 
   // Unacknowledged count update from server
-  socketService.on(WS_EVENTS.ALERT_COUNT, (data) => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.ALERT_COUNT, (data) => {
     try {
-      const count = typeof data.count === 'number' ? data.count : data;
+      const count = typeof data?.count === 'number' ? data.count : data;
       cache.unacknowledgedCount = Math.max(0, count);
       cache.events.emit('countUpdated', cache.unacknowledgedCount);
     } catch (e) {
       console.error('[AlertsCache] Error handling ALERT_COUNT:', e);
     }
-  });
+  }));
 
   wsSubscribed = true;
+  console.log('[AlertsCache] Subscribed to alert events');
 }
 
 /**
  * Unsubscribe from WebSocket events
  */
 export function unsubscribeFromAlertWebSocket() {
+  unsubscribeFns.forEach((unsub) => {
+    if (typeof unsub === 'function') unsub();
+  });
+  unsubscribeFns = [];
   wsSubscribed = false;
 }
 
@@ -427,39 +414,47 @@ export function getAlertsForEntity(sourceId) {
  * @returns {Promise<object|null>} Updated alert
  */
 export async function acknowledgeAlert(id) {
-  // Store for rollback
   const index = cache.data.findIndex((a) => a.alert_id === id);
   const previousState = index !== -1 ? { ...cache.data[index] } : null;
 
   try {
-    // Optimistic update
+    // Optimistic update with new array reference
     if (index !== -1 && !cache.data[index].acknowledged) {
-      cache.data[index] = {
+      const updatedAlert = {
         ...cache.data[index],
         acknowledged: true,
         acknowledged_at: new Date().toISOString(),
       };
-      cache.byId.set(String(id), cache.data[index]);
+      cache.data = [
+        ...cache.data.slice(0, index),
+        updatedAlert,
+        ...cache.data.slice(index + 1)
+      ];
+      cache.byId.set(String(id), updatedAlert);
       cache.unacknowledgedCount = Math.max(0, cache.data.filter((a) => !a.acknowledged).length);
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
     }
 
     // Use WebSocket if connected, otherwise REST API
-    if (socketService.isConnected()) {
-      await socketService.acknowledgeAlert(id);
+    if (isConnected()) {
+      wsAlerts.acknowledge(id);
     } else {
       await apiAcknowledgeAlert(id);
     }
 
-    return cache.data[index];
+    return index !== -1 ? cache.data[index] : null;
   } catch (error) {
     console.error('[AlertsCache] Failed to acknowledge:', error);
     // Revert optimistic update on error
     if (previousState && index !== -1) {
-      cache.data[index] = previousState;
+      cache.data = [
+        ...cache.data.slice(0, index),
+        previousState,
+        ...cache.data.slice(index + 1)
+      ];
       cache.byId.set(String(id), previousState);
       cache.unacknowledgedCount = cache.data.filter((a) => !a.acknowledged).length;
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
     }
     showErrorAlert('Failed to acknowledge alert.', 'Alerts');
     throw error;
@@ -473,25 +468,24 @@ export async function acknowledgeAlert(id) {
  * @returns {Promise<boolean>} Success
  */
 export async function dismissAlert(id) {
-  // Store for rollback
   const index = cache.data.findIndex((a) => a.alert_id === id);
   const removedItem = index !== -1 ? { ...cache.data[index] } : null;
 
   try {
-    // Optimistic update
+    // Optimistic update with new array reference
     if (index !== -1) {
       const wasUnacknowledged = !cache.data[index].acknowledged;
-      cache.data.splice(index, 1);
+      cache.data = [...cache.data.slice(0, index), ...cache.data.slice(index + 1)];
       cache.byId.delete(String(id));
       if (wasUnacknowledged) {
         cache.unacknowledgedCount = Math.max(0, cache.unacknowledgedCount - 1);
       }
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
     }
 
     // Use WebSocket if connected, otherwise REST API
-    if (socketService.isConnected()) {
-      await socketService.dismissAlert(id);
+    if (isConnected()) {
+      wsAlerts.dismiss(id);
     } else {
       await apiDeleteAlert(id);
     }
@@ -500,11 +494,15 @@ export async function dismissAlert(id) {
   } catch (error) {
     console.error('[AlertsCache] Failed to dismiss:', error);
     // Revert optimistic update on error
-    if (removedItem) {
-      cache.data.splice(index, 0, removedItem);
+    if (removedItem && index !== -1) {
+      cache.data = [
+        ...cache.data.slice(0, index),
+        removedItem,
+        ...cache.data.slice(index)
+      ];
       cache.byId.set(String(id), removedItem);
       cache.unacknowledgedCount = cache.data.filter((a) => !a.acknowledged).length;
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
     }
     showErrorAlert('Failed to dismiss alert.', 'Alerts');
     throw error;
@@ -525,25 +523,25 @@ export async function deleteAlert(id) {
  * @returns {Promise<number>} Count of acknowledged alerts
  */
 export async function acknowledgeAllAlerts() {
-  // Store for rollback
   const previousData = cache.data.map((a) => ({ ...a }));
   const previousCount = cache.unacknowledgedCount;
 
   try {
-    // Optimistic update
+    // Optimistic update with new array reference
     const now = new Date().toISOString();
     cache.data = cache.data.map((a) => ({
       ...a,
       acknowledged: true,
       acknowledged_at: a.acknowledged ? a.acknowledged_at : now,
     }));
+    cache.byId.clear();
     cache.data.forEach((a) => cache.byId.set(String(a.alert_id), a));
     cache.unacknowledgedCount = 0;
-    cache.events.emit('updated', cache.data);
+    cache.events.emit('updated', [...cache.data]);
 
     // Use WebSocket if connected
-    if (socketService.isConnected()) {
-      await socketService.acknowledgeAllAlerts();
+    if (isConnected()) {
+      wsAlerts.acknowledgeAll();
     }
 
     return previousCount;
@@ -554,7 +552,7 @@ export async function acknowledgeAllAlerts() {
     cache.byId.clear();
     cache.data.forEach((a) => cache.byId.set(String(a.alert_id), a));
     cache.unacknowledgedCount = previousCount;
-    cache.events.emit('updated', cache.data);
+    cache.events.emit('updated', [...cache.data]);
     showErrorAlert('Failed to acknowledge all alerts.', 'Alerts');
     throw error;
   }
@@ -564,8 +562,8 @@ export async function acknowledgeAllAlerts() {
  * Request alert count from server via WebSocket.
  */
 export function requestAlertCount() {
-  if (socketService.isConnected()) {
-    socketService.getAlertCount();
+  if (isConnected()) {
+    wsAlerts.getCount();
   }
 }
 

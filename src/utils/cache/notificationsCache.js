@@ -1,7 +1,7 @@
 /**
  * Notifications Cache
  * Caches notification list data with lazy loading.
- * Integrates with WebSocket for real-time updates.
+ * Integrates with WebSocket for real-time updates via centralized wsManager.
  *
  * @module utils/cache/notificationsCache
  */
@@ -22,7 +22,7 @@ import {
   markAllNotificationsAsRead as apiMarkAllAsRead,
   deleteNotification as apiDeleteNotification,
 } from '../../api/notifications';
-import { socketService, WS_EVENTS } from '../websocket';
+import { WS_EVENTS, subscribeWS, isConnected, wsNotifications } from '../websocket';
 import { showErrorAlert } from '../alertManager';
 import { playNotificationSound } from '../notifications/sound';
 
@@ -79,34 +79,26 @@ localStorage.removeItem(STORAGE_KEY);
 // ============================================================================
 
 let wsSubscribed = false;
-
-let wsConnectionFailed = false;
+let unsubscribeFns = []; // Store unsubscribe functions
 
 /**
- * Subscribe to WebSocket notification events
- * Note: Connection should be established before calling this (via DataContext)
+ * Subscribe to WebSocket notification events via centralized wsManager.
+ * Note: wsManager should be initialized before calling this (via DataContext).
  */
 export function subscribeToWebSocket() {
   if (wsSubscribed) return;
 
-  // Don't try to subscribe if previous attempt failed
-  if (wsConnectionFailed) {
-    wsSubscribed = true;
+  // Check if connected - if not, wait for connection
+  if (!isConnected()) {
+    console.log('[NotificationsCache] WebSocket not connected, waiting...');
     return;
   }
 
-  // Check if connected - if not, wait for connection
-  if (!socketService.isConnected()) {
-    console.log('[NotificationsCache] WebSocket not connected, waiting...');
-    // Don't connect here - DataContext handles connection
-    // Just mark as not subscribed so it can retry later
-    return;
-  }
+  console.log('[NotificationsCache] Subscribing to notification events via wsManager...');
 
   // New notification received
-  socketService.on(WS_EVENTS.NOTIFICATION_NEW, (rawNotification) => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.NOTIFICATION_NEW, (rawNotification) => {
     try {
-      // Normalize the notification to ensure consistent field names
       const notification = normalizeNotification(rawNotification);
       if (!notification || !notification.notification_id) {
         console.error('[NotificationsCache] Invalid notification received:', rawNotification);
@@ -115,51 +107,31 @@ export function subscribeToWebSocket() {
 
       const id = String(notification.notification_id);
 
-      // If we already have this notification, update it and move to front
       if (cache.byId.has(id)) {
-        // Replace existing item and move to front
-        cache.data = [
-          notification,
-          ...cache.data.filter((n) => String(n.notification_id) !== id),
-        ];
+        cache.data = [notification, ...cache.data.filter((n) => String(n.notification_id) !== id)];
       } else {
-        // Add to beginning of cache
-        cache.data.unshift(notification);
+        cache.data = [notification, ...cache.data];
       }
 
-      // Rebuild id map (ensure no duplicates)
       cache.byId.clear();
       cache.data.forEach((item) => cache.byId.set(String(item.notification_id), item));
-
-      // Recompute unread count deterministically (avoid increment/decrement drift)
       cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
-
-      // Emit events
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
       cache.events.emit('new', notification);
-
-      // Play notification sound
       playNotificationSound();
-
-      // Persist cache
       persistCache(cache, STORAGE_KEY);
     } catch (e) {
       console.error('[NotificationsCache] Error handling NOTIFICATION_NEW:', e);
     }
-  });
+  }));
 
   // Notification marked as read
-  socketService.on(WS_EVENTS.NOTIFICATION_READ, (data) => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.NOTIFICATION_READ, (data) => {
     try {
-      // Handle various ID formats from server
       const notificationId = data.notification_id || data.notificationId || data.id;
-      if (!notificationId) {
-        console.error('[NotificationsCache] Invalid notification_id in NOTIFICATION_READ:', data);
-        return;
-      }
+      if (!notificationId) return;
 
       const id = String(notificationId);
-      // Mark all matching items as read (defensive: remove duplicate unread items)
       let changed = false;
       cache.data = cache.data.map((n) => {
         if (String(n.notification_id) === id && !n.read) {
@@ -170,85 +142,82 @@ export function subscribeToWebSocket() {
       });
 
       if (changed) {
-        // Rebuild id map
         cache.byId.clear();
         cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
-
-        // Recompute unread count
         cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
-
-        cache.events.emit('updated', cache.data);
+        cache.events.emit('updated', [...cache.data]);
         persistCache(cache, STORAGE_KEY);
       }
     } catch (e) {
       console.error('[NotificationsCache] Error handling NOTIFICATION_READ:', e);
     }
-  });
+  }));
 
   // All notifications marked as read
-  socketService.on(WS_EVENTS.NOTIFICATION_READ_ALL, () => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.NOTIFICATION_READ_ALL, () => {
     try {
       cache.data = cache.data.map((n) => ({ ...n, read: true }));
       cache.byId.clear();
       cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
       cache.unreadCount = 0;
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
       persistCache(cache, STORAGE_KEY);
     } catch (e) {
       console.error('[NotificationsCache] Error handling NOTIFICATION_READ_ALL:', e);
     }
-  });
+  }));
 
   // Notification deleted
-  socketService.on(WS_EVENTS.NOTIFICATION_DELETED, (data) => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.NOTIFICATION_DELETED, (data) => {
     try {
-      // Handle various ID formats from server
       const notificationId = data.notification_id || data.notificationId || data.id;
-      if (!notificationId) {
-        console.error('[NotificationsCache] Invalid notification_id in NOTIFICATION_DELETED:', data);
-        return;
-      }
+      if (!notificationId) return;
 
       const id = String(notificationId);
       const beforeLen = cache.data.length;
-      // Remove all occurrences of this id (defensive)
       cache.data = cache.data.filter((n) => String(n.notification_id) !== id);
       cache.byId.delete(id);
 
-      // If we removed items, rebuild id map and recompute unread
       if (cache.data.length !== beforeLen) {
         cache.byId.clear();
         cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
         cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
-        cache.events.emit('updated', cache.data);
+        cache.events.emit('updated', [...cache.data]);
         persistCache(cache, STORAGE_KEY);
       }
     } catch (e) {
       console.error('[NotificationsCache] Error handling NOTIFICATION_DELETED:', e);
     }
-  });
+  }));
 
   // Unread count update from server
-  socketService.on(WS_EVENTS.NOTIFICATION_COUNT, ({ count }) => {
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.NOTIFICATION_COUNT, (data) => {
     try {
-      // Ensure server-sent counts are used safely and never negative
-      cache.unreadCount = (typeof count === 'number' && !isNaN(count)) ? Math.max(0, count) : Math.max(0, cache.data.filter((n) => !n.read).length);
+      const count = data?.count;
+      cache.unreadCount = (typeof count === 'number' && !isNaN(count))
+        ? Math.max(0, count)
+        : Math.max(0, cache.data.filter((n) => !n.read).length);
       cache.events.emit('countUpdated', cache.unreadCount);
     } catch (e) {
       console.error('[NotificationsCache] Error handling NOTIFICATION_COUNT:', e);
     }
-  });
+  }));
 
   wsSubscribed = true;
+  console.log('[NotificationsCache] Subscribed to notification events');
 }
 
 /**
  * Unsubscribe from WebSocket events
  */
 export function unsubscribeFromWebSocket() {
-  // Note: socketService handles cleanup on disconnect
+  unsubscribeFns.forEach((unsub) => {
+    if (typeof unsub === 'function') unsub();
+  });
+  unsubscribeFns = [];
   wsSubscribed = false;
 }
+
 
 // ============================================================================
 // Core Functions
@@ -426,16 +395,21 @@ export async function markNotificationAsRead(id) {
     });
 
     if (index !== -1 && !cache.data[index].read) {
-      // Optimistic update
-      cache.data[index] = { ...cache.data[index], read: true };
-      cache.byId.set(notificationId, cache.data[index]);
+      // Optimistic update - create new array for React
+      const updatedNotification = { ...cache.data[index], read: true };
+      cache.data = [
+        ...cache.data.slice(0, index),
+        updatedNotification,
+        ...cache.data.slice(index + 1)
+      ];
+      cache.byId.set(notificationId, updatedNotification);
       cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
     }
 
     // Use WebSocket if connected, otherwise REST API
-    if (socketService.isConnected()) {
-      await socketService.markNotificationRead(notificationId);
+    if (isConnected()) {
+      wsNotifications.markAsRead(notificationId);
     } else {
       await apiMarkAsRead(notificationId);
     }
@@ -455,10 +429,15 @@ export async function markNotificationAsRead(id) {
       return nid === notificationId;
     });
     if (revertIndex !== -1) {
-      cache.data[revertIndex] = { ...cache.data[revertIndex], read: false };
-      cache.byId.set(notificationId, cache.data[revertIndex]);
+      const revertedNotification = { ...cache.data[revertIndex], read: false };
+      cache.data = [
+        ...cache.data.slice(0, revertIndex),
+        revertedNotification,
+        ...cache.data.slice(revertIndex + 1)
+      ];
+      cache.byId.set(notificationId, revertedNotification);
       cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
     }
     // Refresh to sync on error
     await getNotifications(true);
@@ -510,11 +489,11 @@ export async function deleteNotification(id) {
   console.log('[NotificationsCache] Found notification at index:', index);
 
   try {
-    // Optimistic update
-    cache.data.splice(index, 1);
+    // Create new array without the item (immutable update for React)
+    cache.data = [...cache.data.slice(0, index), ...cache.data.slice(index + 1)];
     cache.byId.delete(notificationId);
     cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
-    cache.events.emit('updated', cache.data);
+    cache.events.emit('updated', [...cache.data]); // Emit new array reference
 
     // REST API call (no WebSocket event for delete)
     await apiDeleteNotification(notificationId);
@@ -523,10 +502,14 @@ export async function deleteNotification(id) {
     console.error('[NotificationsCache] Failed to delete:', error);
     // Revert optimistic update on error
     if (removedItem) {
-      cache.data.splice(index, 0, removedItem);
+      cache.data = [
+        ...cache.data.slice(0, index),
+        removedItem,
+        ...cache.data.slice(index)
+      ];
       cache.byId.set(notificationId, removedItem);
       cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
-      cache.events.emit('updated', cache.data);
+      cache.events.emit('updated', [...cache.data]);
     }
     showErrorAlert('Failed to delete notification.', 'Notifications');
     throw error;
@@ -544,15 +527,16 @@ export async function markAllNotificationsAsRead() {
   const previousUnreadCount = cache.unreadCount;
 
   try {
-    // Optimistic update
+    // Optimistic update - create new array for React
     cache.data = cache.data.map((n) => ({ ...n, read: true }));
+    cache.byId.clear();
     cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
     cache.unreadCount = 0;
-    cache.events.emit('updated', cache.data);
+    cache.events.emit('updated', [...cache.data]);
 
     // Use WebSocket if connected, otherwise REST API
-    if (socketService.isConnected()) {
-      await socketService.markAllNotificationsRead();
+    if (isConnected()) {
+      wsNotifications.markAllAsRead();
     } else {
       await apiMarkAllAsRead();
     }
@@ -565,7 +549,7 @@ export async function markAllNotificationsAsRead() {
     cache.byId.clear();
     cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
     cache.unreadCount = previousUnreadCount;
-    cache.events.emit('updated', cache.data);
+    cache.events.emit('updated', [...cache.data]);
     showErrorAlert('Failed to mark all notifications as read.', 'Notifications');
     throw error;
   }
