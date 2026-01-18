@@ -66,6 +66,7 @@ import {
     BASE_APP_PATH_REGISTER_COMPANY,
     BASE_APP_PATH_USER_SETTINGS, BASE_APP_PATH_SIGNUP
 } from '../config';
+import {ReportList} from "../components";
 
 /**
  * BaseLayout is the base model for all pages in the Task Circuit project.
@@ -122,8 +123,8 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
   const bottomNavItems = [
     { label: 'Dashboard', to: BASE_APP_PATH_USER_DASHBOARD, icon: <DashboardIcon /> },
     { label: 'Tasks', to: BASE_APP_PATH_USER_TASKS, icon: <AssignmentIcon /> },
+    { label: 'Report', to: BASE_APP_PATH_USER_REPORTS, icon: <AnalyticsIcon /> },
     { label: 'Pond', to: BASE_APP_PATH_USER_POND, icon: <PoolIcon /> },
-    { label: 'Chat', to: BASE_APP_PATH_USER_CHAT, icon: <ChatIcon /> },
   ];
 
   const APPBAR_HEIGHT = 56;
