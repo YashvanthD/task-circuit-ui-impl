@@ -23,6 +23,15 @@ import ClearIcon from '@mui/icons-material/Clear';
 import CloseIcon from '@mui/icons-material/Close';
 import { Z_INDEX } from './constants';
 
+// Tooltip props to ensure tooltips appear above the control panel
+const tooltipSlotProps = {
+  popper: {
+    sx: {
+      zIndex: Z_INDEX.controlPanel + 10, // Ensure tooltip is above control panel
+    },
+  },
+};
+
 /**
  * AssistantControlPanel - Control buttons for the assistant
  *
@@ -69,16 +78,30 @@ export default function AssistantControlPanel({
   onClose,
   onMouseEnter,
   onMouseLeave,
+  pinnedBottomRight = false,
 }) {
   if (!visible) return null;
+
+  // Calculate position based on whether it's bottom-right pinned
+  // When bottom-right, control panel appears to the LEFT of the FAB
+  const positionStyles = pinnedBottomRight
+    ? {
+        right: (position.right || 20) + 60,
+        bottom: (position.bottom || 20) - 10,
+        left: 'auto',
+        top: 'auto',
+      }
+    : {
+        left: position.left + 60,
+        top: position.top - 10,
+      };
 
   return (
     <Paper
       elevation={4}
       sx={{
         position: 'fixed',
-        left: position.left + 60,
-        top: position.top - 10,
+        ...positionStyles,
         zIndex: Z_INDEX.controlPanel,
         p: 1,
         borderRadius: 2,
@@ -88,24 +111,24 @@ export default function AssistantControlPanel({
         minWidth: 44,
         transition: 'opacity 0.2s, transform 0.2s',
         opacity: visible ? 1 : 0,
-        transform: visible ? 'translateX(0)' : 'translateX(-10px)',
+        transform: visible ? 'translateX(0)' : (pinnedBottomRight ? 'translateX(10px)' : 'translateX(-10px)'),
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
       {/* Playback controls */}
       <Stack direction="row" spacing={0.5}>
-        <Tooltip title={paused ? 'Resume' : 'Pause'} placement="top">
+        <Tooltip title={paused ? 'Resume' : 'Pause'} placement="top" slotProps={tooltipSlotProps}>
           <IconButton size="small" onClick={onPauseToggle} color={paused ? 'default' : 'primary'}>
             {paused ? <PlayArrowIcon fontSize="small" /> : <PauseIcon fontSize="small" />}
           </IconButton>
         </Tooltip>
-        <Tooltip title={speechEnabled ? 'Mute' : 'Enable Speech'} placement="top">
+        <Tooltip title={speechEnabled ? 'Mute' : 'Enable Speech'} placement="top" slotProps={tooltipSlotProps}>
           <IconButton size="small" onClick={onSpeechToggle} color={speechEnabled ? 'primary' : 'default'}>
             {speechEnabled ? <VolumeUpIcon fontSize="small" /> : <VolumeOffIcon fontSize="small" />}
           </IconButton>
         </Tooltip>
-        <Tooltip title={isListening ? 'Stop Listening' : 'Start Listening'} placement="top">
+        <Tooltip title={isListening ? 'Stop Listening' : 'Start Listening'} placement="top" slotProps={tooltipSlotProps}>
           <IconButton size="small" onClick={onMicToggle} color={isListening ? 'error' : 'default'}>
             {isListening ? <MicIcon fontSize="small" /> : <MicOffIcon fontSize="small" />}
           </IconButton>
@@ -116,12 +139,12 @@ export default function AssistantControlPanel({
 
       {/* Mode controls */}
       <Stack direction="row" spacing={0.5}>
-        <Tooltip title={pinned ? 'Unpin' : 'Pin Position'} placement="top">
+        <Tooltip title={pinned ? 'Unpin' : 'Pin Position'} placement="top" slotProps={tooltipSlotProps}>
           <IconButton size="small" onClick={onPinToggle} color={pinned ? 'primary' : 'default'}>
             <PushPinIcon fontSize="small" sx={{ transform: pinned ? 'rotate(45deg)' : 'none' }} />
           </IconButton>
         </Tooltip>
-        <Tooltip title={humanLike ? 'Disable Human Mode' : 'Enable Human Mode'} placement="top">
+        <Tooltip title={humanLike ? 'Disable Human Mode' : 'Enable Human Mode'} placement="top" slotProps={tooltipSlotProps}>
           <IconButton size="small" onClick={onHumanToggle} color={humanLike ? 'primary' : 'default'}>
             {humanLike ? <PersonIcon fontSize="small" /> : <PersonOffIcon fontSize="small" />}
           </IconButton>
@@ -132,14 +155,14 @@ export default function AssistantControlPanel({
 
       {/* Navigation controls */}
       <Stack direction="row" spacing={0.5}>
-        <Tooltip title="Previous Target" placement="top">
+        <Tooltip title="Previous Target" placement="top" slotProps={tooltipSlotProps}>
           <span>
             <IconButton size="small" onClick={onPrev} disabled={targetCount === 0}>
               <NavigateBeforeIcon fontSize="small" />
             </IconButton>
           </span>
         </Tooltip>
-        <Tooltip title="Next Target" placement="top">
+        <Tooltip title="Next Target" placement="top" slotProps={tooltipSlotProps}>
           <span>
             <IconButton size="small" onClick={onNext} disabled={targetCount === 0}>
               <NavigateNextIcon fontSize="small" />
@@ -152,17 +175,17 @@ export default function AssistantControlPanel({
 
       {/* Actions */}
       <Stack direction="row" spacing={0.5}>
-        <Tooltip title="Open Full Chat" placement="top">
+        <Tooltip title="Open Full Chat" placement="top" slotProps={tooltipSlotProps}>
           <IconButton size="small" onClick={onOpenChat}>
             <OpenInNewIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Clear Messages" placement="top">
+        <Tooltip title="Clear Messages" placement="top" slotProps={tooltipSlotProps}>
           <IconButton size="small" onClick={onClear}>
             <ClearIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="Disable Assistant" placement="top">
+        <Tooltip title="Disable Assistant" placement="top" slotProps={tooltipSlotProps}>
           <IconButton size="small" onClick={onClose} color="error">
             <CloseIcon fontSize="small" />
           </IconButton>

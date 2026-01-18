@@ -8,18 +8,28 @@
 import React from 'react';
 import { Fab, Badge, Tooltip } from '@mui/material';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
-import { Z_INDEX, FAB_SIZE, TRANSITION_MS } from './constants';
+import { Z_INDEX, TRANSITION_MS } from './constants';
+
+// Tooltip props to ensure tooltips appear above everything
+const tooltipSlotProps = {
+  popper: {
+    sx: {
+      zIndex: Z_INDEX.controlPanel + 10,
+    },
+  },
+};
 
 /**
  * AssistantFab - The main floating button for the assistant
  *
  * @param {Object} props
- * @param {Object} props.position - { left, top } position
+ * @param {Object} props.position - { left, top } or { right, bottom } position
  * @param {boolean} props.isDragging - Whether currently being dragged
  * @param {boolean} props.paused - Whether assistant is paused
  * @param {boolean} props.hasAlert - Whether there's an active alert
  * @param {boolean} props.isListening - Whether mic is active
  * @param {boolean} props.isSpeaking - Whether TTS is active
+ * @param {boolean} props.pinnedBottomRight - Whether pinned to bottom-right
  * @param {Function} props.onMouseDown - Drag start handler
  * @param {Function} props.onMouseEnter - Hover start handler
  * @param {Function} props.onMouseLeave - Hover end handler
@@ -32,6 +42,7 @@ export default function AssistantFab({
   hasAlert = false,
   isListening = false,
   isSpeaking = false,
+  pinnedBottomRight = false,
   onMouseDown,
   onMouseEnter,
   onMouseLeave,
@@ -44,15 +55,27 @@ export default function AssistantFab({
     return 'primary';
   };
 
+  // Build position styles based on whether it's bottom-right pinned
+  const positionStyles = pinnedBottomRight
+    ? {
+        right: position.right || 20,
+        bottom: position.bottom || 20,
+        left: 'auto',
+        top: 'auto',
+      }
+    : {
+        left: position.left,
+        top: position.top,
+      };
+
   return (
-    <Tooltip title={paused ? 'Assistant paused' : 'AI Assistant'} placement="right">
+    <Tooltip title={paused ? 'Assistant paused' : 'AI Assistant'} placement="right" slotProps={tooltipSlotProps}>
       <Fab
         color={getColor()}
         size="medium"
         sx={{
           position: 'fixed',
-          left: position.left,
-          top: position.top,
+          ...positionStyles,
           zIndex: Z_INDEX.fab,
           transition: isDragging ? 'none' : `all ${TRANSITION_MS}ms ease-in-out`,
           cursor: isDragging ? 'grabbing' : 'grab',

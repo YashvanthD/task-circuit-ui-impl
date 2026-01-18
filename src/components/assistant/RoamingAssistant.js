@@ -31,6 +31,7 @@ import {
   SCAN_INTERVAL,
   INTERACTION_HIDE_DELAY,
   MESSAGE_PROTECTION_MS,
+  BOTTOM_RIGHT_POSITION,
 } from './constants';
 
 // Config
@@ -68,7 +69,8 @@ export default function RoamingAssistant() {
   const [enabled, setEnabled] = useState(true);
   const [paused, setPaused] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(false);
-  const [pinned, setPinned] = useState(false);
+  const [pinned, setPinned] = useState(true); // Default to pinned (sticky button)
+  const [pinnedBottomRight, setPinnedBottomRight] = useState(true); // Default to bottom-right position
   const [humanLike, setHumanLike] = useState(true);
   const [isInteracting, setIsInteracting] = useState(false);
   const [showConversation, setShowConversation] = useState(false);
@@ -86,6 +88,9 @@ export default function RoamingAssistant() {
 
   // Interaction timer
   const interactTimerRef = useRef(null);
+
+  // Bottom-right position for when pinned
+  const bottomRightPosition = { right: BOTTOM_RIGHT_POSITION.right, bottom: BOTTOM_RIGHT_POSITION.bottom };
 
   // Hooks
   const {
@@ -297,9 +302,20 @@ export default function RoamingAssistant() {
   }, [isListening, micSupported, startListening, stopListening, showPopup]);
 
   const handlePinToggle = useCallback(() => {
-    setPinned((p) => !p);
-    showPopup(pinned ? 'Unpinned' : 'Pinned');
-  }, [pinned, showPopup]);
+    setPinned((p) => {
+      const newPinned = !p;
+      if (newPinned) {
+        // When pinning, also set to bottom-right position
+        setPinnedBottomRight(true);
+        showPopup('Pinned to bottom-right');
+      } else {
+        // When unpinning, keep at current position but allow roaming
+        setPinnedBottomRight(false);
+        showPopup('Unpinned - roaming enabled');
+      }
+      return newPinned;
+    });
+  }, [showPopup]);
 
   const handleHumanToggle = useCallback(() => {
     setHumanLike((h) => !h);
@@ -342,13 +358,14 @@ export default function RoamingAssistant() {
     <Box>
       {/* Main Fab */}
       <AssistantFab
-        position={position}
+        position={pinnedBottomRight ? bottomRightPosition : position}
         isDragging={isDragging}
         paused={paused}
         hasAlert={hasTargets && currentTarget?.priority <= 2}
         isListening={isListening}
         isSpeaking={isSpeaking}
-        onMouseDown={handleDragStart}
+        pinnedBottomRight={pinnedBottomRight}
+        onMouseDown={pinnedBottomRight ? undefined : handleDragStart}
         onMouseEnter={handleFabMouseEnter}
         onMouseLeave={handleFabMouseLeave}
       />
@@ -356,13 +373,14 @@ export default function RoamingAssistant() {
       {/* Control Panel */}
       <AssistantControlPanel
         visible={isInteracting}
-        position={position}
+        position={pinnedBottomRight ? bottomRightPosition : position}
         paused={paused}
         speechEnabled={speechEnabled}
         isListening={isListening}
         pinned={pinned}
         humanLike={humanLike}
         targetCount={totalTargets}
+        pinnedBottomRight={pinnedBottomRight}
         onPauseToggle={handlePauseToggle}
         onSpeechToggle={handleSpeechToggle}
         onMicToggle={handleMicToggle}
@@ -381,7 +399,9 @@ export default function RoamingAssistant() {
       <AssistantPopup
         visible={popup.visible}
         text={popup.text}
-        position={position}
+        position={pinnedBottomRight ? bottomRightPosition : position}
+        placement={pinnedBottomRight ? 'top' : 'top'}
+        pinnedBottomRight={pinnedBottomRight}
         onClose={handlePopupClose}
       />
 

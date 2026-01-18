@@ -37,7 +37,7 @@ import BottomNavigation from '@mui/material/BottomNavigation';
 import BottomNavigationAction from '@mui/material/BottomNavigationAction';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
-import RoamingAssistant from '../components/RoamingAssistant';
+import RoamingAssistant from '../components/assistant/RoamingAssistant';
 import { useThemeMode } from '../contexts';
 
 // Shortened imports for better readability

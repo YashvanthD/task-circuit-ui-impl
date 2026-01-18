@@ -48,7 +48,7 @@ export * from './common';
 
 export { default as TaskCard } from './TaskCard';
 export { default as PondCard } from './PondCard';
-export { default as RoamingAssistant } from './RoamingAssistant';
+export { default as RoamingAssistant } from './assistant/RoamingAssistant';
 // Fish component has been migrated to ./fish/ folder - use FishCard, FishList, FishStats from there
 export { default as Profile } from './Profile';
 export { default as OrganizationTree } from './OrganizationTree';

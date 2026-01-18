@@ -40,6 +40,9 @@ export const Z_INDEX = {
 // Initial position
 export const INITIAL_POSITION = { left: 20, top: 120 };
 
+// Bottom-right pinned position (with some padding from edges)
+export const BOTTOM_RIGHT_POSITION = { right: 20, bottom: 20 };
+
 // Animation keyframes ID
 export const HAND_KEYFRAMES_ID = 'ra-hand-keyframes';
 

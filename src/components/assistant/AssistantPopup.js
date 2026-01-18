@@ -19,6 +19,7 @@ import { Z_INDEX, TRANSITION_MS } from './constants';
  * @param {Object} props.position - { left, top } position
  * @param {string} props.placement - Popup placement ('top' | 'bottom' | 'left' | 'right')
  * @param {Function} props.onClose - Close handler
+ * @param {boolean} props.pinnedBottomRight - Whether positioned at bottom-right
  */
 export default function AssistantPopup({
   visible,
@@ -26,10 +27,21 @@ export default function AssistantPopup({
   position,
   placement = 'top',
   onClose,
+  pinnedBottomRight = false,
 }) {
   if (!visible || !text) return null;
 
   const getPlacementStyles = () => {
+    // If pinned to bottom-right, popup appears above the FAB
+    if (pinnedBottomRight || position.right !== undefined) {
+      return {
+        bottom: (position.bottom || 20) + 70,
+        right: (position.right || 20) - 50,
+        left: 'auto',
+        top: 'auto',
+      };
+    }
+
     switch (placement) {
       case 'bottom':
         return { top: position.top + 70, left: position.left - 50 };
