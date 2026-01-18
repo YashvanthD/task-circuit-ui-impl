@@ -65,8 +65,24 @@ export default function Profile() {
         setProfilePic(userData.avatar_url || userData.profile_photo || '');
         setDesc(userData.description || '');
 
-        // Load notification settings
-        const notifSettings = userData.settings?.notifications || {};
+        // Load notification settings from tc_user_session
+        let notifSettings = {};
+        try {
+          const sessionStr = localStorage.getItem('tc_user_session');
+          if (sessionStr) {
+            const session = JSON.parse(sessionStr);
+            notifSettings = session?.settings?.notifications || {};
+            console.log('[Profile] Notification settings from session:', notifSettings);
+          }
+        } catch (e) {
+          console.warn('[Profile] Failed to parse session:', e);
+        }
+
+        // Fallback to userData.settings if session doesn't have it
+        if (!notifSettings || Object.keys(notifSettings).length === 0) {
+          notifSettings = userData.settings?.notifications || {};
+        }
+
         setNotifEnabled(!!notifSettings.enabled);
         setNotifPush(!!notifSettings.push);
         setNotifEmail(!!notifSettings.email);
