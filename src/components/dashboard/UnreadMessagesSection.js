@@ -31,6 +31,7 @@ import { formatDistanceToNow } from 'date-fns';
 import {
   getConversations,
   getConversationsSync,
+  getUnreadConversations,
   getTotalUnreadCount,
   onConversationsChange,
   subscribeToChatWebSocket,
@@ -210,24 +211,29 @@ export default function UnreadMessagesSection({ maxItems = 5 }) {
     // Get initial data after a short delay to allow WS to connect
     const initTimer = setTimeout(() => {
       console.log('[UnreadMessages] WebSocket connected:', isWebSocketConnected());
-      const initialConvs = getConversationsSync() || [];
-      console.log('[UnreadMessages] Initial conversations:', initialConvs.length);
+      // Use getUnreadConversations which filters by current user and excludes cleared
+      const initialConvs = getUnreadConversations() || [];
+      console.log('[UnreadMessages] Initial unread conversations:', initialConvs.length);
       setConversations(initialConvs);
       setTotalUnread(getTotalUnreadCount());
       setLoading(false);
 
-      // Force load from server if empty
-      if (initialConvs.length === 0) {
+      // Force load from server if empty (to get fresh data)
+      const allConvs = getConversationsSync() || [];
+      if (allConvs.length === 0) {
         console.log('[UnreadMessages] No conversations, fetching from server...');
         getConversations(true);
       }
     }, 200);
 
     // Subscribe to cache 'updated' event
-    const unsubUpdated = onConversationsChange('updated', (data) => {
-      console.log('[UnreadMessages] Conversations updated:', data?.length, 'Total unread:', getTotalUnreadCount());
-      setConversations([...(data || [])]);
-      setTotalUnread(getTotalUnreadCount());
+    const unsubUpdated = onConversationsChange('updated', () => {
+      // Use getUnreadConversations for proper filtering
+      const unreadConvs = getUnreadConversations() || [];
+      const unreadCount = getTotalUnreadCount();
+      console.log('[UnreadMessages] Conversations updated, unread:', unreadConvs.length, 'Total:', unreadCount);
+      setConversations([...unreadConvs]);
+      setTotalUnread(unreadCount);
     });
 
     const unsubLoading = onConversationsChange('loading', (val) => {
@@ -237,8 +243,8 @@ export default function UnreadMessagesSection({ maxItems = 5 }) {
     // Subscribe to new message events specifically for immediate updates
     const unsubMessage = onConversationsChange('message', (msgData) => {
       console.log('[UnreadMessages] New message event received:', msgData?.conversation_id);
-      // Force refresh state when new message arrives
-      const freshConvs = getConversationsSync() || [];
+      // Force refresh state when new message arrives - use filtered list
+      const freshConvs = getUnreadConversations() || [];
       setConversations([...freshConvs]);
       setTotalUnread(getTotalUnreadCount());
     });
@@ -246,7 +252,8 @@ export default function UnreadMessagesSection({ maxItems = 5 }) {
     // Subscribe to conversation created events
     const unsubCreated = onConversationsChange('created', (conv) => {
       console.log('[UnreadMessages] New conversation created:', conv?.conversation_id);
-      setConversations([...(getConversationsSync() || [])]);
+      const freshConvs = getUnreadConversations() || [];
+      setConversations([...freshConvs]);
       setTotalUnread(getTotalUnreadCount());
     });
 
@@ -268,10 +275,10 @@ export default function UnreadMessagesSection({ maxItems = 5 }) {
     };
   }, []);
 
-  // Filter to only show conversations with unread messages
+  // Sort and limit conversations (already filtered by getUnreadConversations)
   const unreadConversations = useMemo(() => {
     return conversations
-      .filter((conv) => (conv.unread_count || 0) > 0)
+      .filter((conv) => (conv.unread_count || 0) > 0 && conv.last_message) // Extra safety check
       .sort((a, b) => {
         // Sort by last activity (most recent first)
         const dateA = new Date(a.last_activity || a.last_message?.created_at || 0);

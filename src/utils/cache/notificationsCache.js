@@ -15,7 +15,6 @@ import {
   clearCache,
   getFromCacheById,
   persistCache,
-  loadPersistedCache,
 } from './baseCache';
 import {
   listNotifications,
@@ -26,6 +25,39 @@ import {
 import { socketService, WS_EVENTS } from '../websocket';
 import { showErrorAlert } from '../alertManager';
 import { playNotificationSound } from '../notifications/sound';
+
+/**
+ * Normalize notification ID from various formats
+ * Server may send: notificationId, notification_id, or id
+ */
+function getNotificationId(notif) {
+  return notif.notification_id || notif.notificationId || notif.id || null;
+}
+
+/**
+ * Normalize a notification object to ensure consistent field names
+ */
+function normalizeNotification(notif) {
+  if (!notif) return null;
+
+  const id = getNotificationId(notif);
+
+
+  return {
+    notification_id: id,
+    title: notif.title || '',
+    message: notif.message || notif.body || '',
+    type: notif.type || 'info',
+    priority: notif.priority || 'normal',
+    read: !!notif.read,
+    data: notif.data || null,
+    link: notif.link || notif.action_url || null,
+    created_at: notif.created_at || notif.createdAt || new Date().toISOString(),
+    read_at: notif.read_at || notif.readAt || null,
+    user_key: notif.user_key || notif.userKey || null,
+    account_key: notif.account_key || notif.accountKey || null,
+  };
+}
 
 // ============================================================================
 // Cache Instance
@@ -72,8 +104,15 @@ export function subscribeToWebSocket() {
   }
 
   // New notification received
-  socketService.on(WS_EVENTS.NOTIFICATION_NEW, (notification) => {
+  socketService.on(WS_EVENTS.NOTIFICATION_NEW, (rawNotification) => {
     try {
+      // Normalize the notification to ensure consistent field names
+      const notification = normalizeNotification(rawNotification);
+      if (!notification || !notification.notification_id) {
+        console.error('[NotificationsCache] Invalid notification received:', rawNotification);
+        return;
+      }
+
       const id = String(notification.notification_id);
 
       // If we already have this notification, update it and move to front
@@ -110,9 +149,16 @@ export function subscribeToWebSocket() {
   });
 
   // Notification marked as read
-  socketService.on(WS_EVENTS.NOTIFICATION_READ, ({ notification_id }) => {
+  socketService.on(WS_EVENTS.NOTIFICATION_READ, (data) => {
     try {
-      const id = String(notification_id);
+      // Handle various ID formats from server
+      const notificationId = data.notification_id || data.notificationId || data.id;
+      if (!notificationId) {
+        console.error('[NotificationsCache] Invalid notification_id in NOTIFICATION_READ:', data);
+        return;
+      }
+
+      const id = String(notificationId);
       // Mark all matching items as read (defensive: remove duplicate unread items)
       let changed = false;
       cache.data = cache.data.map((n) => {
@@ -154,9 +200,16 @@ export function subscribeToWebSocket() {
   });
 
   // Notification deleted
-  socketService.on(WS_EVENTS.NOTIFICATION_DELETED, ({ notification_id }) => {
+  socketService.on(WS_EVENTS.NOTIFICATION_DELETED, (data) => {
     try {
-      const id = String(notification_id);
+      // Handle various ID formats from server
+      const notificationId = data.notification_id || data.notificationId || data.id;
+      if (!notificationId) {
+        console.error('[NotificationsCache] Invalid notification_id in NOTIFICATION_DELETED:', data);
+        return;
+      }
+
+      const id = String(notificationId);
       const beforeLen = cache.data.length;
       // Remove all occurrences of this id (defensive)
       cache.data = cache.data.filter((n) => String(n.notification_id) !== id);
@@ -229,11 +282,8 @@ export async function getNotifications(force = false, params = {}) {
     const response = await listNotifications(params);
     const rawData = response?.data?.notifications || [];
 
-    // Normalize notifications - ensure read flag is boolean
-    const data = rawData.map((n) => ({
-      ...n,
-      read: !!n.read,  // Normalize to boolean
-    }));
+    // Normalize notifications - ensure consistent field names and read flag is boolean
+    const data = rawData.map((n) => normalizeNotification(n)).filter(Boolean);
 
     // Only update full cache if no filters
     if (!params.unread) {
@@ -361,27 +411,57 @@ export function getRecentNotifications(limit = 5) {
 
 /**
  * Mark notification as read.
+ * Uses WebSocket if connected, falls back to REST API.
  * @param {string} id - Notification ID
  * @returns {Promise<object|null>} Updated notification
  */
 export async function markNotificationAsRead(id) {
-  try {
-    const result = await apiMarkAsRead(id);
+  const notificationId = String(id);
 
-    // Update cache
-    const index = cache.data.findIndex((n) => n.notification_id === id);
-    if (index !== -1) {
+  try {
+    // Find notification by checking multiple possible ID fields
+    const index = cache.data.findIndex((n) => {
+      const nid = String(n.notification_id || n.notificationId || n.id || '');
+      return nid === notificationId;
+    });
+
+    if (index !== -1 && !cache.data[index].read) {
+      // Optimistic update
       cache.data[index] = { ...cache.data[index], read: true };
-      cache.byId.set(String(id), cache.data[index]);
-      // Recompute unread count
+      cache.byId.set(notificationId, cache.data[index]);
       cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
       cache.events.emit('updated', cache.data);
-      persistCache(cache, STORAGE_KEY);
     }
 
-    return result;
+    // Use WebSocket if connected, otherwise REST API
+    if (socketService.isConnected()) {
+      await socketService.markNotificationRead(notificationId);
+    } else {
+      await apiMarkAsRead(notificationId);
+    }
+
+    // If notification wasn't in cache, refresh to sync
+    if (index === -1) {
+      console.log('[NotificationsCache] Notification not in cache, refreshing...');
+      await getNotifications(true);
+    }
+
+    return index !== -1 ? cache.data[index] : null;
   } catch (error) {
     console.error('[NotificationsCache] Failed to mark as read:', error);
+    // Revert optimistic update on error
+    const revertIndex = cache.data.findIndex((n) => {
+      const nid = String(n.notification_id || n.notificationId || n.id || '');
+      return nid === notificationId;
+    });
+    if (revertIndex !== -1) {
+      cache.data[revertIndex] = { ...cache.data[revertIndex], read: false };
+      cache.byId.set(notificationId, cache.data[revertIndex]);
+      cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
+      cache.events.emit('updated', cache.data);
+    }
+    // Refresh to sync on error
+    await getNotifications(true);
     showErrorAlert('Failed to mark notification as read.', 'Notifications');
     throw error;
   }
@@ -389,26 +469,65 @@ export async function markNotificationAsRead(id) {
 
 /**
  * Delete notification.
+ * Uses REST API (no WebSocket event for delete in the spec).
  * @param {string} id - Notification ID
  * @returns {Promise<boolean>} Success
  */
 export async function deleteNotification(id) {
-  try {
-    const result = await apiDeleteNotification(id);
+  const notificationId = String(id);
 
-    // Update cache
-    const index = cache.data.findIndex((n) => n.notification_id === id);
-    if (index !== -1) {
-      cache.data.splice(index, 1);
-      cache.byId.delete(String(id));
-      cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
-      cache.events.emit('updated', cache.data);
-      persistCache(cache, STORAGE_KEY);
+  // Debug: log cache contents
+  console.log('[NotificationsCache] Delete requested for ID:', notificationId);
+  console.log('[NotificationsCache] Cache has', cache.data.length, 'notifications');
+
+  // Find notification by checking multiple possible ID fields
+  const index = cache.data.findIndex((n) => {
+    const nid = String(n.notification_id || n.notificationId || n.id || '');
+    return nid === notificationId;
+  });
+
+  const removedItem = index !== -1 ? { ...cache.data[index] } : null;
+
+  if (index === -1) {
+    console.warn('[NotificationsCache] Notification not found in cache:', notificationId);
+    console.warn('[NotificationsCache] This may be stale UI data. Attempting to delete via API anyway and refresh cache...');
+
+    // Try to delete via API anyway - the notification might exist on server but not in local cache
+    try {
+      await apiDeleteNotification(notificationId);
+      console.log('[NotificationsCache] API delete successful, refreshing cache...');
+      // Force refresh to sync UI with server
+      await getNotifications(true);
+      return true;
+    } catch (error) {
+      console.error('[NotificationsCache] API delete failed:', error);
+      // Still refresh to sync UI
+      await getNotifications(true);
+      return false;
     }
+  }
 
-    return result;
+  console.log('[NotificationsCache] Found notification at index:', index);
+
+  try {
+    // Optimistic update
+    cache.data.splice(index, 1);
+    cache.byId.delete(notificationId);
+    cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
+    cache.events.emit('updated', cache.data);
+
+    // REST API call (no WebSocket event for delete)
+    await apiDeleteNotification(notificationId);
+    return true;
   } catch (error) {
     console.error('[NotificationsCache] Failed to delete:', error);
+    // Revert optimistic update on error
+    if (removedItem) {
+      cache.data.splice(index, 0, removedItem);
+      cache.byId.set(notificationId, removedItem);
+      cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
+      cache.events.emit('updated', cache.data);
+    }
     showErrorAlert('Failed to delete notification.', 'Notifications');
     throw error;
   }
@@ -416,22 +535,37 @@ export async function deleteNotification(id) {
 
 /**
  * Mark all notifications as read.
+ * Uses WebSocket if connected, falls back to REST API.
  * @returns {Promise<number>} Count of marked notifications
  */
 export async function markAllNotificationsAsRead() {
-  try {
-    const result = await apiMarkAllAsRead();
+  // Store for rollback
+  const previousData = cache.data.map((n) => ({ ...n }));
+  const previousUnreadCount = cache.unreadCount;
 
-    // Update cache
+  try {
+    // Optimistic update
     cache.data = cache.data.map((n) => ({ ...n, read: true }));
     cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
     cache.unreadCount = 0;
     cache.events.emit('updated', cache.data);
-    persistCache(cache, STORAGE_KEY);
 
-    return result;
+    // Use WebSocket if connected, otherwise REST API
+    if (socketService.isConnected()) {
+      await socketService.markAllNotificationsRead();
+    } else {
+      await apiMarkAllAsRead();
+    }
+
+    return previousUnreadCount;
   } catch (error) {
     console.error('[NotificationsCache] Failed to mark all as read:', error);
+    // Revert optimistic update on error
+    cache.data = previousData;
+    cache.byId.clear();
+    cache.data.forEach((n) => cache.byId.set(String(n.notification_id), n));
+    cache.unreadCount = previousUnreadCount;
+    cache.events.emit('updated', cache.data);
     showErrorAlert('Failed to mark all notifications as read.', 'Notifications');
     throw error;
   }

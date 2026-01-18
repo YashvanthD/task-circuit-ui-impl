@@ -26,6 +26,41 @@ import { socketService, WS_EVENTS } from '../websocket';
 import { showErrorAlert } from '../alertManager';
 import { playNotificationSound } from '../notifications/sound';
 
+/**
+ * Get alert ID from various formats
+ * Server may send: alertId, alert_id, or id
+ */
+function getAlertId(alert) {
+  return alert.alert_id || alert.alertId || alert.id || null;
+}
+
+/**
+ * Normalize an alert object to ensure consistent field names
+ */
+function normalizeAlert(alert) {
+  if (!alert) return null;
+
+  const id = getAlertId(alert);
+
+  return {
+    alert_id: id,
+    title: alert.title || '',
+    message: alert.message || alert.body || '',
+    type: alert.type || alert.alert_type || 'warning',
+    severity: alert.severity || 'medium',
+    source: alert.source || 'system',
+    source_id: alert.source_id || alert.sourceId || null,
+    acknowledged: !!alert.acknowledged,
+    acknowledged_by: alert.acknowledged_by || alert.acknowledgedBy || null,
+    acknowledged_at: alert.acknowledged_at || alert.acknowledgedAt || null,
+    auto_dismiss: !!alert.auto_dismiss,
+    dismiss_after_minutes: alert.dismiss_after_minutes || null,
+    created_at: alert.created_at || alert.createdAt || new Date().toISOString(),
+    user_key: alert.user_key || alert.userKey || null,
+    account_key: alert.account_key || alert.accountKey || null,
+  };
+}
+
 // ============================================================================
 // Cache Instance
 // ============================================================================
@@ -67,57 +102,134 @@ export function subscribeToAlertWebSocket() {
   }
 
   // New alert received
-  socketService.on(WS_EVENTS.ALERT_NEW, (alert) => {
-    // Add to beginning of cache
-    cache.data.unshift(alert);
-    cache.byId.set(String(alert.alert_id), alert);
-    if (!alert.acknowledged) {
-      cache.unacknowledgedCount++;
-    }
-    cache.events.emit('updated', cache.data);
-    cache.events.emit('new', alert);
-    persistCache(cache, STORAGE_KEY);
+  socketService.on(WS_EVENTS.ALERT_NEW, (rawAlert) => {
+    try {
+      // Normalize the alert to ensure consistent field names
+      const alert = normalizeAlert(rawAlert);
+      if (!alert || !alert.alert_id) {
+        console.error('[AlertsCache] Invalid alert received:', rawAlert);
+        return;
+      }
 
-    // Play notification sound for new alerts
-    playNotificationSound();
+      const id = String(alert.alert_id);
+
+      // Check if we already have this alert
+      if (cache.byId.has(id)) {
+        // Update existing and move to front
+        cache.data = [
+          alert,
+          ...cache.data.filter((a) => String(a.alert_id) !== id),
+        ];
+      } else {
+        // Add to beginning of cache
+        cache.data.unshift(alert);
+      }
+
+      // Rebuild id map
+      cache.byId.clear();
+      cache.data.forEach((a) => cache.byId.set(String(a.alert_id), a));
+
+      // Recompute unacknowledged count
+      cache.unacknowledgedCount = cache.data.filter((a) => !a.acknowledged).length;
+
+      cache.events.emit('updated', cache.data);
+      cache.events.emit('new', alert);
+      persistCache(cache, STORAGE_KEY);
+
+      // Play notification sound for new alerts
+      playNotificationSound();
+    } catch (e) {
+      console.error('[AlertsCache] Error handling ALERT_NEW:', e);
+    }
   });
 
   // Alert acknowledged
-  socketService.on(WS_EVENTS.ALERT_ACKNOWLEDGED, ({ alert_id, acknowledged_by, acknowledged_at }) => {
-    const index = cache.data.findIndex((a) => a.alert_id === alert_id);
-    if (index !== -1 && !cache.data[index].acknowledged) {
-      cache.data[index] = {
-        ...cache.data[index],
-        acknowledged: true,
-        acknowledged_by,
-        acknowledged_at,
-      };
-      cache.byId.set(String(alert_id), cache.data[index]);
-      cache.unacknowledgedCount = Math.max(0, cache.unacknowledgedCount - 1);
-      cache.events.emit('updated', cache.data);
-      persistCache(cache, STORAGE_KEY);
+  socketService.on(WS_EVENTS.ALERT_ACKNOWLEDGED, (data) => {
+    try {
+      // Handle various ID formats from server
+      const alertId = data.alert_id || data.alertId || data.id;
+      if (!alertId) {
+        console.error('[AlertsCache] Invalid alert_id in ALERT_ACKNOWLEDGED:', data);
+        return;
+      }
+
+      const id = String(alertId);
+      const index = cache.data.findIndex((a) => String(a.alert_id) === id);
+      if (index !== -1 && !cache.data[index].acknowledged) {
+        cache.data[index] = {
+          ...cache.data[index],
+          acknowledged: true,
+          acknowledged_by: data.acknowledged_by || data.acknowledgedBy,
+          acknowledged_at: data.acknowledged_at || data.acknowledgedAt || new Date().toISOString(),
+        };
+        cache.byId.set(id, cache.data[index]);
+        cache.unacknowledgedCount = Math.max(0, cache.data.filter((a) => !a.acknowledged).length);
+        cache.events.emit('updated', cache.data);
+        persistCache(cache, STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error('[AlertsCache] Error handling ALERT_ACKNOWLEDGED:', e);
     }
   });
 
+  // All alerts acknowledged
+  socketService.on(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, () => {
+    const now = new Date().toISOString();
+    cache.data = cache.data.map((a) => ({
+      ...a,
+      acknowledged: true,
+      acknowledged_at: a.acknowledged_at || now,
+    }));
+    cache.byId.clear();
+    cache.data.forEach((a) => cache.byId.set(String(a.alert_id), a));
+    cache.unacknowledgedCount = 0;
+    cache.events.emit('updated', cache.data);
+    cache.events.emit('countUpdated', 0);
+    persistCache(cache, STORAGE_KEY);
+  });
+
+  // Alert error from server
+  socketService.on(WS_EVENTS.ALERT_ERROR, (error) => {
+    console.error('[AlertsCache] WebSocket alert error:', error);
+    cache.events.emit('error', error);
+  });
+
   // Alert deleted
-  socketService.on(WS_EVENTS.ALERT_DELETED, ({ alert_id }) => {
-    const index = cache.data.findIndex((a) => a.alert_id === alert_id);
-    if (index !== -1) {
-      const wasUnacknowledged = !cache.data[index].acknowledged;
-      cache.data.splice(index, 1);
-      cache.byId.delete(String(alert_id));
-      if (wasUnacknowledged) {
-        cache.unacknowledgedCount = Math.max(0, cache.unacknowledgedCount - 1);
+  socketService.on(WS_EVENTS.ALERT_DELETED, (data) => {
+    try {
+      // Handle various ID formats from server
+      const alertId = data.alert_id || data.alertId || data.id;
+      if (!alertId) {
+        console.error('[AlertsCache] Invalid alert_id in ALERT_DELETED:', data);
+        return;
       }
-      cache.events.emit('updated', cache.data);
-      persistCache(cache, STORAGE_KEY);
+
+      const id = String(alertId);
+      const index = cache.data.findIndex((a) => String(a.alert_id) === id);
+      if (index !== -1) {
+        const wasUnacknowledged = !cache.data[index].acknowledged;
+        cache.data.splice(index, 1);
+        cache.byId.delete(id);
+        if (wasUnacknowledged) {
+          cache.unacknowledgedCount = Math.max(0, cache.unacknowledgedCount - 1);
+        }
+        cache.events.emit('updated', cache.data);
+        persistCache(cache, STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error('[AlertsCache] Error handling ALERT_DELETED:', e);
     }
   });
 
   // Unacknowledged count update from server
-  socketService.on(WS_EVENTS.ALERT_COUNT, ({ count }) => {
-    cache.unacknowledgedCount = count;
-    cache.events.emit('countUpdated', count);
+  socketService.on(WS_EVENTS.ALERT_COUNT, (data) => {
+    try {
+      const count = typeof data.count === 'number' ? data.count : data;
+      cache.unacknowledgedCount = Math.max(0, count);
+      cache.events.emit('countUpdated', cache.unacknowledgedCount);
+    } catch (e) {
+      console.error('[AlertsCache] Error handling ALERT_COUNT:', e);
+    }
   });
 
   wsSubscribed = true;
@@ -310,59 +422,150 @@ export function getAlertsForEntity(sourceId) {
 
 /**
  * Acknowledge an alert.
+ * Uses WebSocket if connected, falls back to REST API.
  * @param {string} id - Alert ID
  * @returns {Promise<object|null>} Updated alert
  */
 export async function acknowledgeAlert(id) {
-  try {
-    const result = await apiAcknowledgeAlert(id);
+  // Store for rollback
+  const index = cache.data.findIndex((a) => a.alert_id === id);
+  const previousState = index !== -1 ? { ...cache.data[index] } : null;
 
-    // Update cache
-    const index = cache.data.findIndex((a) => a.alert_id === id);
-    if (index !== -1) {
+  try {
+    // Optimistic update
+    if (index !== -1 && !cache.data[index].acknowledged) {
       cache.data[index] = {
         ...cache.data[index],
         acknowledged: true,
         acknowledged_at: new Date().toISOString(),
       };
       cache.byId.set(String(id), cache.data[index]);
-      cache.unacknowledgedCount = cache.data.filter((a) => !a.acknowledged).length;
+      cache.unacknowledgedCount = Math.max(0, cache.data.filter((a) => !a.acknowledged).length);
       cache.events.emit('updated', cache.data);
-      persistCache(cache, STORAGE_KEY);
     }
 
-    return result;
+    // Use WebSocket if connected, otherwise REST API
+    if (socketService.isConnected()) {
+      await socketService.acknowledgeAlert(id);
+    } else {
+      await apiAcknowledgeAlert(id);
+    }
+
+    return cache.data[index];
   } catch (error) {
     console.error('[AlertsCache] Failed to acknowledge:', error);
+    // Revert optimistic update on error
+    if (previousState && index !== -1) {
+      cache.data[index] = previousState;
+      cache.byId.set(String(id), previousState);
+      cache.unacknowledgedCount = cache.data.filter((a) => !a.acknowledged).length;
+      cache.events.emit('updated', cache.data);
+    }
     showErrorAlert('Failed to acknowledge alert.', 'Alerts');
     throw error;
   }
 }
 
 /**
- * Delete alert (admin only).
+ * Dismiss/delete alert via WebSocket.
+ * Uses WebSocket if connected, falls back to REST API.
+ * @param {string} id - Alert ID
+ * @returns {Promise<boolean>} Success
+ */
+export async function dismissAlert(id) {
+  // Store for rollback
+  const index = cache.data.findIndex((a) => a.alert_id === id);
+  const removedItem = index !== -1 ? { ...cache.data[index] } : null;
+
+  try {
+    // Optimistic update
+    if (index !== -1) {
+      const wasUnacknowledged = !cache.data[index].acknowledged;
+      cache.data.splice(index, 1);
+      cache.byId.delete(String(id));
+      if (wasUnacknowledged) {
+        cache.unacknowledgedCount = Math.max(0, cache.unacknowledgedCount - 1);
+      }
+      cache.events.emit('updated', cache.data);
+    }
+
+    // Use WebSocket if connected, otherwise REST API
+    if (socketService.isConnected()) {
+      await socketService.dismissAlert(id);
+    } else {
+      await apiDeleteAlert(id);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[AlertsCache] Failed to dismiss:', error);
+    // Revert optimistic update on error
+    if (removedItem) {
+      cache.data.splice(index, 0, removedItem);
+      cache.byId.set(String(id), removedItem);
+      cache.unacknowledgedCount = cache.data.filter((a) => !a.acknowledged).length;
+      cache.events.emit('updated', cache.data);
+    }
+    showErrorAlert('Failed to dismiss alert.', 'Alerts');
+    throw error;
+  }
+}
+
+/**
+ * Delete alert (admin only) - alias for dismissAlert for backward compatibility.
  * @param {string} id - Alert ID
  * @returns {Promise<boolean>} Success
  */
 export async function deleteAlert(id) {
-  try {
-    const result = await apiDeleteAlert(id);
+  return dismissAlert(id);
+}
 
-    // Update cache
-    const index = cache.data.findIndex((a) => a.alert_id === id);
-    if (index !== -1) {
-      cache.data.splice(index, 1);
-      cache.byId.delete(String(id));
-      cache.unacknowledgedCount = cache.data.filter((a) => !a.acknowledged).length;
-      cache.events.emit('updated', cache.data);
-      persistCache(cache, STORAGE_KEY);
+/**
+ * Acknowledge all alerts via WebSocket.
+ * @returns {Promise<number>} Count of acknowledged alerts
+ */
+export async function acknowledgeAllAlerts() {
+  // Store for rollback
+  const previousData = cache.data.map((a) => ({ ...a }));
+  const previousCount = cache.unacknowledgedCount;
+
+  try {
+    // Optimistic update
+    const now = new Date().toISOString();
+    cache.data = cache.data.map((a) => ({
+      ...a,
+      acknowledged: true,
+      acknowledged_at: a.acknowledged ? a.acknowledged_at : now,
+    }));
+    cache.data.forEach((a) => cache.byId.set(String(a.alert_id), a));
+    cache.unacknowledgedCount = 0;
+    cache.events.emit('updated', cache.data);
+
+    // Use WebSocket if connected
+    if (socketService.isConnected()) {
+      await socketService.acknowledgeAllAlerts();
     }
 
-    return result;
+    return previousCount;
   } catch (error) {
-    console.error('[AlertsCache] Failed to delete:', error);
-    showErrorAlert('Failed to delete alert.', 'Alerts');
+    console.error('[AlertsCache] Failed to acknowledge all:', error);
+    // Revert optimistic update on error
+    cache.data = previousData;
+    cache.byId.clear();
+    cache.data.forEach((a) => cache.byId.set(String(a.alert_id), a));
+    cache.unacknowledgedCount = previousCount;
+    cache.events.emit('updated', cache.data);
+    showErrorAlert('Failed to acknowledge all alerts.', 'Alerts');
     throw error;
+  }
+}
+
+/**
+ * Request alert count from server via WebSocket.
+ */
+export function requestAlertCount() {
+  if (socketService.isConnected()) {
+    socketService.getAlertCount();
   }
 }
 

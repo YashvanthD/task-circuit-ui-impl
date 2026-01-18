@@ -534,7 +534,14 @@ export function subscribeToChatWebSocket() {
     // Update conversation
     const conv = conversationsCache.byId.get(String(conversationId));
     if (conv) {
+      // Reset last_message and unread count
+      const previousUnread = conv.unread_count || 0;
       conv.last_message = null;
+      conv.unread_count = 0;
+
+      // Update total unread count
+      conversationsCache.totalUnread = Math.max(0, conversationsCache.totalUnread - previousUnread);
+
       conversationsCache.events.emit('updated', conversationsCache.data);
       persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
     }
@@ -930,9 +937,36 @@ export async function refreshConversations() {
 
 /**
  * Get conversations sync
+ * Returns only conversations where current user is a participant
  */
 export function getConversationsSync() {
-  return conversationsCache.data;
+  const currentUserKey = getCurrentUserKey();
+
+  // Filter to only include conversations where current user is a participant
+  return conversationsCache.data.filter((conv) => {
+    const isParticipant = conv.participants?.includes(currentUserKey) ||
+      conv.participants?.some(p => String(p) === String(currentUserKey));
+    return isParticipant;
+  });
+}
+
+/**
+ * Get conversations with unread messages only
+ * For dashboard display - filters out cleared conversations
+ */
+export function getUnreadConversations() {
+  const currentUserKey = getCurrentUserKey();
+
+  return conversationsCache.data.filter((conv) => {
+    // Verify current user is a participant
+    const isParticipant = conv.participants?.includes(currentUserKey) ||
+      conv.participants?.some(p => String(p) === String(currentUserKey));
+
+    if (!isParticipant) return false;
+
+    // Must have unread count > 0 and a valid last_message
+    return (conv.unread_count || 0) > 0 && conv.last_message;
+  });
 }
 
 /**
@@ -944,9 +978,31 @@ export function getConversationById(conversationId) {
 
 /**
  * Get total unread count
+ * Computes from actual conversation data to ensure accuracy
  */
 export function getTotalUnreadCount() {
-  return conversationsCache.totalUnread;
+  const currentUserKey = getCurrentUserKey();
+
+  // Only count unread from conversations where current user is a participant
+  const count = conversationsCache.data.reduce((sum, conv) => {
+    // Verify current user is a participant
+    const isParticipant = conv.participants?.includes(currentUserKey) ||
+      conv.participants?.some(p => String(p) === String(currentUserKey));
+
+    if (!isParticipant) return sum;
+
+    // Only count if there's an unread_count and there's a valid last_message
+    // This prevents showing unread for cleared conversations
+    if ((conv.unread_count || 0) > 0 && conv.last_message) {
+      return sum + conv.unread_count;
+    }
+    return sum;
+  }, 0);
+
+  // Sync the cached value
+  conversationsCache.totalUnread = count;
+
+  return count;
 }
 
 /**
@@ -1611,6 +1667,7 @@ export const chatCache = {
   getConversations,
   refreshConversations,
   getConversationsSync,
+  getUnreadConversations,
   getConversationById,
   getTotalUnreadCount,
   isConversationsLoading,
