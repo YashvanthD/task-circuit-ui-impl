@@ -24,7 +24,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start:dev:": "NODE_ENV=development REACT_APP_BACKEND_URL=''  react-scripts start",
+    "start:dev": "NODE_ENV=development REACT_APP_BACKEND_URL=''  react-scripts start",
     "start:prod": "NODE_ENV=prod REACT_APP_BACKEND_URL='https://fin-engine-impl.onrender.com'  react-scripts start",
     "build": "react-scripts build",
     "build:production": "NODE_ENV=prod REACT_APP_BACKEND_URL='https://fin-engine-impl.onrender.com' react-scripts build",
