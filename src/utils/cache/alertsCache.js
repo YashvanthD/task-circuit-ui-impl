@@ -24,7 +24,7 @@ import {
 } from '../../api/notifications';
 import { WS_EVENTS, subscribeWS, isConnected, wsAlerts } from '../websocket';
 import { showErrorAlert } from '../alertManager';
-import { playNotificationSound } from '../notifications/sound';
+import { playNotificationSound, playAlertSound } from '../notifications/sound';
 
 /**
  * Get alert ID from various formats
@@ -118,7 +118,8 @@ export function subscribeToAlertWebSocket() {
       cache.events.emit('updated', [...cache.data]);
       cache.events.emit('new', alert);
       persistCache(cache, STORAGE_KEY);
-      playNotificationSound();
+      // Play sound based on alert severity
+      playAlertSound(alert);
     } catch (e) {
       console.error('[AlertsCache] Error handling ALERT_NEW:', e);
     }

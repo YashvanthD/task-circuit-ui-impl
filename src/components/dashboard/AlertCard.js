@@ -15,6 +15,8 @@ import {
   Info as LowPriorityIcon,
   Schedule as ScheduleIcon,
   Error as CriticalIcon,
+  AccessTime as TimeIcon,
+  NotificationsActive as UrgentIcon,
 } from '@mui/icons-material';
 import { formatTimestamp } from '../../utils/helpers/date';
 
@@ -87,6 +89,59 @@ function getSeverityKey(alert) {
 }
 
 /**
+ * Calculate time left until due date
+ * @returns {{ text: string, urgent: boolean, overdue: boolean, color: string }}
+ */
+function getTimeLeft(dueDate) {
+  if (!dueDate) return { text: '', urgent: false, overdue: false, color: 'text.secondary' };
+
+  try {
+    const due = new Date(dueDate);
+    const now = new Date();
+    const diff = due - now;
+
+    // Overdue
+    if (diff < 0) {
+      const hours = Math.floor(Math.abs(diff) / (1000 * 60 * 60));
+      const days = Math.floor(hours / 24);
+      if (days > 0) {
+        return { text: `${days}d overdue`, urgent: true, overdue: true, color: 'error.main' };
+      }
+      return { text: `${hours}h overdue`, urgent: true, overdue: true, color: 'error.main' };
+    }
+
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    // Less than 1 hour - very urgent
+    if (minutes < 60) {
+      return { text: `${minutes}m left`, urgent: true, overdue: false, color: 'error.main' };
+    }
+
+    // Less than 6 hours - urgent
+    if (hours < 6) {
+      return { text: `${hours}h left`, urgent: true, overdue: false, color: 'warning.main' };
+    }
+
+    // Less than 24 hours
+    if (hours < 24) {
+      return { text: `${hours}h left`, urgent: false, overdue: false, color: 'info.main' };
+    }
+
+    // More than a day
+    const remainingHours = hours % 24;
+    if (days === 1) {
+      return { text: `1d ${remainingHours}h left`, urgent: false, overdue: false, color: 'text.secondary' };
+    }
+
+    return { text: `${days}d left`, urgent: false, overdue: false, color: 'text.secondary' };
+  } catch {
+    return { text: '', urgent: false, overdue: false, color: 'text.secondary' };
+  }
+}
+
+/**
  * AlertCard - Single alert display card.
  * Touch-friendly card with improved visual hierarchy.
  * Works with both task alerts and system alerts.
@@ -105,17 +160,19 @@ export default function AlertCard({ alert, onClick }) {
   const isResolved = alert.resolved;
   const isUnread = alert.unread;
 
-
   // Get title and description
   const title = alert.title || alert.name || 'Alert';
   const description = alert.message || alert.description || alert.content || '';
 
   // Get due date (for tasks) or created date (for system alerts)
-  const dueDate = alert.completeBy || alert.due_date;
+  const dueDate = alert.completeBy || alert.due_date || alert.end_date || alert.endDate;
   const createdAt = alert.created_at || alert.createdAt;
 
   // Get alert type or source
   const alertType = alert.alert_type || alert.type || alert.source;
+
+  // Calculate time left
+  const timeLeft = getTimeLeft(dueDate);
 
   return (
     <Card
@@ -123,12 +180,13 @@ export default function AlertCard({ alert, onClick }) {
       sx={{
         height: '100%',
         border: '1px solid',
-        borderColor: 'divider',
+        borderColor: timeLeft.overdue ? 'error.main' : 'divider',
         borderRadius: 2,
         transition: 'all 0.2s ease-in-out',
         position: 'relative',
         overflow: 'hidden',
         opacity: isResolved ? 0.5 : isAcknowledged ? 0.7 : 1,
+        bgcolor: timeLeft.overdue ? alpha('#d32f2f', 0.03) : 'background.paper',
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -136,7 +194,7 @@ export default function AlertCard({ alert, onClick }) {
           left: 0,
           width: 4,
           height: '100%',
-          bgcolor: isResolved ? 'success.main' : isAcknowledged ? 'info.main' : config.color,
+          bgcolor: isResolved ? 'success.main' : isAcknowledged ? 'info.main' : timeLeft.overdue ? 'error.main' : config.color,
         },
         '&:hover': {
           borderColor: config.color,
@@ -158,7 +216,7 @@ export default function AlertCard({ alert, onClick }) {
             <Typography
               variant="subtitle2"
               fontWeight={isUnread || (!isAcknowledged && !isResolved) ? 700 : 600}
-              color={isUnread ? 'error.main' : isResolved ? 'text.disabled' : 'text.primary'}
+              color={timeLeft.overdue ? 'error.main' : isUnread ? 'error.main' : isResolved ? 'text.disabled' : 'text.primary'}
               sx={{
                 flex: 1,
                 lineHeight: 1.3,
@@ -206,8 +264,32 @@ export default function AlertCard({ alert, onClick }) {
             </Typography>
           )}
 
-          {/* Footer: Alert type, due date, or created date */}
+          {/* Footer: Time left, alert type, and status */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
+            {/* Time Left - Prominent display */}
+            {timeLeft.text && (
+              <Chip
+                icon={timeLeft.urgent ? <UrgentIcon sx={{ fontSize: 14 }} /> : <TimeIcon sx={{ fontSize: 14 }} />}
+                label={timeLeft.text}
+                size="small"
+                sx={{
+                  height: 22,
+                  fontSize: '0.65rem',
+                  fontWeight: timeLeft.urgent ? 700 : 600,
+                  bgcolor: timeLeft.overdue ? 'error.main' : timeLeft.urgent ? alpha('#ed6c02', 0.15) : alpha('#2196f3', 0.1),
+                  color: timeLeft.overdue ? 'white' : timeLeft.color,
+                  '& .MuiChip-icon': {
+                    color: timeLeft.overdue ? 'white' : timeLeft.color,
+                  },
+                  animation: timeLeft.urgent ? 'pulse 2s infinite' : 'none',
+                  '@keyframes pulse': {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0.7 },
+                  },
+                }}
+              />
+            )}
+
             {alertType && (
               <Chip
                 label={alertType.replace(/_/g, ' ')}
@@ -221,7 +303,8 @@ export default function AlertCard({ alert, onClick }) {
               />
             )}
 
-            {dueDate && (
+            {/* Due date display */}
+            {dueDate && !timeLeft.text && (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <ScheduleIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                 <Typography variant="caption" color="text.secondary">

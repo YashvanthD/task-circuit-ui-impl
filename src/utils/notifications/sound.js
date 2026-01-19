@@ -1,6 +1,7 @@
 /**
  * Notifications - Sound Manager
  * Handles notification sounds based on user notification settings.
+ * Supports severity-based sound variations.
  *
  * @module utils/notifications/sound
  */
@@ -13,6 +14,19 @@ let audioInstance = null;
 
 // Local sound enabled state (can be overridden locally)
 let localSoundEnabled = true;
+
+// Last played timestamp (to prevent rapid repeated sounds)
+let lastPlayedTime = 0;
+const MIN_SOUND_INTERVAL = 1000; // Minimum 1 second between sounds
+
+// Severity-based configuration
+const SEVERITY_CONFIG = {
+  critical: { volume: 1.0, repeat: 2, delay: 300 },
+  high: { volume: 0.8, repeat: 1, delay: 0 },
+  medium: { volume: 0.6, repeat: 1, delay: 0 },
+  low: { volume: 0.4, repeat: 1, delay: 0 },
+  default: { volume: 0.5, repeat: 1, delay: 0 },
+};
 
 /**
  * Get notification settings from tc_user_session
@@ -92,32 +106,65 @@ function shouldPlaySound() {
 /**
  * Play notification sound
  * Only plays if notifications and push are enabled in user settings
+ * @param {string} severity - Alert severity (critical, high, medium, low)
  */
-export function playNotificationSound() {
+export function playNotificationSound(severity = 'default') {
   if (!shouldPlaySound()) {
     console.log('[NotificationSound] Sound disabled by settings');
     return;
   }
 
+  // Prevent rapid repeated sounds
+  const now = Date.now();
+  if (now - lastPlayedTime < MIN_SOUND_INTERVAL) {
+    console.log('[NotificationSound] Throttled - too soon since last sound');
+    return;
+  }
+  lastPlayedTime = now;
+
   const audio = getAudio();
   if (!audio) return;
 
+  // Get severity configuration
+  const config = SEVERITY_CONFIG[severity] || SEVERITY_CONFIG.default;
+
   try {
-    // Reset to start
-    audio.currentTime = 0;
+    // Set volume based on severity
+    audio.volume = config.volume;
 
-    // Play (returns promise)
-    const playPromise = audio.play();
+    // Play the sound
+    const playOnce = () => {
+      audio.currentTime = 0;
+      const playPromise = audio.play();
 
-    if (playPromise !== undefined) {
-      playPromise.catch((error) => {
-        // Auto-play was prevented (common in browsers)
-        console.warn('[NotificationSound] Playback prevented:', error);
-      });
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.warn('[NotificationSound] Playback prevented:', error);
+        });
+      }
+    };
+
+    // Play immediately
+    playOnce();
+
+    // Repeat for critical alerts
+    if (config.repeat > 1 && config.delay > 0) {
+      for (let i = 1; i < config.repeat; i++) {
+        setTimeout(playOnce, config.delay * i);
+      }
     }
   } catch (e) {
     console.warn('[NotificationSound] Failed to play:', e);
   }
+}
+
+/**
+ * Play alert sound with severity
+ * @param {object} alert - Alert object with severity field
+ */
+export function playAlertSound(alert) {
+  const severity = alert?.severity || 'default';
+  playNotificationSound(severity);
 }
 
 /**
@@ -190,6 +237,7 @@ try {
 
 export default {
   playNotificationSound,
+  playAlertSound,
   enableSound,
   disableSound,
   toggleSound,

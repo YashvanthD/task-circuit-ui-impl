@@ -227,12 +227,54 @@ export default function DashboardPage() {
     }
   }, [selectedAlert, updateTask, handleDialogClose]);
 
-  const handleRemindLater = useCallback(() => {
+  const handleRemindLater = useCallback(async () => {
     if (selectedAlert && remindDropdown) {
-      // UI-only for now
-      handleDialogClose();
+      // Calculate reminder time based on selection
+      const now = new Date();
+      let reminderTime;
+
+      switch (remindDropdown) {
+        case '5min':
+          reminderTime = new Date(now.getTime() + 5 * 60 * 1000);
+          break;
+        case '30min':
+          reminderTime = new Date(now.getTime() + 30 * 60 * 1000);
+          break;
+        case '1hour':
+          reminderTime = new Date(now.getTime() + 60 * 60 * 1000);
+          break;
+        case 'custom':
+          reminderTime = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours
+          break;
+        default:
+          reminderTime = new Date(now.getTime() + 30 * 60 * 1000);
+      }
+
+      try {
+        // Update task with reminder settings
+        await updateTask(selectedAlert.task_id, {
+          reminder: true,
+          reminderTime: reminderTime.toISOString(),
+          remindBefore: remindDropdown === '5min' ? 5 : remindDropdown === '30min' ? 30 : remindDropdown === '1hour' ? 60 : 120,
+        });
+
+        // Store reminder in localStorage for local notification
+        const reminders = JSON.parse(localStorage.getItem('tc_task_reminders') || '[]');
+        reminders.push({
+          taskId: selectedAlert.task_id,
+          taskTitle: selectedAlert.title,
+          reminderTime: reminderTime.toISOString(),
+          createdAt: now.toISOString(),
+        });
+        localStorage.setItem('tc_task_reminders', JSON.stringify(reminders));
+
+        console.log(`[DashboardPage] Reminder set for ${reminderTime.toLocaleString()}`);
+        handleDialogClose();
+      } catch (err) {
+        console.error('[DashboardPage] Failed to set reminder:', err);
+      }
     }
-  }, [selectedAlert, remindDropdown, handleDialogClose]);
+  }, [selectedAlert, remindDropdown, updateTask, handleDialogClose]);
 
   const handleMarkAsUnread = useCallback(async () => {
     if (selectedAlert) {
