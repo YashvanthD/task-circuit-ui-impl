@@ -8,7 +8,8 @@
 import React, { useState } from 'react';
 import {
   Paper, Typography, Button, Stack, Chip, IconButton, Box, Avatar, Tooltip,
-  Collapse, Divider, useMediaQuery, useTheme,
+  Collapse, Divider, useMediaQuery, useTheme, Dialog, DialogTitle, DialogContent,
+  DialogActions,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -21,6 +22,9 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import UpdateIcon from '@mui/icons-material/Update';
 import SetMealIcon from '@mui/icons-material/SetMeal';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import CloseIcon from '@mui/icons-material/Close';
+import WaterIcon from '@mui/icons-material/Water';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 
 // ============================================================================
 // Constants
@@ -171,6 +175,295 @@ function StockTable({ stock = [] }) {
 }
 
 // ============================================================================
+// PondDetailDialog - Mobile friendly detail view
+// ============================================================================
+
+function PondDetailDialog({
+  open,
+  onClose,
+  pond,
+  onEdit,
+  onDelete,
+  onDailyUpdate,
+}) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  if (!pond) return null;
+
+  // Extract pond data with fallbacks
+  const name = pond.farm_name || pond.name || pond.pond_name || 'Pond';
+  const id = pond.pond_id || pond.id || '';
+  const location = pond.pond_location || pond.location || '';
+  const area = pond.pond_area || pond.area || '';
+  const type = pond.pond_type || pond.type || '';
+  const temp = pond.temperature;
+  const ph = pond.ph;
+  const do_level = pond.dissolved_oxygen || pond.do_level || pond.do;
+  const salinity = pond.salinity;
+  const depth = pond.depth || pond.pond_depth;
+  const lastUpdate = pond.last_update || pond.lastMaintenance || pond.updatedAt || pond.createdAt;
+  const createdAt = pond.createdAt || pond.created_at;
+  const notes = pond.notes || pond.description || '';
+
+  // Financial data
+  const totalExpenses = Number(pond.total_expenses || 0);
+  const pondCost = Number(pond.pond_cost || 0);
+  const stockValue = Number(pond.current_stock_value || pond.stock_value || 0);
+  const feedCost = Number(pond.feed_cost || pond.feeding_cost || 0);
+  const laborCost = Number(pond.labor_cost || 0);
+
+  // Stock data
+  const stock = pond.currentStock || pond.current_stock || [];
+  const totalFish = Array.isArray(stock) ? stock.reduce((acc, s) => acc + Number(s.count || 0), 0) : 0;
+  const totalWeight = Array.isArray(stock) ? stock.reduce((acc, s) => {
+    const count = Number(s.count || 0);
+    const avgWeight = Number(s.average_weight || s.avg_weight || 0);
+    return acc + (count * avgWeight);
+  }, 0) : 0;
+
+  const typeConfig = getPondTypeConfig(type);
+  const health = getPondHealth(pond);
+  const healthConfig = HEALTH_STATUS[health];
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="sm"
+      fullWidth
+      fullScreen={isMobile}
+      PaperProps={{
+        sx: { borderRadius: isMobile ? 0 : 3 }
+      }}
+    >
+      {/* Header */}
+      <DialogTitle
+        sx={{
+          background: `linear-gradient(135deg, ${typeConfig.bg} 0%, white 100%)`,
+          borderBottom: `3px solid ${typeConfig.color}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          p: 2,
+        }}
+      >
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Avatar sx={{ bgcolor: 'white', color: typeConfig.color, fontSize: '1.5rem', boxShadow: 2 }}>
+            {typeConfig.icon}
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+              {name}
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+              <Chip
+                label={type || 'Pond'}
+                size="small"
+                sx={{ bgcolor: typeConfig.color, color: 'white', fontWeight: 600, height: 20, fontSize: '0.65rem' }}
+              />
+              <Chip
+                label={healthConfig.label}
+                size="small"
+                sx={{ bgcolor: healthConfig.bg, color: healthConfig.color, height: 20, fontSize: '0.65rem' }}
+              />
+            </Stack>
+          </Box>
+        </Stack>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ p: 0 }}>
+        {/* Financial Summary Banner */}
+        <Box sx={{ p: 2, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Stack direction="row" spacing={1} justifyContent="space-around" divider={<Divider orientation="vertical" flexItem />}>
+            <Box sx={{ textAlign: 'center', flex: 1 }}>
+              <Typography variant="caption" color="text.secondary">Total Expenses</Typography>
+              <Typography variant="h6" fontWeight={700} color="error.main">{formatCurrency(totalExpenses)}</Typography>
+            </Box>
+            <Box sx={{ textAlign: 'center', flex: 1 }}>
+              <Typography variant="caption" color="text.secondary">Stock Value</Typography>
+              <Typography variant="h6" fontWeight={700} color="success.main">{formatCurrency(stockValue)}</Typography>
+            </Box>
+            <Box sx={{ textAlign: 'center', flex: 1 }}>
+              <Typography variant="caption" color="text.secondary">Net</Typography>
+              <Typography variant="h6" fontWeight={700} color="info.main">{formatCurrency(stockValue - totalExpenses)}</Typography>
+            </Box>
+          </Stack>
+        </Box>
+
+        {/* Details Section */}
+        <Box sx={{ p: 2 }}>
+          <Stack spacing={2.5}>
+            {/* Location & Area */}
+            <Stack direction="row" spacing={3}>
+              {location && (
+                <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ flex: 1 }}>
+                  <LocationOnIcon sx={{ fontSize: 20, color: 'error.main', mt: 0.25 }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Location</Typography>
+                    <Typography variant="body1" fontWeight={500}>{location}</Typography>
+                  </Box>
+                </Stack>
+              )}
+              {area && (
+                <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ flex: 1 }}>
+                  <SquareFootIcon sx={{ fontSize: 20, color: 'primary.main', mt: 0.25 }} />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Area</Typography>
+                    <Typography variant="body1" fontWeight={500}>{formatNumber(area)} sq.m</Typography>
+                  </Box>
+                </Stack>
+              )}
+            </Stack>
+
+            <Divider />
+
+            {/* Water Parameters */}
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                <WaterIcon sx={{ fontSize: 18, color: 'info.main' }} />
+                <Typography variant="subtitle2" fontWeight={600}>Water Parameters</Typography>
+              </Stack>
+              <Stack direction="row" spacing={2} flexWrap="wrap">
+                <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center', minWidth: 80, flex: 1, borderColor: temp && (temp < 20 || temp > 30) ? 'warning.main' : 'divider' }}>
+                  <ThermostatIcon sx={{ fontSize: 20, color: temp && (temp < 20 || temp > 30) ? 'warning.main' : 'info.main' }} />
+                  <Typography variant="body1" fontWeight={600}>{temp ? `${formatNumber(temp, 1)}°C` : '--'}</Typography>
+                  <Typography variant="caption" color="text.secondary">Temp</Typography>
+                </Paper>
+                <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center', minWidth: 80, flex: 1, borderColor: ph && (ph < 6.5 || ph > 8.5) ? 'warning.main' : 'divider' }}>
+                  <ScienceIcon sx={{ fontSize: 20, color: ph && (ph < 6.5 || ph > 8.5) ? 'warning.main' : 'success.main' }} />
+                  <Typography variant="body1" fontWeight={600}>{ph ? formatNumber(ph, 1) : '--'}</Typography>
+                  <Typography variant="caption" color="text.secondary">pH</Typography>
+                </Paper>
+                <Paper variant="outlined" sx={{ p: 1.5, textAlign: 'center', minWidth: 80, flex: 1 }}>
+                  <Typography sx={{ fontSize: 20 }}>🫧</Typography>
+                  <Typography variant="body1" fontWeight={600}>{do_level ? formatNumber(do_level, 1) : '--'}</Typography>
+                  <Typography variant="caption" color="text.secondary">DO</Typography>
+                </Paper>
+              </Stack>
+            </Box>
+
+            <Divider />
+
+            {/* Stock Summary */}
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                <SetMealIcon sx={{ fontSize: 18, color: 'info.main' }} />
+                <Typography variant="subtitle2" fontWeight={600}>Stock Summary</Typography>
+                <Chip label={`${formatNumber(totalFish)} fish`} size="small" color="info" sx={{ height: 20 }} />
+                <Chip label={formatWeight(totalWeight)} size="small" color="success" sx={{ height: 20 }} />
+              </Stack>
+              <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'action.hover' }}>
+                <StockTable stock={stock} />
+              </Paper>
+            </Box>
+
+            <Divider />
+
+            {/* Cost Breakdown */}
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
+                <AttachMoneyIcon sx={{ fontSize: 18, color: 'warning.main' }} />
+                <Typography variant="subtitle2" fontWeight={600}>Cost Breakdown</Typography>
+              </Stack>
+              <Paper variant="outlined" sx={{ p: 2, bgcolor: 'warning.lighter' }}>
+                <Stack spacing={1}>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2">Pond Setup:</Typography>
+                    <Typography variant="body2" fontWeight={500}>{formatCurrency(pondCost)}</Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2">Feed Cost:</Typography>
+                    <Typography variant="body2" fontWeight={500}>{formatCurrency(feedCost)}</Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2">Labor Cost:</Typography>
+                    <Typography variant="body2" fontWeight={500}>{formatCurrency(laborCost)}</Typography>
+                  </Stack>
+                  <Divider />
+                  <Stack direction="row" justifyContent="space-between">
+                    <Typography variant="body2" fontWeight={700}>Total:</Typography>
+                    <Typography variant="body2" fontWeight={700} color="error.main">{formatCurrency(totalExpenses)}</Typography>
+                  </Stack>
+                </Stack>
+              </Paper>
+            </Box>
+
+            {/* Notes */}
+            {notes && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>📝 Notes</Typography>
+                  <Paper variant="outlined" sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{notes}</Typography>
+                  </Paper>
+                </Box>
+              </>
+            )}
+
+            {/* Timestamps */}
+            <Box sx={{ pt: 1 }}>
+              <Stack direction="row" spacing={2}>
+                <Typography variant="caption" color="text.disabled">
+                  Updated: {formatDate(lastUpdate)}
+                </Typography>
+                {createdAt && (
+                  <Typography variant="caption" color="text.disabled">
+                    Created: {formatDate(createdAt)}
+                  </Typography>
+                )}
+              </Stack>
+              <Typography variant="caption" color="text.disabled" sx={{ fontFamily: 'monospace' }}>
+                ID: {id || 'N/A'}
+              </Typography>
+            </Box>
+          </Stack>
+        </Box>
+      </DialogContent>
+
+      <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', gap: 1, flexWrap: 'wrap' }}>
+        {onDailyUpdate && (
+          <Button
+            variant="contained"
+            color="info"
+            startIcon={<UpdateIcon />}
+            onClick={() => { onDailyUpdate(pond); onClose(); }}
+            sx={{ flex: isMobile ? 1 : 'auto' }}
+          >
+            Daily Update
+          </Button>
+        )}
+        {onEdit && (
+          <Button
+            variant="outlined"
+            startIcon={<EditIcon />}
+            onClick={() => { onEdit(pond); onClose(); }}
+            sx={{ flex: isMobile ? 1 : 'auto' }}
+          >
+            Edit
+          </Button>
+        )}
+        {onDelete && (
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={() => { onDelete(pond); onClose(); }}
+            sx={{ flex: isMobile ? 1 : 'auto' }}
+          >
+            Delete
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+// ============================================================================
 // PondCard Component
 // ============================================================================
 
@@ -195,6 +488,7 @@ export default function PondCard({
   expanded: initialExpanded = false,
 }) {
   const [expanded, setExpanded] = useState(initialExpanded);
+  const [detailOpen, setDetailOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isCompact = compact || isMobile;
@@ -236,7 +530,11 @@ export default function PondCard({
   const healthConfig = HEALTH_STATUS[health];
 
   const handleCardClick = () => {
-    if (onOpen) onOpen(pond);
+    if (isMobile || isCompact) {
+      setDetailOpen(true);
+    } else if (onOpen) {
+      onOpen(pond);
+    }
   };
 
   const handleToggleExpand = (e) => {
@@ -244,53 +542,115 @@ export default function PondCard({
     setExpanded(!expanded);
   };
 
-  // Compact view for mobile/list
+  // Compact view for mobile/list - Enhanced with more info
   if (isCompact) {
     return (
-      <Paper
-        elevation={1}
-        onClick={handleCardClick}
-        sx={{
-          p: 2,
-          borderRadius: 2,
-          borderLeft: `4px solid ${typeConfig.color}`,
-          cursor: onOpen ? 'pointer' : 'default',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          transition: 'all 0.2s',
-          '&:hover': { boxShadow: 3, transform: 'translateX(2px)' },
-        }}
-      >
-        {/* Avatar */}
-        <Avatar sx={{ width: 44, height: 44, bgcolor: typeConfig.bg, color: typeConfig.color, fontSize: '1.25rem' }}>
-          {typeConfig.icon}
-        </Avatar>
+      <>
+        <Paper
+          elevation={1}
+          onClick={handleCardClick}
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            borderLeft: `4px solid ${typeConfig.color}`,
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1.5,
+            transition: 'all 0.2s',
+            '&:hover': { boxShadow: 3 },
+            '&:active': { transform: 'scale(0.98)' },
+          }}
+        >
+          {/* Top Row: Avatar + Name + Health */}
+          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+            {/* Avatar */}
+            <Avatar sx={{ width: 44, height: 44, bgcolor: typeConfig.bg, color: typeConfig.color, fontSize: '1.25rem' }}>
+              {typeConfig.icon}
+            </Avatar>
 
-        {/* Content */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="body1" fontWeight={600} noWrap>{name}</Typography>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Chip label={healthConfig.label} size="small" sx={{ bgcolor: healthConfig.bg, color: healthConfig.color, height: 20, fontSize: '0.65rem' }} />
-            <Typography variant="caption" color="text.secondary">🐟 {formatNumber(totalFish)}</Typography>
-            <Typography variant="caption" color="text.secondary">{formatCurrency(totalExpenses)}</Typography>
+            {/* Content */}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="body1" fontWeight={600} noWrap>{name}</Typography>
+              <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
+                <Chip label={healthConfig.label} size="small" sx={{ bgcolor: healthConfig.bg, color: healthConfig.color, height: 18, fontSize: '0.6rem' }} />
+                <Chip label={type || 'Pond'} size="small" variant="outlined" sx={{ height: 18, fontSize: '0.6rem' }} />
+              </Stack>
+            </Box>
+
+            {/* Quick Stats */}
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography variant="body2" fontWeight={600} color="info.main">🐟 {formatNumber(totalFish)}</Typography>
+              <Typography variant="caption" color="text.secondary">{formatCurrency(stockValue)}</Typography>
+            </Box>
           </Stack>
-        </Box>
 
-        {/* Actions */}
-        <Stack direction="row" spacing={0.5}>
-          {onDailyUpdate && (
-            <IconButton size="small" color="info" onClick={(e) => { e.stopPropagation(); onDailyUpdate(pond); }}>
-              <UpdateIcon fontSize="small" />
-            </IconButton>
-          )}
-          {onEdit && (
-            <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(pond); }}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          )}
-        </Stack>
-      </Paper>
+          {/* Middle Row: Key Info */}
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" sx={{ pl: 0.5 }}>
+            {/* Location */}
+            {location && (
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <LocationOnIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                <Typography variant="caption" sx={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {location}
+                </Typography>
+              </Stack>
+            )}
+
+            {/* Temperature */}
+            {temp && (
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <ThermostatIcon sx={{ fontSize: 14, color: temp && (temp < 20 || temp > 30) ? 'warning.main' : 'text.secondary' }} />
+                <Typography variant="caption">{formatNumber(temp, 1)}°C</Typography>
+              </Stack>
+            )}
+
+            {/* pH */}
+            {ph && (
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <ScienceIcon sx={{ fontSize: 14, color: ph && (ph < 6.5 || ph > 8.5) ? 'warning.main' : 'text.secondary' }} />
+                <Typography variant="caption">pH {formatNumber(ph, 1)}</Typography>
+              </Stack>
+            )}
+
+            {/* Expenses */}
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Typography variant="caption" color="error.main">{formatCurrency(totalExpenses)}</Typography>
+            </Stack>
+          </Stack>
+
+          {/* Bottom Row: Actions */}
+          <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
+            {onDailyUpdate && (
+              <Button
+                variant="contained"
+                size="small"
+                color="info"
+                startIcon={<UpdateIcon />}
+                onClick={(e) => { e.stopPropagation(); onDailyUpdate(pond); }}
+                sx={{ textTransform: 'none', borderRadius: 2, fontSize: '0.7rem', py: 0.5 }}
+              >
+                Update
+              </Button>
+            )}
+            {onEdit && (
+              <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit(pond); }}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            )}
+          </Stack>
+        </Paper>
+
+        {/* Detail Dialog for mobile */}
+        <PondDetailDialog
+          open={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          pond={pond}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onDailyUpdate={onDailyUpdate}
+        />
+      </>
     );
   }
 

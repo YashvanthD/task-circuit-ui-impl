@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Paper, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, MenuItem, Select, InputLabel, FormControl, Stack, Chip, Grid,
+  TextField, MenuItem, Select, InputLabel, FormControl, Stack, Chip, Grid, Box,
   CircularProgress, InputAdornment, useMediaQuery, useTheme,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
@@ -14,9 +14,10 @@ import { ConfirmDialog } from '../../components';
 import TaskCard from '../../components/TaskCard';
 
 // Utils
-import { getUserInfo, listAccountUsers } from '../../utils/user';
+import { getUserInfo } from '../../utils/user';
 import { fetchAllTasks, saveTask, deleteTask, saveTasks, getTasks, updateTask } from '../../utils/tasks';
 import { getDefaultEndDate } from '../../utils';
+import { getUsersSync, getUsers } from '../../utils/cache/usersCache';
 
 // ============================================================================
 // Constants
@@ -27,7 +28,7 @@ const INITIAL_FORM = {
   description: '',
   status: 'pending',
   priority: '3',
-  assigned_to: '',
+  assigned_to: '', // Empty = Unassigned
   end_date: getDefaultEndDate(),
   task_date: '',
   notes: '',
@@ -126,11 +127,15 @@ function TaskFormDialog({ open, onClose, form, onChange, onSubmit, userOptions, 
               </Select>
             </FormControl>
             <FormControl fullWidth>
-              <InputLabel>Assigned To *</InputLabel>
-              <Select name="assigned_to" value={form.assigned_to} label="Assigned To *" onChange={onChange} required>
+              <InputLabel>Assigned To</InputLabel>
+              <Select name="assigned_to" value={form.assigned_to} label="Assigned To" onChange={onChange}>
+                <MenuItem value="">
+                  <em>Unassigned</em>
+                </MenuItem>
                 {userOptions.map(u => (
                   <MenuItem key={u.user_key} value={u.user_key}>
-                    {u.username || u.user_key}{selfUser?.user_key === u.user_key ? ' (You)' : ''}
+                    {u.display_name || u.name || u.username || u.user_key}
+                    {selfUser?.user_key === u.user_key ? ' (You)' : ''}
                   </MenuItem>
                 ))}
               </Select>
@@ -205,7 +210,7 @@ export default function TasksPage() {
   const deleteConfirm = useConfirmDialog();
 
   // Form state
-  const [form, setForm] = useState({ ...INITIAL_FORM, assigned_to: selfUser?.user_key || '' });
+  const [form, setForm] = useState({ ...INITIAL_FORM }); // Start with Unassigned
   const [formError, setFormError] = useState('');
 
   // Computed values
@@ -258,17 +263,32 @@ export default function TasksPage() {
     }
   }, []);
 
-  // Load users when dialog opens
+  // Load users from cache on mount and when dialog opens
   useEffect(() => {
-    if (!formDialog.open) return;
-    listAccountUsers().then(users => {
-      const normalized = (users || []).map(u => ({ ...u, user_key: String(u.user_key || u.userKey) }));
+    // Always ensure users cache is populated
+    getUsers().then(users => {
+      const normalized = (users || []).map(u => ({
+        ...u,
+        user_key: String(u.user_key || u.userKey || u.id),
+        display_name: u.display_name || u.name || u.username || u.email,
+      }));
       const options = selfUser
         ? [selfUser, ...normalized.filter(u => u.user_key !== selfUser.user_key)]
         : normalized;
       setUserOptions(options);
     }).catch(err => {
       console.error('[TasksPage] Load users error:', err);
+      // Fallback to already cached users
+      const cachedUsers = getUsersSync() || [];
+      const normalized = cachedUsers.map(u => ({
+        ...u,
+        user_key: String(u.user_key || u.userKey || u.id),
+        display_name: u.display_name || u.name || u.username || u.email,
+      }));
+      const options = selfUser
+        ? [selfUser, ...normalized.filter(u => u.user_key !== selfUser.user_key)]
+        : normalized;
+      setUserOptions(options);
     });
   }, [formDialog.open, selfUser]);
 
@@ -284,11 +304,17 @@ export default function TasksPage() {
   };
 
   const handleEdit = (task) => {
+    // Normalize task fields from different BE formats
+    const assignedTo = task.assigned_to || task.assignedTo || task.assignee || task.userKey || '';
+    const endDate = task.end_date || task.endDate || task.endTime || getDefaultEndDate();
+    const taskDate = task.task_date || task.taskDate || task.scheduledDate || '';
+
     setForm({
       ...task,
+      assigned_to: assignedTo,
       priority: String(task.priority || 3),
-      end_date: task.end_date || getDefaultEndDate(),
-      task_date: task.task_date || '',
+      end_date: endDate ? endDate.split('T')[0] : getDefaultEndDate(), // Extract date part
+      task_date: taskDate ? taskDate.split('T')[0] : '', // Extract date part
       notes: task.notes || '',
       task_id: resolveTaskId(task),
     });
@@ -297,7 +323,7 @@ export default function TasksPage() {
   };
 
   const handleCreate = () => {
-    setForm({ ...INITIAL_FORM, assigned_to: selfUser?.user_key || '' });
+    setForm({ ...INITIAL_FORM }); // Use initial form with empty assigned_to (Unassigned)
     setFormError('');
     formDialog.openDialog();
   };
@@ -307,9 +333,9 @@ export default function TasksPage() {
     setFormError('');
 
     const submitData = { ...form };
-    if (!submitData.assigned_to && selfUser) submitData.assigned_to = selfUser.user_key;
-    if (!submitData.title || !submitData.assigned_to || !submitData.end_date) {
-      setFormError('Fields marked * are required');
+    // assigned_to is optional now - don't auto-assign
+    if (!submitData.title || !submitData.end_date) {
+      setFormError('Title and End Date are required');
       return;
     }
 
@@ -353,55 +379,136 @@ export default function TasksPage() {
     }
   };
 
-  const getUsername = (userKey) => {
-    const user = userOptions.find(u => u.user_key === userKey);
-    return user?.username || userKey || 'Unknown';
-  };
+  const getUsername = useCallback((userKey) => {
+    if (!userKey) return 'Unassigned';
+
+    // First check the userOptions (already loaded)
+    const fromOptions = userOptions.find(u =>
+      String(u.user_key) === String(userKey) ||
+      String(u.userKey) === String(userKey)
+    );
+    if (fromOptions) {
+      return fromOptions.display_name || fromOptions.name || fromOptions.username || userKey;
+    }
+
+    // Fallback to cached users
+    const cachedUsers = getUsersSync() || [];
+    const fromCache = cachedUsers.find(u =>
+      String(u.user_key) === String(userKey) ||
+      String(u.userKey) === String(userKey) ||
+      String(u.id) === String(userKey)
+    );
+    if (fromCache) {
+      return fromCache.display_name || fromCache.name || fromCache.username || userKey;
+    }
+
+    return userKey; // Return key if no user found
+  }, [userOptions]);
 
   return (
-    <Paper sx={{ padding: 4, maxWidth: 1280, margin: '40px auto' }}>
-      {/* Top bar */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-          <Chip label={`Total: ${stats.total}`} color="primary" size="small" />
-          <Chip label={`Completed: ${stats.completed}`} color="success" size="small" />
-          <Chip label={`In Progress: ${stats.inprogress}`} color="info" size="small" />
-          <Chip label={`Pending: ${stats.pending}`} color="default" size="small" />
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel>Status</InputLabel>
-            <Select
-              value={filterStatus}
-              label="Status"
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <MenuItem value="all">All</MenuItem>
-              {STATUS_OPTIONS.map(opt => (
-                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Stack>
-        <Button variant="contained" color="primary" onClick={handleCreate}>
-          Create New Task
+    <Paper sx={{ padding: { xs: 2, sm: 3, md: 4 }, maxWidth: 1280, margin: { xs: '16px auto', sm: '24px auto', md: '40px auto' } }}>
+      {/* Header */}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        justifyContent="space-between"
+        spacing={2}
+        sx={{ mb: 3 }}
+      >
+        <Box>
+          <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
+            Tasks
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Manage and track your tasks
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleCreate}
+          sx={{ borderRadius: 2, alignSelf: { xs: 'stretch', sm: 'auto' } }}
+        >
+          + Create Task
         </Button>
       </Stack>
 
-      {/* Search */}
-      <TextField
-        label="Search Task by ID or Keyword"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        fullWidth
-        size="small"
-        sx={{ mb: 3 }}
-        InputProps={{
-          endAdornment: (
-            <InputAdornment position="end">
-              <SearchIcon />
-            </InputAdornment>
-          ),
+      {/* Stats Row - Scrollable on mobile */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          mb: 2,
+          overflowX: 'auto',
+          pb: 1,
+          '&::-webkit-scrollbar': { height: 4 },
+          '&::-webkit-scrollbar-thumb': { bgcolor: 'divider', borderRadius: 2 },
         }}
-      />
+      >
+        <Chip
+          label={`Total: ${stats.total}`}
+          color="primary"
+          size="small"
+          sx={{ flexShrink: 0 }}
+        />
+        <Chip
+          label={`✅ ${stats.completed}`}
+          color="success"
+          size="small"
+          sx={{ flexShrink: 0 }}
+        />
+        <Chip
+          label={`🔄 ${stats.inprogress}`}
+          color="info"
+          size="small"
+          sx={{ flexShrink: 0 }}
+        />
+        <Chip
+          label={`⏳ ${stats.pending}`}
+          color="default"
+          size="small"
+          sx={{ flexShrink: 0 }}
+        />
+      </Box>
+
+      {/* Filters Row - Stack on mobile */}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        sx={{ mb: 3 }}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+      >
+        {/* Search */}
+        <TextField
+          label="Search tasks..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          size="small"
+          sx={{ flex: { xs: 'auto', sm: 1 }, maxWidth: { sm: 400 } }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: 'text.secondary' }} />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {/* Status Filter */}
+        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 140 } }}>
+          <InputLabel>Filter Status</InputLabel>
+          <Select
+            value={filterStatus}
+            label="Filter Status"
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            <MenuItem value="all">All Tasks</MenuItem>
+            {STATUS_OPTIONS.map(opt => (
+              <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
 
       {/* Error */}
       {error && (

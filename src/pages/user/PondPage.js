@@ -168,11 +168,13 @@ export default function PondPage() {
   const totalValue = pondList.reduce((acc, p) => acc + Number(p.current_stock_value || p.stock_value || 0), 0);
 
   return (
-    <Paper sx={{ padding: { xs: 2, sm: 4 }, maxWidth: 1280, margin: '40px auto' }}>
+    <Paper sx={{ padding: { xs: 2, sm: 3, md: 4 }, maxWidth: 1280, margin: { xs: '16px auto', sm: '24px auto', md: '40px auto' } }}>
       {/* Header */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={2} sx={{ mb: 3 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} spacing={2} sx={{ mb: 3 }}>
         <Box>
-          <Typography variant="h4" fontWeight={700}>Pond Management</Typography>
+          <Typography variant="h4" fontWeight={700} sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
+            Pond Management
+          </Typography>
           <Typography variant="body2" color="text.secondary">
             View, edit, and manage your pond records
           </Typography>
@@ -182,28 +184,38 @@ export default function PondPage() {
           color="primary"
           onClick={handleOpenAddPond}
           startIcon={<AddCircleIcon />}
-          sx={{ borderRadius: 2 }}
+          sx={{ borderRadius: 2, alignSelf: { xs: 'stretch', sm: 'auto' } }}
         >
           Add Pond
         </Button>
       </Stack>
 
-      {/* Stats Bar */}
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
-        <Chip label={`${totalPonds} Ponds`} color="primary" size="small" />
-        <Chip label={`🐟 ${totalFish.toLocaleString()} Fish`} color="info" size="small" />
-        <Chip label={`₹${totalValue.toLocaleString()} Value`} color="success" size="small" />
-      </Stack>
+      {/* Stats Bar - Scrollable on mobile */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          mb: 3,
+          overflowX: 'auto',
+          pb: 1,
+          '&::-webkit-scrollbar': { height: 4 },
+          '&::-webkit-scrollbar-thumb': { bgcolor: 'divider', borderRadius: 2 },
+        }}
+      >
+        <Chip label={`🏊 ${totalPonds} Ponds`} color="primary" size="small" sx={{ flexShrink: 0 }} />
+        <Chip label={`🐟 ${totalFish.toLocaleString()} Fish`} color="info" size="small" sx={{ flexShrink: 0 }} />
+        <Chip label={`₹${totalValue.toLocaleString()} Value`} color="success" size="small" sx={{ flexShrink: 0 }} />
+      </Box>
 
-      {/* Search and Refresh */}
-      <Stack direction="row" spacing={2} sx={{ mb: 3 }} alignItems="center">
+      {/* Search and Refresh - Stack on mobile */}
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }} alignItems={{ xs: 'stretch', sm: 'center' }}>
         <TextField
           label="Search by Name, Location or ID"
           variant="outlined"
           size="small"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          sx={{ flex: 1, maxWidth: 400 }}
+          sx={{ flex: { xs: 'auto', sm: 1 }, maxWidth: { sm: 400 } }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -218,6 +230,7 @@ export default function PondPage() {
           startIcon={<RefreshIcon />}
           onClick={() => fetchPonds({ force: true })}
           disabled={loading}
+          sx={{ alignSelf: { xs: 'flex-end', sm: 'auto' } }}
         >
           Refresh
         </Button>
