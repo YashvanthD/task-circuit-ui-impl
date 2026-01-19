@@ -32,7 +32,6 @@ import { formatTimestamp } from '../../utils/helpers/date';
 import {
   CriticalSummary,
   DashboardStats,
-  AlertsSection,
   SystemAlertsSection,
   ActionsSection,
   DashboardHeader,
@@ -262,23 +261,22 @@ export default function DashboardPage() {
 
       <DashboardStats activeTasks={activeTasks} criticalTasks={criticalTasks} />
 
-      {/* System Alerts from WebSocket */}
-      <SystemAlertsSection maxItems={5} />
+      {/* Unified Alerts Section (System Alerts + Task Alerts) */}
+      <SystemAlertsSection maxItems={8} showTaskAlerts={true} taskAlerts={alerts} onTaskAlertClick={handleAlertClick} />
 
-      {/* Task-based Alerts */}
-      <AlertsSection
-        alerts={alerts}
-        loading={loading}
-        error={error}
-        onAlertClick={handleAlertClick}
-        onSeeMore={() => navigate(BASE_APP_PATH_USER_TASKS)}
-      />
-
-      <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 3 }}>
-        <Box sx={{ flex: 1, minWidth: 300 }}>
+      {/* Notifications and Messages - Mobile responsive */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: { xs: 2, sm: 3 },
+          flexDirection: { xs: 'column', md: 'row' },
+          mb: 3,
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: { xs: '100%', md: 300 } }}>
           <NotificationsSection maxItems={5} />
         </Box>
-        <Box sx={{ flex: 1, minWidth: 300 }}>
+        <Box sx={{ flex: 1, minWidth: { xs: '100%', md: 300 } }}>
           <UnreadMessagesSection maxItems={5} />
         </Box>
       </Box>

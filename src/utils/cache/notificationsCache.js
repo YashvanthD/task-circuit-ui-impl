@@ -457,7 +457,6 @@ export async function deleteNotification(id) {
 
   // Debug: log cache contents
   console.log('[NotificationsCache] Delete requested for ID:', notificationId);
-  console.log('[NotificationsCache] Cache has', cache.data.length, 'notifications');
 
   // Find notification by checking multiple possible ID fields
   const index = cache.data.findIndex((n) => {
@@ -467,41 +466,30 @@ export async function deleteNotification(id) {
 
   const removedItem = index !== -1 ? { ...cache.data[index] } : null;
 
-  if (index === -1) {
-    console.warn('[NotificationsCache] Notification not found in cache:', notificationId);
-    console.warn('[NotificationsCache] This may be stale UI data. Attempting to delete via API anyway and refresh cache...');
-
-    // Try to delete via API anyway - the notification might exist on server but not in local cache
-    try {
-      await apiDeleteNotification(notificationId);
-      console.log('[NotificationsCache] API delete successful, refreshing cache...');
-      // Force refresh to sync UI with server
-      await getNotifications(true);
-      return true;
-    } catch (error) {
-      console.error('[NotificationsCache] API delete failed:', error);
-      // Still refresh to sync UI
-      await getNotifications(true);
-      return false;
-    }
-  }
-
-  console.log('[NotificationsCache] Found notification at index:', index);
-
   try {
-    // Create new array without the item (immutable update for React)
-    cache.data = [...cache.data.slice(0, index), ...cache.data.slice(index + 1)];
-    cache.byId.delete(notificationId);
-    cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
-    cache.events.emit('updated', [...cache.data]); // Emit new array reference
+    // Optimistic update only if found in cache
+    if (index !== -1) {
+      cache.data = [...cache.data.slice(0, index), ...cache.data.slice(index + 1)];
+      cache.byId.delete(notificationId);
+      cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
+      cache.events.emit('updated', [...cache.data]); // Emit new array reference
+    }
 
-    // REST API call (no WebSocket event for delete)
+    // Always call REST API for delete (even if not in local cache)
+    // The notification might exist on server but not in our local cache
     await apiDeleteNotification(notificationId);
+
+    // If notification wasn't in cache, refresh to sync
+    if (index === -1) {
+      console.log('[NotificationsCache] Notification was not in local cache, refreshing...');
+      await getNotifications(true);
+    }
+
     return true;
   } catch (error) {
     console.error('[NotificationsCache] Failed to delete:', error);
     // Revert optimistic update on error
-    if (removedItem) {
+    if (removedItem && index !== -1) {
       cache.data = [
         ...cache.data.slice(0, index),
         removedItem,
@@ -511,6 +499,8 @@ export async function deleteNotification(id) {
       cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
       cache.events.emit('updated', [...cache.data]);
     }
+    // Refresh to sync with server state on any error
+    await getNotifications(true);
     showErrorAlert('Failed to delete notification.', 'Notifications');
     throw error;
   }

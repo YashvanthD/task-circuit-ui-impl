@@ -38,7 +38,6 @@ import {
   resolveAlert,
   refreshAlerts,
   onAlertsChange,
-  getUnacknowledgedAlertCount,
 } from '../../utils/cache/alertsCache';
 import { getUsersSync } from '../../utils/cache/usersCache';
 import { createTask } from '../../api/task';
@@ -50,7 +49,7 @@ import SystemAlertDetailDialog from './SystemAlertDetailDialog';
 // Component
 // ============================================================================
 
-export default function SystemAlertsSection({ maxItems = 5 }) {
+export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = false, taskAlerts = [], onTaskAlertClick }) {
   // Local state synced with cache
   const [alerts, setAlerts] = useState(getAlertsSync);
   const [loading, setLoading] = useState(isAlertsLoading);
@@ -88,10 +87,14 @@ export default function SystemAlertsSection({ maxItems = 5 }) {
     acknowledgeAllAlerts();
   }, []);
 
-  const handleAlertClick = useCallback((alert) => {
+  const handleAlertClick = useCallback((alert, isTask = false) => {
+    if (isTask && onTaskAlertClick) {
+      onTaskAlertClick(alert);
+      return;
+    }
     setSelectedAlert(alert);
     setDialogOpen(true);
-  }, []);
+  }, [onTaskAlertClick]);
 
   const handleDialogClose = useCallback(() => {
     setDialogOpen(false);
@@ -141,7 +144,25 @@ export default function SystemAlertsSection({ maxItems = 5 }) {
 
   // Filter out resolved alerts and sort: unacknowledged first, then by severity
   const activeAlerts = alerts.filter((a) => !a.resolved);
-  const sortedAlerts = [...activeAlerts]
+
+  // Normalize task alerts to have consistent structure with system alerts
+  const normalizedTaskAlerts = showTaskAlerts
+    ? taskAlerts.map((task) => ({
+        ...task,
+        alert_id: `task_${task.task_id || task.id}`,
+        alert_type: 'task',
+        severity: task.priority <= 1 ? 'high' : task.priority === 2 ? 'medium' : 'low',
+        source: 'task',
+        acknowledged: task.status === 'completed',
+        resolved: task.status === 'completed',
+        created_at: task.createdAt || task.created_at || task.completeBy,
+        _isTaskAlert: true,
+      }))
+    : [];
+
+  // Combine and sort all alerts
+  const allAlerts = [...activeAlerts, ...normalizedTaskAlerts];
+  const sortedAlerts = [...allAlerts]
     .sort((a, b) => {
       // Unacknowledged first
       if (a.acknowledged !== b.acknowledged) {
@@ -157,8 +178,11 @@ export default function SystemAlertsSection({ maxItems = 5 }) {
     })
     .slice(0, maxItems);
 
-  // Unacknowledged count (only from active alerts)
+  // Unacknowledged count (only from active alerts, not task alerts)
   const unacknowledgedCount = activeAlerts.filter((a) => !a.acknowledged).length;
+
+  // Total count including task alerts
+  const totalAlertCount = allAlerts.filter((a) => !a.acknowledged && !a.resolved).length;
 
   // Get users for assignment
   const users = getUsersSync() || [];
@@ -172,8 +196,8 @@ export default function SystemAlertsSection({ maxItems = 5 }) {
           p: { xs: 2, sm: 2.5, md: 3 },
           borderRadius: 2,
           border: '1px solid',
-          borderColor: unacknowledgedCount > 0 ? 'warning.main' : 'divider',
-          bgcolor: unacknowledgedCount > 0 ? (theme) => alpha(theme.palette.warning.main, 0.02) : 'background.paper',
+          borderColor: totalAlertCount > 0 ? 'warning.main' : 'divider',
+          bgcolor: totalAlertCount > 0 ? (theme) => alpha(theme.palette.warning.main, 0.02) : 'background.paper',
         }}
       >
         {/* Header */}
@@ -205,21 +229,21 @@ export default function SystemAlertsSection({ maxItems = 5 }) {
             <Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Typography variant="h6" fontWeight={600}>
-                  System Alerts
+                  Alerts
                 </Typography>
-                {unacknowledgedCount > 0 && (
+                {totalAlertCount > 0 && (
                   <Chip
-                    label={unacknowledgedCount}
+                    label={totalAlertCount}
                     color="warning"
                     size="small"
                     sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                   />
                 )}
               </Box>
-              {activeAlerts.length > 0 && (
+              {allAlerts.length > 0 && (
                 <Typography variant="caption" color="text.secondary">
-                  {unacknowledgedCount > 0
-                    ? `${unacknowledgedCount} requiring attention`
+                  {totalAlertCount > 0
+                    ? `${totalAlertCount} requiring attention`
                     : 'All acknowledged'}
                 </Typography>
               )}
@@ -266,7 +290,7 @@ export default function SystemAlertsSection({ maxItems = 5 }) {
           <Typography color="error" sx={{ py: 2 }}>
             {typeof error === 'string' ? error : 'Failed to load alerts'}
           </Typography>
-        ) : activeAlerts.length === 0 ? (
+        ) : allAlerts.length === 0 ? (
           <Box
             sx={{
               textAlign: 'center',
@@ -275,7 +299,7 @@ export default function SystemAlertsSection({ maxItems = 5 }) {
             }}
           >
             <CheckCircleIcon sx={{ fontSize: 48, color: 'success.light', mb: 1 }} />
-            <Typography variant="body2">No system alerts</Typography>
+            <Typography variant="body2">No alerts</Typography>
             <Typography variant="caption" color="text.disabled">
               All systems operating normally
             </Typography>
@@ -283,10 +307,10 @@ export default function SystemAlertsSection({ maxItems = 5 }) {
         ) : (
           <Grid container spacing={{ xs: 1.5, sm: 2 }}>
             {sortedAlerts.map((alert) => (
-              <Grid item xs={12} sm={6} md={4} key={alert.alert_id || alert.id}>
+              <Grid item xs={12} sm={6} md={4} key={alert.alert_id || alert.id || alert.task_id}>
                 <AlertCard
                   alert={alert}
-                  onClick={() => handleAlertClick(alert)}
+                  onClick={() => handleAlertClick(alert, alert._isTaskAlert)}
                 />
               </Grid>
             ))}

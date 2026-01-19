@@ -29,12 +29,12 @@ export const ASSISTANT_COLORS = {
   highlightBorder: '#ffd700',
 };
 
-// Z-indices
+// Z-indices (high values to ensure visibility)
 export const Z_INDEX = {
-  fab: 1500,
-  controlPanel: 1501,
-  popup: 1502,
-  hand: 1499,
+  fab: 2000,
+  controlPanel: 2100,
+  popup: 2200,
+  hand: 1999,
 };
 
 // Initial position

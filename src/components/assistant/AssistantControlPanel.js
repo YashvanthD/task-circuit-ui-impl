@@ -27,7 +27,20 @@ import { Z_INDEX } from './constants';
 const tooltipSlotProps = {
   popper: {
     sx: {
-      zIndex: Z_INDEX.controlPanel + 10, // Ensure tooltip is above control panel
+      zIndex: Z_INDEX.controlPanel + 100, // Ensure tooltip is well above control panel
+    },
+    modifiers: [
+      {
+        name: 'preventOverflow',
+        options: {
+          boundary: 'viewport',
+        },
+      },
+    ],
+  },
+  tooltip: {
+    sx: {
+      zIndex: Z_INDEX.controlPanel + 100,
     },
   },
 };
@@ -98,11 +111,11 @@ export default function AssistantControlPanel({
 
   return (
     <Paper
-      elevation={4}
+      elevation={8}
       sx={{
         position: 'fixed',
         ...positionStyles,
-        zIndex: Z_INDEX.controlPanel,
+        zIndex: Z_INDEX.controlPanel + 50,
         p: 1,
         borderRadius: 2,
         display: 'flex',
@@ -112,6 +125,7 @@ export default function AssistantControlPanel({
         transition: 'opacity 0.2s, transform 0.2s',
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateX(0)' : (pinnedBottomRight ? 'translateX(10px)' : 'translateX(-10px)'),
+        pointerEvents: visible ? 'auto' : 'none',
       }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

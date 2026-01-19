@@ -54,19 +54,33 @@ const SEVERITY_CONFIG = {
 function getSeverityKey(alert) {
   // Check severity first (system alerts)
   const severity = alert.severity;
-  if (typeof severity === 'string') {
+  if (typeof severity === 'string' && severity.trim()) {
     return severity.toLowerCase();
   }
 
-  // Check priority (task alerts)
+  // Check priority (task alerts) - handle both string and number
   const priority = alert.priority;
-  if (typeof priority === 'string') {
-    return priority.toLowerCase();
-  }
-  if (typeof priority === 'number') {
-    if (priority <= 1) return 'high';
-    if (priority === 2) return 'medium';
-    return 'low';
+  if (priority !== undefined && priority !== null) {
+    if (typeof priority === 'string' && priority.trim()) {
+      const lower = priority.toLowerCase();
+      // Map priority names to severity keys
+      if (['critical', 'high', 'medium', 'low'].includes(lower)) {
+        return lower;
+      }
+      // Handle priority numbers as strings
+      const num = parseInt(priority, 10);
+      if (!isNaN(num)) {
+        if (num <= 1) return 'high';
+        if (num === 2) return 'medium';
+        return 'low';
+      }
+      return lower;
+    }
+    if (typeof priority === 'number') {
+      if (priority <= 1) return 'high';
+      if (priority === 2) return 'medium';
+      return 'low';
+    }
   }
 
   return 'default';
