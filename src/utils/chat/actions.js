@@ -11,7 +11,7 @@ import { showErrorAlert } from '../alertManager';
 
 import * as conversationsStore from './conversationsStore';
 import * as messagesStore from './messagesStore';
-import { MESSAGE_STATUS } from './constants';
+import {MESSAGE_STATUS} from "../../constants";
 
 // ============================================================================
 // Message Actions
@@ -126,7 +126,7 @@ export async function markConversationAsRead(conversationId) {
 
   // Send to server
   if (socketService.isConnected()) {
-    socketService.markMessagesRead(conversationId);
+    await socketService.markMessagesRead(conversationId);
   }
 }
 
@@ -139,7 +139,7 @@ export async function openConversation(conversationId) {
 
   // Join conversation room
   if (socketService.isConnected()) {
-    socketService.joinConversation(conversationId);
+    await socketService.joinConversation(conversationId);
   }
 
   // Mark as read
@@ -261,28 +261,3 @@ export function clearAllCache() {
   conversationsStore.clearCache();
   messagesStore.clearAllCaches();
 }
-
-export default {
-  // Messages
-  sendMessage,
-  deleteMessage,
-  retryMessage,
-  // Conversations
-  markConversationAsRead,
-  openConversation,
-  closeConversation,
-  createConversation,
-  clearConversation,
-  // Typing
-  sendTyping,
-  startTyping,
-  stopTyping,
-  // Presence
-  setUserOnline,
-  setUserOffline,
-  // Cache
-  refreshConversations,
-  refreshMessages,
-  clearAllCache,
-};
-

@@ -11,16 +11,6 @@ import * as alertsStoreModule from './alertsStore';
 import * as soundModule from './sound';
 import * as wsHandlerModule from './wsHandler';
 
-// Constants
-export {
-  STORAGE_KEYS,
-  CACHE_TTL,
-  NOTIFICATION_TYPE,
-  NOTIFICATION_PRIORITY,
-  ALERT_SEVERITY,
-  ALERT_TYPE,
-} from './constants';
-
 // Events
 export { notificationEvents, NOTIFICATION_EVENTS, createEventEmitter } from './events';
 

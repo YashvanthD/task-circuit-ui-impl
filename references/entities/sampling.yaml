@@ -1,0 +1,51 @@
+# Sampling Entity Schema
+# Represents a fish sampling record
+
+Sampling:
+  type: object
+  required:
+    - sampling_id
+    - stock_id
+    - sample_date
+  properties:
+    sampling_id:
+      type: string
+      description: Unique identifier for the sampling record
+      example: "samp_222"
+    stock_id:
+      type: string
+      description: Stock being sampled
+      example: "stock_321"
+    pond_id:
+      type: string
+      description: Pond where sampling occurred
+      example: "pond_456"
+    sample_date:
+      type: string
+      format: date
+      description: Date of sampling
+      example: "2024-02-01"
+    sample_size:
+      type: integer
+      description: Number of fish sampled
+      example: 50
+    avg_weight_g:
+      type: number
+      format: double
+      description: Average weight in grams
+      example: 250
+    min_weight_g:
+      type: number
+      format: double
+      description: Minimum weight in grams
+      example: 200
+    max_weight_g:
+      type: number
+      format: double
+      description: Maximum weight in grams
+      example: 300
+    created_at:
+      type: string
+      format: date-time
+      description: When the record was created
+      example: "2024-02-01T10:00:00Z"

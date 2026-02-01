@@ -1,27 +1,30 @@
 /**
  * BaseCard Component
- * Reusable base card with consistent styling.
+ * Centralized, reusable base card with consistent styling
+ * Theme-aware, responsive, and follows MUI best practices
  *
  * @module components/common/BaseCard
  */
 
 import React from 'react';
-import { Paper, Box, Typography, Stack } from '@mui/material';
+import { Paper, Box, Typography, Stack, Divider } from '@mui/material';
 
 /**
- * BaseCard - Reusable card component
+ * BaseCard - Reusable card component with best practices
  *
  * @param {Object} props
  * @param {React.ReactNode} props.children - Card content
- * @param {React.ReactNode} props.header - Header content (title, badges, etc.)
+ * @param {React.ReactNode} props.header - Header content (custom)
  * @param {React.ReactNode} props.footer - Footer content (actions, etc.)
  * @param {string} props.title - Card title
  * @param {string} props.subtitle - Card subtitle
- * @param {Object} props.headerStyle - Header background style
- * @param {boolean} props.hoverable - Enable hover effect
- * @param {boolean} props.clickable - Enable click effect
+ * @param {React.ReactNode} props.headerAction - Header action (button, icon)
+ * @param {boolean} props.hoverable - Enable hover effect (default: false)
+ * @param {boolean} props.clickable - Enable click effect (default: false)
  * @param {Function} props.onClick - Click handler
- * @param {number} props.elevation - Paper elevation
+ * @param {number} props.elevation - Paper elevation (default: 2)
+ * @param {boolean} props.noPadding - Remove padding from body (default: false)
+ * @param {boolean} props.divider - Show divider after header (default: false)
  * @param {Object} props.sx - Additional sx styles
  */
 export default function BaseCard({
@@ -30,82 +33,101 @@ export default function BaseCard({
   footer,
   title,
   subtitle,
-  headerStyle,
+  headerAction,
   hoverable = false,
   clickable = false,
   onClick,
   elevation = 2,
+  noPadding = false,
+  divider = false,
   sx = {},
+  ...rest
 }) {
   const cardSx = {
-    borderRadius: 3,
+    borderRadius: 2,
     overflow: 'hidden',
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
     transition: 'all 0.2s ease-in-out',
+    bgcolor: 'background.paper',
     ...(hoverable && {
       '&:hover': {
         transform: 'translateY(-4px)',
-        boxShadow: 6,
+        boxShadow: 8,
       },
     }),
     ...(clickable && {
       cursor: 'pointer',
       '&:hover': {
-        boxShadow: 4,
+        bgcolor: 'action.hover',
       },
     }),
     ...sx,
   };
 
   return (
-    <Paper elevation={elevation} sx={cardSx} onClick={onClick}>
+    <Paper
+      elevation={elevation}
+      onClick={clickable ? onClick : undefined}
+      sx={cardSx}
+      {...rest}
+    >
       {/* Header */}
-      {(header || title) && (
-        <Box
-          sx={{
-            px: 2,
-            py: 1.5,
-            borderBottom: '1px solid',
-            borderColor: 'divider',
-            ...headerStyle,
-          }}
-        >
-          {header || (
-            <Stack>
-              {title && (
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  {title}
-                </Typography>
-              )}
-              {subtitle && (
-                <Typography variant="body2" color="text.secondary">
-                  {subtitle}
-                </Typography>
-              )}
-            </Stack>
-          )}
-        </Box>
+      {(header || title || subtitle) && (
+        <>
+          <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+            {header || (
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  {title && (
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        color: 'text.primary',
+                        mb: subtitle ? 0.5 : 0,
+                      }}
+                    >
+                      {title}
+                    </Typography>
+                  )}
+                  {subtitle && (
+                    <Typography
+                      variant="body2"
+                      sx={{ color: 'text.secondary' }}
+                    >
+                      {subtitle}
+                    </Typography>
+                  )}
+                </Box>
+                {headerAction && <Box>{headerAction}</Box>}
+              </Stack>
+            )}
+          </Box>
+          {divider && <Divider />}
+        </>
       )}
 
-      {/* Content */}
-      <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      {/* Body */}
+      <Box
+        sx={{
+          flex: 1,
+          p: noPadding ? 0 : { xs: 2, sm: 2.5 },
+          overflow: 'auto',
+        }}
+      >
         {children}
       </Box>
 
       {/* Footer */}
       {footer && (
-        <Box
-          sx={{
-            px: 2,
-            py: 1.5,
-            borderTop: '1px solid',
-            borderColor: 'divider',
-          }}
-        >
-          {footer}
-        </Box>
+        <>
+          <Divider />
+          <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+            {footer}
+          </Box>
+        </>
       )}
     </Paper>
   );

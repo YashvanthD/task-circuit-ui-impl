@@ -138,6 +138,21 @@ class UserSession {
     }
   }
 
+  /**
+   * Flexible field getter - handles both camelCase and snake_case
+   * Prioritizes snake_case as backend now uses snake_case
+   * @param {object} obj - Object to extract from
+   * @param {string} snakeKey - snake_case key name (prioritized)
+   * @param {string} camelKey - camelCase key name (fallback)
+   * @param {any} defaultValue - default value if not found
+   * @returns {any}
+   */
+  _getField(obj, snakeKey, camelKey = null, defaultValue = null) {
+    if (!obj) return defaultValue;
+    // Prioritize snake_case, fallback to camelCase for backward compatibility
+    return obj[snakeKey] ?? (camelKey ? obj[camelKey] : defaultValue) ?? defaultValue;
+  }
+
   _saveToStorage() {
     try {
       // Save tokens
@@ -176,28 +191,52 @@ class UserSession {
   /**
    * Initialize session from login response.
    * Call this after successful login to store all user data.
-   * @param {object} loginResponse - Full login API response
+   * Expects camelized keys from apiJsonFetch.
+   * @param {object} loginResponse - Full login API response (camelized)
    */
   initFromLoginResponse(loginResponse) {
     if (!loginResponse) {
-      console.warn('[UserSession] Empty login response');
-      return;
+      throw new Error('Login failed: Empty response from server');
     }
 
     const data = loginResponse.data || loginResponse;
 
-    // Extract tokens
-    this._accessToken = data.accessToken || data.access_token || null;
-    this._refreshToken = data.refreshToken || data.refresh_token || null;
+    // Extract tokens - handle both snake_case (from backend) and camelCase (after camelization)
+    this._accessToken = data.accessToken || data.access_token;
+    this._refreshToken = data.refreshToken || data.refresh_token;
 
-    // Calculate token expiry from JWT
+    // Validate tokens are present
+    if (!this._accessToken || !this._refreshToken) {
+      console.error('[UserSession] Missing tokens in response:', {
+        hasAccessToken: !!this._accessToken,
+        hasRefreshToken: !!this._refreshToken,
+        responseKeys: Object.keys(data)
+      });
+      throw new Error('No access or refresh token received from server');
+    }
+
+    console.log('[UserSession] Tokens extracted successfully');
+
+    // Calculate token expiry from JWT or from response
     if (this._accessToken) {
       const payload = this._parseJwt(this._accessToken);
       if (payload && payload.exp) {
         this._tokenExpiry = payload.exp * 1000; // Convert to ms
       } else {
-        // Default to 1 hour from now
-        this._tokenExpiry = Date.now() + 3600 * 1000;
+        // Try to get expiry from response - handle both formats
+        const expiresIn = data.expiresIn || data.expires_in;
+        const expiresInDays = data.accessTokenExpiresInDays || data.access_token_expires_in_days;
+
+        if (expiresInDays) {
+          // Expires in days
+          this._tokenExpiry = Date.now() + (expiresInDays * 24 * 3600 * 1000);
+        } else if (expiresIn) {
+          // Expires in seconds
+          this._tokenExpiry = Date.now() + (expiresIn * 1000);
+        } else {
+          // Default to 1 hour from now
+          this._tokenExpiry = Date.now() + 3600 * 1000;
+        }
       }
     }
 
@@ -226,25 +265,26 @@ class UserSession {
     console.debug('[UserSession] Initialized from login', {
       user: this._user?.username || this._user?.email,
       isAdmin: this._isAdmin,
+      tokenExpiry: new Date(this._tokenExpiry).toISOString(),
     });
   }
 
   _extractUser(data) {
-    // Handle various response shapes
+    // Handle various response shapes - handle both snake_case and camelCase
     const user = data.user || data.userInfo || data;
 
     return {
-      user_key: user.user_key || user.userKey || user.id || null,
-      username: user.username || user.userName || null,
-      email: user.email || null,
-      display_name: user.display_name || user.displayName || user.name || user.fullName || null,
-      mobile: user.mobile || user.phone || null,
-      account_key: user.account_key || user.accountKey || data.account_key || null,
+      user_key: user.userKey || user.user_key || user.id,
+      username: user.username || user.user_name,
+      email: user.email,
+      display_name: user.displayName || user.display_name || user.name || user.fullName || user.full_name,
+      mobile: user.mobile || user.phone,
+      account_key: user.accountKey || user.account_key || data.accountKey || data.account_key,
       roles: user.roles || (user.role ? [user.role] : []),
-      profile_photo: user.profile_photo || user.profilePhoto || user.avatar || null,
+      profile_photo: user.profilePhoto || user.profile_photo || user.avatar,
       active: user.active !== false,
-      createdAt: user.createdAt || user.created_at || null,
-      updatedAt: user.updatedAt || user.updated_at || null,
+      createdAt: user.createdAt || user.created_at,
+      updatedAt: user.updatedAt || user.updated_at,
       // Keep any extra fields
       ...this._filterKnownKeys(user),
     };
@@ -253,20 +293,22 @@ class UserSession {
   _extractAccount(data) {
     const account = data.account || data.company || {};
     return {
-      account_key: account.account_key || account.accountKey || data.account_key || this._user?.account_key || null,
-      company_name: account.company_name || account.companyName || account.name || null,
+      account_key: account.accountKey || account.account_key || data.accountKey || data.account_key || this._user?.account_key,
+      company_name: account.companyName || account.company_name || account.name,
       ...account,
     };
   }
 
   _filterKnownKeys(obj) {
     const knownKeys = [
-      'user_key', 'userKey', 'id', 'username', 'userName', 'email',
-      'display_name', 'displayName', 'name', 'fullName', 'mobile', 'phone',
+      'user_key', 'userKey', 'id', 'username', 'userName', 'user_name', 'email',
+      'display_name', 'displayName', 'name', 'fullName', 'full_name', 'mobile', 'phone',
       'account_key', 'accountKey', 'roles', 'role', 'profile_photo',
       'profilePhoto', 'avatar', 'active', 'createdAt', 'created_at',
-      'updatedAt', 'updated_at', 'accessToken', 'refreshToken', 'settings',
-      'permissions', 'account', 'company',
+      'updatedAt', 'updated_at', 'accessToken', 'access_token', 'refreshToken', 'refresh_token',
+      'settings', 'permissions', 'account', 'company', 'companyName', 'company_name',
+      'expiresIn', 'expires_in', 'accessTokenExpiresInDays', 'access_token_expires_in_days',
+      'refreshTokenExpiresInDays', 'refresh_token_expires_in_days', 'tokenType', 'token_type',
     ];
     const extra = {};
     for (const key of Object.keys(obj)) {

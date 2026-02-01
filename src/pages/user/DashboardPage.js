@@ -53,7 +53,7 @@ import {
 import { REMINDER_OPTIONS } from '../../constants';
 
 // Dashboard refresh utility
-import { refreshAllDashboardData } from '../../utils/helpers/dashboard';
+import { refreshAllDashboardData } from '../../utils/helpers';
 
 // ============================================================================
 // Constants

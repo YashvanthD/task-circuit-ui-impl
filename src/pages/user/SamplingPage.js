@@ -20,8 +20,11 @@ import {
   IconButton,
   Snackbar,
   Alert,
+  Button,
+  Stack,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
+import AddIcon from '@mui/icons-material/Add';
 
 // Components
 import {
@@ -34,12 +37,15 @@ import {
 // Import from sampling folder (note: folder name must match exactly)
 import SamplingStats from '../../components/sampling/SamplingStats';
 import { SamplingForm } from '../../components/sampling';
+import { StockForm } from '../../components/stock/forms';
 
 // Utils & API
 import samplingUtil from '../../utils/sampling';
 import fishUtil from '../../utils/fish';
 import { pondApi } from '../../api';
 import userUtil from '../../utils/user';
+import { createStock } from '../../services/stockService';
+import { Sampling, Stock } from '../../models';
 
 export default function SamplingPage() {
   // State
@@ -54,6 +60,8 @@ export default function SamplingPage() {
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [stockDialogOpen, setStockDialogOpen] = useState(false);
+  const [stockLoading, setStockLoading] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -107,7 +115,10 @@ export default function SamplingPage() {
         endDate: endDate || null,
         forceApi: force,
       });
-      setSamplings(items || []);
+
+      // Transform to Sampling model instances
+      const samplingModels = Sampling.toList(items || []);
+      setSamplings(samplingModels);
     } catch (e) {
       console.error('Failed to load samplings', e);
       setError('Failed to load samplings');
@@ -180,24 +191,9 @@ export default function SamplingPage() {
     setDialogOpen(true);
   }, []);
 
-  const handleEdit = useCallback((row) => {
-    const initialData = {
-      ...row,
-      sampling_count: row.sampleSize ?? row.sample_count ?? row.count ?? 0,
-      avg_weight:
-        row.averageWeight !== undefined
-          ? Number(row.averageWeight) * 1000
-          : row.avg_weight ?? 1000,
-      sampling_date: row.samplingDate ?? row.sampling_date ?? row.date ?? null,
-      fish_cost: row.cost ?? row.cost_amount ?? row.fish_cost ?? 0,
-      total_amount: row.totalAmount ?? row.total_amount ?? row.amount ?? 0,
-      cost_enabled: row.cost_enabled ?? row.costEnabled ?? true,
-      total_count: row.total_count ?? row.totalCount ?? 0,
-      pond_id: row.pondId ?? row.pond ?? row.pond_id ?? '',
-      notes: row.notes ?? row.note ?? '',
-      species: row.species ?? row.fish ?? row.speciesCode ?? null,
-      recorded_by_userKey: row.recordedBy ?? row.recorded_by ?? '',
-    };
+  const handleEdit = useCallback((samplingModel) => {
+    // Use model's toFormData() method to get properly formatted data
+    const initialData = samplingModel.toFormData();
     setEditItem(initialData);
     setDialogOpen(true);
   }, []);
@@ -235,28 +231,35 @@ export default function SamplingPage() {
     setSnack((s) => ({ ...s, open: false }));
   }, []);
 
-  // Helper to format fish display
-  const formatFish = (r) => {
-    const s = r.species || r.fish || '';
-    if (!s) return '';
-    if (typeof s === 'string') return s;
-    const common = s.commonName || s.common_name || s.label;
-    const sci = s.scientificName || s.scientific_name;
-    const id = s.speciesId || s.speciesCode || s.id;
-    if (common && sci) return `${common} (${sci})`;
-    if (common) return common + (id ? ` [${id}]` : '');
-    return id || '';
-  };
+  // Stock form handlers
+  const handleOpenStockForm = useCallback(() => {
+    setStockDialogOpen(true);
+  }, []);
 
-  // Helper to format avg weight
-  const formatAvgWeight = (r) => {
-    const awKg = r.averageWeight ?? r.avg_weight ?? null;
-    if (awKg === null || awKg === undefined || awKg === '') return '';
-    const num = Number(awKg);
-    if (!Number.isFinite(num)) return String(awKg);
-    if (num <= 10) return `${(num * 1000).toFixed(0)} g`;
-    return `${num.toFixed(0)} g`;
-  };
+  const handleCloseStockForm = useCallback(() => {
+    setStockDialogOpen(false);
+  }, []);
+
+  const handleStockSubmit = useCallback(async (stockData) => {
+    setStockLoading(true);
+    try {
+      const result = await createStock(stockData);
+      if (result.success) {
+        setSnack({ open: true, message: 'Stock created successfully', severity: 'success' });
+        handleCloseStockForm();
+        // Optionally refresh data
+        await loadSamplings({ force: true });
+      } else {
+        setSnack({ open: true, message: result.error || 'Failed to create stock', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('[SamplingPage] Failed to create stock:', error);
+      setSnack({ open: true, message: 'Failed to create stock', severity: 'error' });
+    } finally {
+      setStockLoading(false);
+    }
+  }, [handleCloseStockForm, loadSamplings]);
+
 
   return (
     <Paper sx={{ p: 4, maxWidth: 1200, margin: '24px auto' }}>
@@ -268,6 +271,26 @@ export default function SamplingPage() {
 
       {/* Stats */}
       <SamplingStats samplings={samplings} />
+
+      {/* Action Buttons */}
+      <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<AddIcon />}
+          onClick={handleAddNew}
+        >
+          New Sampling
+        </Button>
+        <Button
+          variant="outlined"
+          color="secondary"
+          startIcon={<AddIcon />}
+          onClick={handleOpenStockForm}
+        >
+          Add Stock
+        </Button>
+      </Stack>
 
       {/* Filters */}
       <FilterBar
@@ -298,8 +321,6 @@ export default function SamplingPage() {
         }}
         onRefresh={() => loadSamplings({ force: true })}
         loading={loading}
-        onAddNew={handleAddNew}
-        addLabel="New Sampling"
       />
 
       {/* Error */}
@@ -338,37 +359,34 @@ export default function SamplingPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {samplings.map((r, idx) => (
-                <TableRow key={r.id || r._id || idx}>
+              {samplings.map((sampling, idx) => (
+                <TableRow key={sampling.getSamplingId() || idx}>
                   <TableCell>
-                    {(r.samplingDate || r.sampling_date || r.date || r.createdAt || '').toString()}
+                    {sampling.sample_date || sampling.sampling_date || sampling.created_at || ''}
                   </TableCell>
-                  <TableCell>{formatFish(r)}</TableCell>
+                  <TableCell>{sampling.formatFishDisplay()}</TableCell>
                   <TableCell>
-                    {userNames[r.recordedBy || r.recorded_by || r.recorded_by_userKey] ||
-                      r.recordedBy ||
-                      r.recorded_by ||
-                      ''}
+                    {userNames[sampling.recorded_by] || sampling.recorded_by || ''}
                   </TableCell>
-                  <TableCell>{r.pondId || r.pond || r.pond_id || ''}</TableCell>
+                  <TableCell>{sampling.pond_id || ''}</TableCell>
                   <TableCell align="right">
-                    {r.sampleSize || r.sample_size || r.sample_count || r.count || 0}
+                    {sampling.sample_count || 0}
                   </TableCell>
                   <TableCell align="right">
-                    {r.totalCount ?? r.total_count ?? ''}
+                    {sampling.total_count || ''}
                   </TableCell>
-                  <TableCell align="right">{formatAvgWeight(r)}</TableCell>
+                  <TableCell align="right">{sampling.formatAvgWeight()}</TableCell>
                   <TableCell align="right">
-                    {r.cost ?? r.cost_amount ?? r.fish_cost ?? ''}
+                    {sampling.cost || ''}
                   </TableCell>
                   <TableCell align="center">
-                    {(r.cost_enabled ?? r.costEnabled ?? true) ? 'Yes' : 'No'}
+                    {sampling.cost_enabled ? 'Yes' : 'No'}
                   </TableCell>
                   <TableCell align="right">
-                    {r.totalAmount ?? r.total_amount ?? r.amount ?? ''}
+                    {sampling.total_amount || ''}
                   </TableCell>
                   <TableCell>
-                    <IconButton size="small" onClick={() => handleEdit(r)} title="Edit">
+                    <IconButton size="small" onClick={() => handleEdit(sampling)} title="Edit">
                       <EditIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
@@ -388,6 +406,16 @@ export default function SamplingPage() {
           ponds={ponds}
           fishOptions={fishOptions}
           users={users}
+        />
+      </Dialog>
+
+      {/* Stock Form Dialog */}
+      <Dialog open={stockDialogOpen} onClose={handleCloseStockForm} maxWidth="md" fullWidth>
+        <StockForm
+          onSubmit={handleStockSubmit}
+          onCancel={handleCloseStockForm}
+          loading={stockLoading}
+          mode="add"
         />
       </Dialog>
 

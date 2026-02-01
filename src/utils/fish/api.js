@@ -63,10 +63,15 @@ async function parseResponse(res) {
 
 /**
  * Extract fish list from API response.
+ * Updated to handle new species API response structure
  */
 function extractFishList(data) {
   if (!data) return [];
   if (Array.isArray(data)) return data;
+  // New API returns data.species
+  if (Array.isArray(data.species)) return data.species;
+  if (data.data && Array.isArray(data.data.species)) return data.data.species;
+  // Fallback to old structure for compatibility
   if (Array.isArray(data.fish)) return data.fish;
   if (data.data && Array.isArray(data.data)) return data.data;
   if (data.data && Array.isArray(data.data.fish)) return data.data.fish;

@@ -21,4 +21,6 @@ export {
   notifications as wsNotifications,
   alerts as wsAlerts,
   chat as wsChat,
+  debugHandlers,
+  getHandlerCount,
 } from './wsManager';

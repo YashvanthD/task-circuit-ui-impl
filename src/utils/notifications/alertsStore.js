@@ -5,7 +5,7 @@
  * @module utils/notifications/alertsStore
  */
 
-import { STORAGE_KEYS, CACHE_TTL } from './constants';
+import { NOTIFICATION_STORAGE_KEYS, CACHE_TTL } from '../../constants';
 import { notificationEvents, NOTIFICATION_EVENTS, createEventEmitter } from './events';
 import { normalizeAlert } from './normalizers';
 import { listAlerts, acknowledgeAlert, deleteAlert } from '../../api/notifications';
@@ -43,7 +43,7 @@ function persistToStorage() {
       activeCount: state.activeCount,
       lastFetch: state.lastFetch,
     };
-    localStorage.setItem(STORAGE_KEYS.ALERTS, JSON.stringify(toStore));
+    localStorage.setItem(NOTIFICATION_STORAGE_KEYS.ALERTS, JSON.stringify(toStore));
   } catch (e) {
     // Ignore storage errors
   }
@@ -51,7 +51,7 @@ function persistToStorage() {
 
 function loadFromStorage() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEYS.ALERTS);
+    const stored = localStorage.getItem(NOTIFICATION_STORAGE_KEYS.ALERTS);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.lastFetch && Date.now() - parsed.lastFetch < CACHE_TTL.ALERTS) {
@@ -199,7 +199,7 @@ export function clearCache() {
   state.activeCount = 0;
   state.lastFetch = null;
   state.error = null;
-  localStorage.removeItem(STORAGE_KEYS.ALERTS);
+  localStorage.removeItem(NOTIFICATION_STORAGE_KEYS.ALERTS);
   events.emit('updated', state.data);
 }
 

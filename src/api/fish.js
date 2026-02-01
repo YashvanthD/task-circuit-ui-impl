@@ -1,6 +1,7 @@
 /**
  * Fish API Module
- * Fish-related API calls.
+ * Fish species-related API calls.
+ * Updated to use /api/fish/species endpoints
  *
  * @module api/fish
  */
@@ -10,11 +11,11 @@ import { getAuthHeaders } from './auth';
 import { API_FISH, API_PUBLIC } from './constants';
 
 /**
- * List all fish
+ * List all fish species
  */
 export async function listFish(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  return apiFetch(`${API_FISH.LIST}${qs ? '?' + qs : ''}`, {
+  return apiFetch(`${API_FISH.SPECIES}${qs ? '?' + qs : ''}`, {
     method: 'GET',
     headers: getAuthHeaders({ contentType: null }),
   });
@@ -25,7 +26,7 @@ export async function listFish(params = {}) {
  */
 export async function listPublicFish(accountKey = null) {
   const params = accountKey ? `?account_key=${accountKey}` : '';
-  return apiFetch(`${API_PUBLIC.BASE}/fish${params}`, {
+  return apiFetch(`${API_PUBLIC.BASE}/fish/species${params}`, {
     method: 'GET',
     headers: { 'Accept': 'application/json' },
     skipAuth: true,
@@ -33,20 +34,20 @@ export async function listPublicFish(accountKey = null) {
 }
 
 /**
- * Get fish by ID
+ * Get fish species by ID
  */
 export async function getFish(fishId) {
-  return apiFetch(API_FISH.DETAIL(fishId), {
+  return apiFetch(API_FISH.SPECIES_DETAIL(fishId), {
     method: 'GET',
     headers: getAuthHeaders({ contentType: null }),
   });
 }
 
 /**
- * Create new fish
+ * Create new fish species
  */
 export async function createFish(data) {
-  return apiFetch(API_FISH.CREATE, {
+  return apiFetch(API_FISH.SPECIES_CREATE, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
@@ -54,10 +55,10 @@ export async function createFish(data) {
 }
 
 /**
- * Update fish
+ * Update fish species
  */
 export async function updateFish(fishId, data) {
-  return apiFetch(API_FISH.UPDATE(fishId), {
+  return apiFetch(API_FISH.SPECIES_UPDATE(fishId), {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify(data),
@@ -65,44 +66,26 @@ export async function updateFish(fishId, data) {
 }
 
 /**
- * Delete fish (using DETAIL path with DELETE method)
+ * Delete fish species
  */
 export async function deleteFish(fishId) {
-  return apiFetch(API_FISH.DETAIL(fishId), {
+  return apiFetch(API_FISH.SPECIES_DELETE(fishId), {
     method: 'DELETE',
     headers: getAuthHeaders({ contentType: null }),
   });
 }
 
-/**
- * Get fish analytics
- */
-export async function getAnalytics() {
-  return apiFetch(API_FISH.ANALYTICS, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-}
-
-/**
- * Get fish fields
- */
-export async function getFields() {
-  return apiFetch(API_FISH.FIELDS, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-}
+// Note: Analytics and Fields endpoints are not available in the new species API
+// Removed: getAnalytics() and getFields()
 
 const fishApi = {
   listFish,
   listPublicFish,
   getFish,
   createFish,
+  addFish: createFish,  // Alias for backward compatibility
   updateFish,
   deleteFish,
-  getAnalytics,
-  getFields,
 };
 
 export default fishApi;

@@ -1,0 +1,46 @@
+# Stock Entity Schema
+# Represents fish stock in a pond
+
+Stock:
+  type: object
+  required:
+    - stock_id
+    - pond_id
+    - species_id
+  properties:
+    stock_id:
+      type: string
+      description: Unique identifier for the stock
+      example: "stock_321"
+    pond_id:
+      type: string
+      description: Pond containing this stock
+      example: "pond_456"
+    species_id:
+      type: string
+      description: Species of fish in this stock
+      example: "sp_789"
+    quantity:
+      type: integer
+      description: Number of fish in stock
+      example: 5000
+    stocking_date:
+      type: string
+      format: date
+      description: Date when fish were stocked
+      example: "2024-01-15"
+    avg_weight_g:
+      type: number
+      format: double
+      description: Average weight in grams
+      example: 250
+    status:
+      type: string
+      enum: [active, harvested, terminated]
+      description: Stock status
+      example: "active"
+    created_at:
+      type: string
+      format: date-time
+      description: When the stock was created
+      example: "2024-01-15T10:00:00Z"

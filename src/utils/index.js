@@ -60,7 +60,6 @@ export {
   processLoginResponse,
   handle401,
   // Permissions
-  ROLE_LEVELS,
   extractUser,
   getUserRole,
   getUserRoles,

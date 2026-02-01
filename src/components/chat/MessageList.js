@@ -1,6 +1,7 @@
 /**
  * MessageList Component
  * List of messages with date separators and auto-scroll.
+ * Based on Chat Message Sender/Receiver Differentiation Guide.
  *
  * @module components/chat/MessageList
  */
@@ -11,6 +12,7 @@ import { format, isToday, isYesterday, isThisYear } from 'date-fns';
 import MessageBubble from './MessageBubble';
 import TypingIndicator from './TypingIndicator';
 import { getUsersSync } from '../../utils/cache/usersCache';
+import { isOwnMessage } from '../../utils/chat/messageUtils';
 
 // ============================================================================
 // Helper Functions
@@ -224,7 +226,8 @@ export default function MessageList({
         }
 
         const { message } = item;
-        const isOwn = message.sender_key === currentUserId;
+        // Use utility to determine if message is from current user
+        const isOwn = isOwnMessage(message, currentUserId);
         const showSender = !isOwn && participants.length > 2; // Group chat
 
         return (

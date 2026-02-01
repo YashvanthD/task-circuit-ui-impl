@@ -1,0 +1,45 @@
+# Mortality Entity Schema
+# Represents a fish mortality record
+
+Mortality:
+  type: object
+  required:
+    - mortality_id
+    - stock_id
+    - mortality_date
+  properties:
+    mortality_id:
+      type: string
+      description: Unique identifier for the mortality record
+      example: "mort_444"
+    stock_id:
+      type: string
+      description: Stock affected by mortality
+      example: "stock_321"
+    pond_id:
+      type: string
+      description: Pond where mortality occurred
+      example: "pond_456"
+    mortality_date:
+      type: string
+      format: date
+      description: Date of mortality
+      example: "2024-03-01"
+    quantity:
+      type: integer
+      description: Number of fish died
+      example: 50
+    cause:
+      type: string
+      description: Cause of mortality
+      example: "Disease"
+      enum: [disease, water_quality, predator, temperature, unknown, other]
+    notes:
+      type: string
+      description: Additional notes
+      example: "Suspected bacterial infection"
+    created_at:
+      type: string
+      format: date-time
+      description: When the record was created
+      example: "2024-03-01T10:00:00Z"

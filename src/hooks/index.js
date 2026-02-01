@@ -7,65 +7,41 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-// ============================================================================
-// useAsync - Generic async data fetching hook
-// ============================================================================
+// Export form manager hooks
+export { useFormManager, useFormState } from './useFormManager';
 
-/**
- * Hook for managing async operations with loading, error, and data states.
- * @param {function} asyncFn - Async function to execute
- * @param {boolean} immediate - Whether to execute immediately on mount
- * @returns {object} { data, loading, error, execute, reset }
- *
- * @example
- * const { data: tasks, loading, error, execute: refetch } = useAsync(fetchAllTasks, true);
- */
-export function useAsync(asyncFn, immediate = false) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(immediate);
-  const [error, setError] = useState(null);
-  const mountedRef = useRef(true);
+// Export WebSocket hooks
+export {
+  useWebSocketConnection,
+  useWebSocketEvent,
+  useNotificationWebSocket,
+  useAlertWebSocket,
+  useTaskWebSocket,
+  useDataStreamWebSocket,
+} from './useWebSocket';
 
-  const execute = useCallback(async (...args) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await asyncFn(...args);
-      if (mountedRef.current) {
-        setData(result);
-      }
-      return result;
-    } catch (err) {
-      if (mountedRef.current) {
-        setError(err.message || 'An error occurred');
-      }
-      throw err;
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [asyncFn]);
-
-  const reset = useCallback(() => {
-    setData(null);
-    setError(null);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    if (immediate) {
-      execute();
-    }
-    return () => {
-      mountedRef.current = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return { data, loading, error, execute, reset, setData };
-}
+// Export entity hooks
+export {
+  useEntityList,
+  useEntity,
+  useFarms,
+  usePonds,
+  useSpecies,
+  useStocks,
+  useFeedings,
+  useSamplings,
+  useHarvests,
+  useMortalities,
+  useTransfers,
+  useTreatments,
+  useMaintenance,
+  usePurchases,
+  useAlerts,
+  useTasks,
+  useNotifications,
+  useConversations,
+  useUsers,
+} from './useEntity';
 
 // ============================================================================
 // useDialog - Dialog state management hook
@@ -365,16 +341,4 @@ export function useMounted() {
 
   return mountedRef;
 }
-
-// ============================================================================
-// WebSocket Hooks
-// ============================================================================
-
-export {
-  useWebSocketConnection,
-  useWebSocketEvent,
-  useNotificationWebSocket,
-  useAlertWebSocket,
-  useDataStreamWebSocket,
-} from './useWebSocket';
 

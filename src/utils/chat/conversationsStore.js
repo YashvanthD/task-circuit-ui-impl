@@ -5,11 +5,11 @@
  * @module utils/chat/conversationsStore
  */
 
-import { STORAGE_KEYS, CACHE_TTL } from './constants';
 import { createEventEmitter, chatEvents, CHAT_EVENTS } from './events';
 import { normalizeConversation, createLastMessage } from './normalizers';
-import { listConversations, getCurrentUserKey } from '../../api/chat';
-import { getUsersSync } from '../cache/usersCache';
+import { listConversations } from '../../api/chat';
+import { getUsersSync } from '../cache';
+import {CHAT_CACHE_TTL, CHAT_STORAGE_KEYS} from "../../constants";
 
 // ============================================================================
 // Store State
@@ -36,7 +36,7 @@ const events = createEventEmitter();
  */
 function hasValidCache() {
   if (!state.lastFetch) return false;
-  return Date.now() - state.lastFetch < CACHE_TTL.CONVERSATIONS;
+  return Date.now() - state.lastFetch < CHAT_CACHE_TTL.CONVERSATIONS;
 }
 
 /**
@@ -49,7 +49,7 @@ function persistToStorage() {
       totalUnread: state.totalUnread,
       lastFetch: state.lastFetch,
     };
-    localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(toStore));
+    localStorage.setItem(CHAT_STORAGE_KEYS.CONVERSATIONS, JSON.stringify(toStore));
   } catch (e) {
     // Ignore storage errors
   }
@@ -60,11 +60,11 @@ function persistToStorage() {
  */
 function loadFromStorage() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
+    const stored = localStorage.getItem(CHAT_STORAGE_KEYS.CONVERSATIONS);
     if (stored) {
       const parsed = JSON.parse(stored);
       // Don't use stale data - only use if recent
-      if (parsed.lastFetch && Date.now() - parsed.lastFetch < CACHE_TTL.CONVERSATIONS) {
+      if (parsed.lastFetch && Date.now() - parsed.lastFetch < CHAT_CACHE_TTL.CONVERSATIONS) {
         state.data = parsed.data || [];
         state.totalUnread = Math.max(0, parsed.totalUnread || 0);
         state.lastFetch = parsed.lastFetch;
@@ -214,7 +214,7 @@ export function clearCache() {
   state.totalUnread = 0;
   state.lastFetch = null;
   state.error = null;
-  localStorage.removeItem(STORAGE_KEYS.CONVERSATIONS);
+  localStorage.removeItem(CHAT_STORAGE_KEYS.CONVERSATIONS);
   events.emit('updated', state.data);
 }
 
@@ -347,22 +347,3 @@ export function removeConversation(conversationId) {
 
 // Initialize from storage on load
 loadFromStorage();
-
-export default {
-  getConversations,
-  getConversationsSync,
-  getConversationById,
-  getTotalUnreadCount,
-  setActiveConversation,
-  getActiveConversation,
-  isLoading,
-  getError,
-  subscribe,
-  clearCache,
-  upsertConversation,
-  updateConversationWithMessage,
-  markAsRead,
-  updatePresence,
-  removeConversation,
-};
-

@@ -5,7 +5,7 @@
  * @module utils/chat/normalizers
  */
 
-import { MESSAGE_STATUS } from './constants';
+import { MESSAGE_STATUS } from '../../constants';
 
 /**
  * Normalize a message from API to consistent format
@@ -141,11 +141,3 @@ export function createLastMessage(message) {
     created_at: message.created_at,
   };
 }
-
-export default {
-  normalizeMessage,
-  normalizeConversation,
-  normalizeParticipantsInfo,
-  createLastMessage,
-};
-

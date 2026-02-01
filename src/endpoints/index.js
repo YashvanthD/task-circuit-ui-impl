@@ -19,6 +19,9 @@ import {
   API_COMPANY,
   API_SAMPLING,
   API_FISH,
+  API_NOTIFICATION,
+  API_ALERT,
+  API_CHAT,
 } from '../api';
 
 // ============================================================================
@@ -60,6 +63,9 @@ export {
   API_COMPANY,
   API_SAMPLING,
   API_FISH,
+  API_NOTIFICATION,
+  API_ALERT,
+  API_CHAT,
 } from '../api/constants';
 
 // This file is deprecated. Use API constants from src/api/constants.js and apiFetch from src/api/client.js

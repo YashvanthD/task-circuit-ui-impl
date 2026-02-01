@@ -5,12 +5,12 @@
  * @module utils/chat/messagesStore
  */
 
-import { CACHE_TTL, MESSAGE_STATUS } from './constants';
 import { createEventEmitter, chatEvents, CHAT_EVENTS } from './events';
 import { normalizeMessage } from './normalizers';
 import { getMessages, getCurrentUserKey } from '../../api/chat';
 import { getUsersSync } from '../cache/usersCache';
 import { playNotificationSound } from '../notifications/sound';
+import {CACHE_TTL, MESSAGE_STATUS} from "../../constants";
 
 // ============================================================================
 // Store State - Per conversation cache
@@ -311,20 +311,3 @@ export function getLastMessage(conversationId) {
   if (!cache || cache.data.length === 0) return null;
   return cache.data[cache.data.length - 1];
 }
-
-export default {
-  getMessagesForConversation,
-  getMessagesSync,
-  getMessageById,
-  isLoading,
-  subscribe,
-  clearCache,
-  clearAllCaches,
-  addMessage,
-  updateMessage,
-  updateMessageStatus,
-  markMessagesAsRead,
-  removeMessage,
-  getLastMessage,
-};
-

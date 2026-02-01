@@ -8,12 +8,7 @@
 /**
  * Role levels for permission hierarchy
  */
-export const ROLE_LEVELS = {
-  ADMIN: 'admin',
-  MANAGER: 'manager',
-  USER: 'user',
-  GUEST: 'guest',
-};
+
 
 /**
  * Extract the user object from various response shapes.

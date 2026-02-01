@@ -1,0 +1,219 @@
+# Pond Entity Schema
+# Represents a fish pond within a farm
+
+Pond:
+  type: object
+  required:
+    - pond_id
+    - farm_id
+    - name
+  properties:
+    pond_id:
+      type: string
+      description: Unique identifier for the pond
+      example: "pond_456"
+    farm_id:
+      type: string
+      description: Farm this pond belongs to
+      example: "farm_123"
+    name:
+      type: string
+      description: Pond name
+      example: "Pond 1"
+    size_sqm:
+      type: number
+      format: double
+      description: Pond size in square meters
+      example: 1000
+    depth_m:
+      type: number
+      format: double
+      description: Pond depth in meters
+      example: 2.0
+    volume_cubic_m:
+      type: number
+      format: double
+      description: Pond volume in cubic meters
+      example: 2000
+    status:
+      type: string
+      enum: [empty, stocked, harvesting, maintenance, inactive]
+      description: Pond operational status
+      example: "stocked"
+      default: "empty"
+    pond_type:
+      type: string
+      enum: [earthen, concrete, liner, cage, raceway, other]
+      description: Type of pond construction
+      example: "earthen"
+    water_source:
+      type: string
+      description: Water source for this pond
+      example: "River"
+    aeration_system:
+      type: boolean
+      description: Whether pond has aeration system
+      example: true
+      default: false
+    filtration_system:
+      type: boolean
+      description: Whether pond has filtration system
+      example: false
+      default: false
+    description:
+      type: string
+      description: Pond description
+      example: "Main production pond"
+    current_stock_count:
+      type: integer
+      description: Current number of fish stocked
+      example: 5000
+    created_at:
+      type: string
+      format: date-time
+      description: When the pond was created
+      example: "2024-01-15T10:00:00Z"
+    updated_at:
+      type: string
+      format: date-time
+      description: When the pond was last updated
+      example: "2024-01-30T10:00:00Z"
+
+PondCreateRequest:
+  type: object
+  required:
+    - farm_id
+    - name
+  properties:
+    farm_id:
+      type: string
+      description: Farm this pond belongs to
+      example: "farm_123"
+    name:
+      type: string
+      description: Pond name
+      example: "Pond 5"
+    size_sqm:
+      type: number
+      format: double
+      description: Pond size in square meters
+      example: 1500
+    depth_m:
+      type: number
+      format: double
+      description: Pond depth in meters
+      example: 2.5
+    pond_type:
+      type: string
+      description: Type of pond
+      example: "earthen"
+    water_source:
+      type: string
+      description: Water source
+      example: "River"
+    aeration_system:
+      type: boolean
+      description: Has aeration system
+      example: true
+    description:
+      type: string
+      description: Pond description
+      example: "New production pond"
+
+PondUpdateRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      description: Pond name
+      example: "Updated Pond Name"
+    size_sqm:
+      type: number
+      format: double
+      description: Pond size in square meters
+      example: 1600
+    depth_m:
+      type: number
+      format: double
+      description: Pond depth in meters
+      example: 2.5
+    status:
+      type: string
+      enum: [empty, stocked, harvesting, maintenance, inactive]
+      description: Pond status
+      example: "maintenance"
+    pond_type:
+      type: string
+      description: Type of pond
+      example: "concrete"
+    aeration_system:
+      type: boolean
+      description: Has aeration system
+      example: true
+    filtration_system:
+      type: boolean
+      description: Has filtration system
+      example: true
+    description:
+      type: string
+      description: Pond description
+      example: "Updated description"
+
+WaterQuality:
+  type: object
+  properties:
+    temperature:
+      type: number
+      format: double
+      description: Water temperature in Celsius
+      example: 28.5
+    ph:
+      type: number
+      format: double
+      description: pH level
+      example: 7.2
+    dissolved_oxygen:
+      type: number
+      format: double
+      description: Dissolved oxygen in mg/L
+      example: 6.5
+    ammonia:
+      type: number
+      format: double
+      description: Ammonia level in mg/L
+      example: 0.1
+    nitrite:
+      type: number
+      format: double
+      description: Nitrite level in mg/L
+      example: 0.05
+    nitrate:
+      type: number
+      format: double
+      description: Nitrate level in mg/L
+      example: 5.0
+    alkalinity:
+      type: number
+      format: double
+      description: Alkalinity in mg/L
+      example: 120
+    hardness:
+      type: number
+      format: double
+      description: Water hardness in mg/L
+      example: 150
+    turbidity:
+      type: number
+      format: double
+      description: Turbidity in NTU
+      example: 20
+    salinity:
+      type: number
+      format: double
+      description: Salinity in ppt
+      example: 0.5
+    last_updated:
+      type: string
+      format: date-time
+      description: When water quality was last measured
+      example: "2024-01-30T10:00:00Z"

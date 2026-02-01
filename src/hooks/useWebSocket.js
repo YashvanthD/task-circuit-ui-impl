@@ -68,18 +68,36 @@ export function useNotificationWebSocket({ onNew, onRead, onReadAll, onDeleted, 
  * @param {object} options - Options
  * @param {function} options.onNew - Callback for new alert
  * @param {function} options.onAcknowledged - Callback for acknowledged alert
+ * @param {function} options.onResolved - Callback for resolved alert
  * @param {function} options.onAcknowledgedAll - Callback for all alerts acknowledged
  * @param {function} options.onDeleted - Callback for deleted alert
  * @param {function} options.onCountUpdate - Callback for count update
  * @param {function} options.onError - Callback for alert errors
  */
-export function useAlertWebSocket({ onNew, onAcknowledged, onAcknowledgedAll, onDeleted, onCountUpdate, onError } = {}) {
-  useWebSocketEvent(WS_EVENTS.ALERT_NEW, onNew);
+export function useAlertWebSocket({ onNew, onAcknowledged, onResolved, onAcknowledgedAll, onDeleted, onCountUpdate, onError } = {}) {
+  useWebSocketEvent(WS_EVENTS.ALERT_CREATED, onNew);
+  useWebSocketEvent(WS_EVENTS.ALERT_NEW, onNew); // Legacy support
   useWebSocketEvent(WS_EVENTS.ALERT_ACKNOWLEDGED, onAcknowledged);
+  useWebSocketEvent(WS_EVENTS.ALERT_RESOLVED, onResolved);
   useWebSocketEvent(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, onAcknowledgedAll);
   useWebSocketEvent(WS_EVENTS.ALERT_DELETED, onDeleted);
   useWebSocketEvent(WS_EVENTS.ALERT_COUNT, onCountUpdate);
   useWebSocketEvent(WS_EVENTS.ALERT_ERROR, onError);
+}
+
+/**
+ * Hook for real-time task updates
+ * @param {object} options - Options
+ * @param {function} options.onCreated - Callback for new task
+ * @param {function} options.onUpdated - Callback for updated task
+ * @param {function} options.onCompleted - Callback for completed task
+ * @param {function} options.onDeleted - Callback for deleted task
+ */
+export function useTaskWebSocket({ onCreated, onUpdated, onCompleted, onDeleted } = {}) {
+  useWebSocketEvent(WS_EVENTS.TASK_CREATED, onCreated);
+  useWebSocketEvent(WS_EVENTS.TASK_UPDATED, onUpdated);
+  useWebSocketEvent(WS_EVENTS.TASK_COMPLETED, onCompleted);
+  useWebSocketEvent(WS_EVENTS.TASK_DELETED, onDeleted);
 }
 
 /**
@@ -94,12 +112,4 @@ export function useDataStreamWebSocket({ onTaskUpdate, onPondUpdate, onExpenseUp
   useWebSocketEvent(WS_EVENTS.STREAM_POND_UPDATE, onPondUpdate);
   useWebSocketEvent(WS_EVENTS.STREAM_EXPENSE_UPDATE, onExpenseUpdate);
 }
-
-export default {
-  useWebSocketConnection,
-  useWebSocketEvent,
-  useNotificationWebSocket,
-  useAlertWebSocket,
-  useDataStreamWebSocket,
-};
 

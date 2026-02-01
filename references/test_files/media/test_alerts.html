@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerts Test Console</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a1a;
+            color: #eee;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 { font-size: 24px; }
+        .header p { opacity: 0.9; margin-top: 5px; font-size: 14px; }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: #12122a;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #ff6b6b;
+        }
+
+        .auth-section {
+            background: #0a0a1a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #eee;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #2ed573; color: white; }
+        .btn-warning { background: #ffa502; color: white; }
+        .btn-danger { background: #ff4757; color: white; }
+        .btn-info { background: #1e90ff; color: white; }
+        .btn { margin-right: 8px; margin-bottom: 8px; }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4757;
+        }
+        .status-dot.connected { background: #2ed573; }
+
+        .alert-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #ffa502;
+        }
+        .alert-item.severity-critical { border-color: #ff4757; }
+        .alert-item.severity-high { border-color: #ffa502; }
+        .alert-item.severity-medium { border-color: #ffd32a; }
+        .alert-item.severity-low { border-color: #1e90ff; }
+        .alert-item.severity-info { border-color: #95afc0; }
+        .alert-item.status-acknowledged { opacity: 0.7; }
+        .alert-item.status-resolved { opacity: 0.5; }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        .alert-title { font-weight: 600; font-size: 16px; }
+        .alert-severity {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .alert-severity.critical { background: #ff4757; }
+        .alert-severity.high { background: #ffa502; }
+        .alert-severity.medium { background: #ffd32a; color: #000; }
+        .alert-severity.low { background: #1e90ff; }
+        .alert-severity.info { background: #95afc0; color: #000; }
+
+        .alert-message { margin: 10px 0; color: #ccc; }
+        .alert-meta {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+        }
+        .alert-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .alert-actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .events {
+            background: #0a0a1a;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .event {
+            padding: 8px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #1a1a2e;
+            border-left: 3px solid #667eea;
+        }
+        .event.error { border-color: #ff4757; background: #ff475722; }
+
+        .filter-section {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .filter-section label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        .filter-section select {
+            margin-bottom: 0;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚨 Alerts Test Console</h1>
+        <p>Create, manage, and test real-time alerts with WebSocket auto-sync</p>
+    </div>
+
+    <div class="container">
+        <!-- Left Panel -->
+        <div class="panel">
+            <h2>Authentication & Controls</h2>
+
+            <div class="auth-section">
+                <input type="email" id="email" value="yash@example.com" placeholder="Email">
+                <input type="password" id="password" value="12345678" placeholder="Password">
+                <button class="btn btn-primary" onclick="login()">🔐 Login</button>
+                <button class="btn btn-success" id="btnConnect" onclick="connect()" disabled>📡 Connect WS</button>
+                <div class="status">
+                    <div class="status-dot" id="status"></div>
+                    <span id="statusText">Disconnected</span>
+                </div>
+                <div id="userInfo" style="font-size: 12px; color: #888;"></div>
+            </div>
+
+            <h2 id="formHeader">Create Alert</h2>
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="alertTitle" placeholder="Alert title">
+            </div>
+            <div class="form-group">
+                <label>Message</label>
+                <textarea id="alertMessage" rows="3" placeholder="Alert message"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Severity</label>
+                <select id="alertSeverity">
+                    <option value="info">Info</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high" selected>High</option>
+                    <option value="critical">Critical</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <input type="text" id="alertCategory" placeholder="e.g., system, water_quality">
+            </div>
+            <div class="form-group">
+                <label>Remind After (hours) - Optional</label>
+                <input type="number" id="alertReminderHours" placeholder="e.g., 2, 24, 48" step="0.5" min="0.5">
+                <small style="color: #888; font-size: 11px;">Leave empty for no reminder</small>
+            </div>
+            <button class="btn btn-success" id="btnSubmitAlert" onclick="submitAlert()">✨ Create Alert</button>
+            <button class="btn btn-info" onclick="createAlertViaWS()">✨ Create via WebSocket</button>
+            <button class="btn btn-secondary" id="btnCancelEdit" onclick="cancelEdit()" style="display: none; background: #666;">✖ Cancel</button>
+
+            <div class="events" id="events">
+                <strong>Events Log</strong>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>Alerts List</h2>
+                <div>
+                    <button class="btn btn-info" onclick="loadAlerts()">🔄 Refresh</button>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <label>Filter by Status</label>
+                <select id="filterStatus" onchange="loadAlerts()">
+                    <option value="">All</option>
+                    <option value="active" selected>Active</option>
+                    <option value="acknowledged">Acknowledged</option>
+                    <option value="resolved">Resolved</option>
+                </select>
+                <label style="margin-top: 10px;">Filter by Severity</label>
+                <select id="filterSeverity" onchange="loadAlerts()">
+                    <option value="">All</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="info">Info</option>
+                </select>
+            </div>
+
+            <div class="alert-list" id="alertsList">
+                <p style="text-align: center; color: #666; padding: 40px;">Login and subscribe to see alerts</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = 'http://localhost:8093';
+        let token = null;
+        let userKey = null;
+        let accountKey = null;
+        let socket = null;
+        let alertsCache = {}; // Cache alerts for editing
+        let currentEditingAlertId = null;
+
+        // ===== Authentication =====
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${baseUrl}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                if (response.ok && data.data) {
+                    token = data.data.access_token;
+                    userKey = data.data.user?.user_key;
+                    accountKey = data.data.user?.account_key;
+
+                    document.getElementById('btnConnect').disabled = false;
+                    document.getElementById('userInfo').textContent =
+                        `Logged in as: ${data.data.user?.name || email}`;
+
+                    addEvent('login_success', data.data);
+                    loadAlerts();
+                } else {
+                    addEvent('login_error', data, true);
+                    alert('Login failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                addEvent('login_error', { message: e.message }, true);
+                alert('Login error: ' + e.message);
+            }
+        }
+
+        // ===== WebSocket =====
+        function connect() {
+            socket = io(baseUrl, {
+                query: { token },
+                transports: ['websocket']
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('status').classList.add('connected');
+                document.getElementById('statusText').textContent = 'Connected';
+                addEvent('ws_connected', { sid: socket.id });
+
+                // Subscribe to alerts
+                socket.emit('subscribe_alerts', {});
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('status').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                addEvent('ws_disconnected', {});
+            });
+
+            socket.on('subscribed', (data) => {
+                addEvent('subscribed', data);
+            });
+
+            // Alert events - Auto-refresh
+            socket.on('alert_created', (data) => {
+                addEvent('alert_created', data);
+                setTimeout(() => loadAlerts(), 100);
+            });
+
+            socket.on('alert_acknowledged', (data) => {
+                addEvent('alert_acknowledged', data);
+                setTimeout(() => loadAlerts(), 100);
+            });
+
+            socket.on('alert_resolved', (data) => {
+                addEvent('alert_resolved', data);
+                setTimeout(() => loadAlerts(), 100);
+            });
+
+            socket.on('alert_deleted', (data) => {
+                addEvent('alert_deleted', data);
+                setTimeout(() => loadAlerts(), 100);
+            });
+
+            socket.on('error', (data) => {
+                addEvent('error', data, true);
+            });
+        }
+
+        // ===== API Calls =====
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const response = await fetch(`${baseUrl}${endpoint}`, options);
+            return await response.json();
+        }
+
+        // ===== Load Alerts =====
+        async function loadAlerts() {
+            if (!token) return;
+
+            const status = document.getElementById('filterStatus').value;
+            const severity = document.getElementById('filterSeverity').value;
+
+            let url = '/api/alerts?limit=100';
+            if (status) url += `&status=${status}`;
+            if (severity) url += `&severity=${severity}`;
+
+            try {
+                const data = await apiCall(url);
+
+                if (data.success && data.data) {
+                    const alerts = data.data;
+                    const container = document.getElementById('alertsList');
+
+                    // Cache alerts for editing
+                    alertsCache = {};
+                    alerts.forEach(alert => {
+                        alertsCache[alert.alert_id] = alert;
+                    });
+
+                    if (alerts.length === 0) {
+                        container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No alerts found</p>';
+                        return;
+                    }
+
+                    container.innerHTML = alerts.map(alert => `
+                        <div class="alert-item severity-${alert.severity} status-${alert.status}"
+                             onclick="editAlert('${alert.alert_id}')"
+                             style="cursor: pointer;"
+                             title="Click to edit">
+                            <div class="alert-header">
+                                <div class="alert-title">${alert.title}</div>
+                                <div class="alert-severity ${alert.severity}">${alert.severity}</div>
+                            </div>
+                            <div class="alert-message">${alert.message}</div>
+                            <div class="alert-meta">
+                                Status: <strong>${alert.status}</strong> •
+                                Category: ${alert.category || 'N/A'} •
+                                ${new Date(alert.created_at).toLocaleString()}
+                                ${alert.reminder_at ? `<br>⏰ Reminder: ${new Date(alert.reminder_at).toLocaleString()}` : ''}
+                            </div>
+                            <div class="alert-actions" onclick="event.stopPropagation()">
+                                ${alert.status === 'active' ? `
+                                    <button class="btn-warning" onclick="acknowledgeAlert('${alert.alert_id}')">✋ Acknowledge</button>
+                                    <button class="btn-success" onclick="resolveAlert('${alert.alert_id}')">✅ Resolve</button>
+                                ` : ''}
+                                ${alert.status === 'acknowledged' ? `
+                                    <button class="btn-success" onclick="resolveAlert('${alert.alert_id}')">✅ Resolve</button>
+                                ` : ''}
+                                <button class="btn-danger" onclick="deleteAlert('${alert.alert_id}')">🗑️ Delete</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                addEvent('load_alerts_error', { message: e.message }, true);
+            }
+        }
+
+        // ===== Edit Alert =====
+        function editAlert(alertId) {
+            const alert = alertsCache[alertId];
+            if (!alert) {
+                console.error('Alert not found in cache:', alertId);
+                return;
+            }
+
+            // Populate form fields
+            document.getElementById('alertTitle').value = alert.title || '';
+            document.getElementById('alertMessage').value = alert.message || '';
+            document.getElementById('alertSeverity').value = alert.severity || 'high';
+            document.getElementById('alertCategory').value = alert.category || '';
+
+            // Calculate reminder hours from reminder_at if exists
+            if (alert.reminder_at) {
+                const now = new Date();
+                const reminderDate = new Date(alert.reminder_at);
+                const hoursUntilReminder = Math.max(0, (reminderDate - now) / (1000 * 60 * 60));
+                document.getElementById('alertReminderHours').value = hoursUntilReminder.toFixed(1);
+            } else {
+                document.getElementById('alertReminderHours').value = '';
+            }
+
+            // Update UI for edit mode
+            currentEditingAlertId = alertId;
+            document.getElementById('formHeader').innerHTML = `📝 Edit Alert <small style="color: #888;">(ID: ${alertId})</small>`;
+            document.getElementById('btnSubmitAlert').textContent = '💾 Update Alert';
+            document.getElementById('btnCancelEdit').style.display = 'inline-block';
+
+            // Scroll to form
+            document.querySelector('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            addEvent('alert_editing', { alert_id: alertId });
+        }
+
+        function cancelEdit() {
+            currentEditingAlertId = null;
+            document.getElementById('formHeader').textContent = 'Create Alert';
+            document.getElementById('btnSubmitAlert').textContent = '✨ Create Alert';
+            document.getElementById('btnCancelEdit').style.display = 'none';
+
+            // Clear form
+            document.getElementById('alertTitle').value = '';
+            document.getElementById('alertMessage').value = '';
+            document.getElementById('alertSeverity').value = 'high';
+            document.getElementById('alertCategory').value = '';
+            document.getElementById('alertReminderHours').value = '';
+        }
+
+        async function submitAlert() {
+            if (currentEditingAlertId) {
+                await updateAlert();
+            } else {
+                await createAlert();
+            }
+        }
+
+        async function updateAlert() {
+            const alertId = currentEditingAlertId;
+            const title = document.getElementById('alertTitle').value;
+            const message = document.getElementById('alertMessage').value;
+            const severity = document.getElementById('alertSeverity').value;
+            const category = document.getElementById('alertCategory').value;
+            const reminderHours = document.getElementById('alertReminderHours').value;
+
+            if (!title || !message) {
+                alert('Please enter title and message');
+                return;
+            }
+
+            try {
+                const payload = {
+                    title,
+                    message,
+                    severity,
+                    category: category || 'general'
+                };
+
+                if (reminderHours && parseFloat(reminderHours) > 0) {
+                    payload.reminder_hours = parseFloat(reminderHours);
+                }
+
+                // Use PUT to update
+                const data = await apiCall(`/api/alerts/${alertId}`, 'PUT', payload);
+
+                if (data.success) {
+                    addEvent('alert_updated', data.data);
+                    cancelEdit();
+                    loadAlerts();
+                } else {
+                    addEvent('update_error', data, true);
+                }
+            } catch (e) {
+                addEvent('update_error', { message: e.message }, true);
+            }
+        }
+
+        // ===== Create Alert =====
+        async function createAlert() {
+            const title = document.getElementById('alertTitle').value;
+            const message = document.getElementById('alertMessage').value;
+            const severity = document.getElementById('alertSeverity').value;
+            const category = document.getElementById('alertCategory').value;
+            const reminderHours = document.getElementById('alertReminderHours').value;
+
+            if (!title || !message) {
+                alert('Please enter title and message');
+                return;
+            }
+
+            try {
+                const payload = {
+                    title,
+                    message,
+                    severity,
+                    category: category || 'general'
+                };
+
+                if (reminderHours && parseFloat(reminderHours) > 0) {
+                    payload.reminder_hours = parseFloat(reminderHours);
+                }
+
+                const data = await apiCall('/api/alerts', 'POST', payload);
+
+                if (data.success) {
+                    addEvent('alert_created', data.data);
+                    document.getElementById('alertTitle').value = '';
+                    document.getElementById('alertMessage').value = '';
+                    document.getElementById('alertReminderHours').value = '';
+                    loadAlerts();
+                } else {
+                    addEvent('create_error', data, true);
+                }
+            } catch (e) {
+                addEvent('create_error', { message: e.message }, true);
+            }
+        }
+
+        function createAlertViaWS() {
+            if (!socket || !socket.connected) {
+                alert('WebSocket not connected');
+                return;
+            }
+
+            const title = document.getElementById('alertTitle').value;
+            const message = document.getElementById('alertMessage').value;
+            const severity = document.getElementById('alertSeverity').value;
+            const category = document.getElementById('alertCategory').value;
+
+            if (!title || !message) {
+                alert('Please enter title and message');
+                return;
+            }
+
+            socket.emit('create_alert', {
+                title,
+                message,
+                severity,
+                category: category || 'general'
+            });
+
+            document.getElementById('alertTitle').value = '';
+            document.getElementById('alertMessage').value = '';
+        }
+
+        // ===== Alert Actions =====
+        async function acknowledgeAlert(alertId) {
+            if (socket && socket.connected) {
+                socket.emit('acknowledge_alert', { alert_id: alertId });
+            } else {
+                try {
+                    const data = await apiCall(`/api/alerts/${alertId}/acknowledge`, 'PUT');
+                    if (data.success) {
+                        addEvent('alert_acknowledged', { alert_id: alertId });
+                        loadAlerts();
+                    }
+                } catch (e) {
+                    addEvent('error', { message: e.message }, true);
+                }
+            }
+        }
+
+        async function resolveAlert(alertId) {
+            if (socket && socket.connected) {
+                socket.emit('resolve_alert', { alert_id: alertId });
+            } else {
+                try {
+                    const data = await apiCall(`/api/alerts/${alertId}/resolve`, 'PUT');
+                    if (data.success) {
+                        addEvent('alert_resolved', { alert_id: alertId });
+                        loadAlerts();
+                    }
+                } catch (e) {
+                    addEvent('error', { message: e.message }, true);
+                }
+            }
+        }
+
+        async function deleteAlert(alertId) {
+            if (!confirm('Delete this alert?')) return;
+
+            try {
+                const data = await apiCall(`/api/alerts/${alertId}`, 'DELETE');
+                if (data.success) {
+                    addEvent('alert_deleted', { alert_id: alertId });
+                    loadAlerts();
+                }
+            } catch (e) {
+                addEvent('error', { message: e.message }, true);
+            }
+        }
+
+        // ===== Events Log =====
+        function addEvent(type, data, isError = false) {
+            const events = document.getElementById('events');
+            const div = document.createElement('div');
+            div.className = 'event' + (isError ? ' error' : '');
+            div.innerHTML = `
+                <strong>${type}</strong><br>
+                <span style="font-size: 11px; color: #888;">${JSON.stringify(data).substring(0, 100)}</span>
+            `;
+            events.insertBefore(div, events.children[1] || null);
+
+            // Keep only last 20 events
+            while (events.children.length > 21) {
+                events.removeChild(events.lastChild);
+            }
+        }
+    </script>
+</body>
+</html>

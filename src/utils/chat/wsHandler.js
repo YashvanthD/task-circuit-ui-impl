@@ -7,14 +7,14 @@
 
 import { socketService, WS_EVENTS } from '../websocket';
 import { getCurrentUserKey } from '../../api/chat';
-import { getUsersSync } from '../cache/usersCache';
+import { getUsersSync } from '../cache';
 import { showErrorAlert } from '../alertManager';
 
 import * as conversationsStore from './conversationsStore';
 import * as messagesStore from './messagesStore';
 import * as typingStore from './typingStore';
-import { normalizeMessage, normalizeConversation, normalizeParticipantsInfo } from './normalizers';
-import { MESSAGE_STATUS } from './constants';
+import { normalizeConversation, normalizeParticipantsInfo } from './normalizers';
+import { MESSAGE_STATUS } from '../../constants';
 
 // ============================================================================
 // State
@@ -376,11 +376,3 @@ async function requestPresenceForAllParticipants() {
     console.warn('[ChatWS] Failed to fetch presence:', error);
   }
 }
-
-export default {
-  subscribeToWebSocket,
-  unsubscribeFromWebSocket,
-  isSubscribed,
-  resetState,
-};
-

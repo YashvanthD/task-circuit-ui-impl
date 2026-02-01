@@ -1,0 +1,64 @@
+# Species Entity Schema
+# Represents a fish species
+
+Species:
+  type: object
+  required:
+    - species_id
+    - name
+  properties:
+    species_id:
+      type: string
+      description: Unique identifier for the species
+      example: "sp_789"
+    name:
+      type: string
+      description: Common name of the species
+      example: "Tilapia"
+    scientific_name:
+      type: string
+      description: Scientific name of the species
+      example: "Oreochromis niloticus"
+    category:
+      type: string
+      enum: [freshwater, saltwater, brackish]
+      description: Water type category
+      example: "freshwater"
+    description:
+      type: string
+      description: Species description
+      example: "Fast-growing freshwater species"
+    optimal_temp_min:
+      type: number
+      format: double
+      description: Minimum optimal temperature in Celsius
+      example: 25
+    optimal_temp_max:
+      type: number
+      format: double
+      description: Maximum optimal temperature in Celsius
+      example: 30
+    optimal_ph_min:
+      type: number
+      format: double
+      description: Minimum optimal pH level
+      example: 6.5
+    optimal_ph_max:
+      type: number
+      format: double
+      description: Maximum optimal pH level
+      example: 8.5
+    growth_rate:
+      type: string
+      description: Growth rate description
+      example: "Fast - reaches 250g in 6 months"
+    market_size_g:
+      type: number
+      format: double
+      description: Market size in grams
+      example: 250
+    created_at:
+      type: string
+      format: date-time
+      description: When the species was created
+      example: "2024-01-15T10:00:00Z"

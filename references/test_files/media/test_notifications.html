@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications Test Console</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a1a;
+            color: #eee;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 { font-size: 24px; }
+        .header p { opacity: 0.9; margin-top: 5px; font-size: 14px; }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: #12122a;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #4facfe;
+        }
+
+        .auth-section {
+            background: #0a0a1a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #eee;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #2ed573; color: white; }
+        .btn-warning { background: #ffa502; color: white; }
+        .btn-danger { background: #ff4757; color: white; }
+        .btn-info { background: #1e90ff; color: white; }
+        .btn { margin-right: 8px; margin-bottom: 8px; }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4757;
+        }
+        .status-dot.connected { background: #2ed573; }
+
+        .notification-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .notification-item {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4facfe;
+            position: relative;
+        }
+        .notification-item.unread {
+            background: #1e2744;
+            border-color: #ffa502;
+        }
+        .notification-item.type-system { border-color: #95afc0; }
+        .notification-item.type-alert { border-color: #ff4757; }
+        .notification-item.type-message { border-color: #4facfe; }
+        .notification-item.type-task { border-color: #2ed573; }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        .notification-title { font-weight: 600; font-size: 16px; }
+        .notification-type {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .notification-type.system { background: #95afc0; color: #000; }
+        .notification-type.alert { background: #ff4757; }
+        .notification-type.message { background: #4facfe; }
+        .notification-type.task { background: #2ed573; }
+
+        .notification-message { margin: 10px 0; color: #ccc; }
+        .notification-meta {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+        }
+        .notification-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .notification-actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .unread-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ff4757;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .events {
+            background: #0a0a1a;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .event {
+            padding: 8px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #1a1a2e;
+            border-left: 3px solid #667eea;
+        }
+        .event.error { border-color: #ff4757; background: #ff475722; }
+
+        .filter-section {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .filter-section label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-card {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #4facfe;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📬 Notifications Test Console</h1>
+        <p>Create, manage, and test real-time notifications with WebSocket auto-sync</p>
+    </div>
+
+    <div class="container">
+        <!-- Left Panel -->
+        <div class="panel">
+            <h2>Authentication & Controls</h2>
+
+            <div class="auth-section">
+                <input type="email" id="email" value="yash@example.com" placeholder="Email">
+                <input type="password" id="password" value="12345678" placeholder="Password">
+                <button class="btn btn-primary" onclick="login()">🔐 Login</button>
+                <button class="btn btn-success" id="btnConnect" onclick="connect()" disabled>📡 Connect WS</button>
+                <div class="status">
+                    <div class="status-dot" id="status"></div>
+                    <span id="statusText">Disconnected</span>
+                </div>
+                <div id="userInfo" style="font-size: 12px; color: #888;"></div>
+            </div>
+
+            <h2 id="formHeader">Send Notification</h2>
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="notifTitle" placeholder="Notification title">
+            </div>
+            <div class="form-group">
+                <label>Message</label>
+                <textarea id="notifMessage" rows="3" placeholder="Notification message"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="notifType">
+                    <option value="system">System</option>
+                    <option value="alert">Alert</option>
+                    <option value="message" selected>Message</option>
+                    <option value="task">Task</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Priority</label>
+                <select id="notifPriority">
+                    <option value="low">Low</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Remind After (hours) - Optional</label>
+                <input type="number" id="notifReminderHours" placeholder="e.g., 1, 6, 24" step="0.5" min="0.5">
+                <small style="color: #888; font-size: 11px;">Leave empty for no reminder</small>
+            </div>
+            <button class="btn btn-success" id="btnSubmitNotification" onclick="submitNotification()">✨ Send (API)</button>
+            <button class="btn btn-info" onclick="sendNotificationViaWS()">✨ Send (WebSocket)</button>
+            <button class="btn btn-secondary" id="btnCancelEdit" onclick="cancelEdit()" style="display: none; background: #666;">✖ Cancel</button>
+
+            <div class="events" id="events">
+                <strong>Events Log</strong>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>Notifications</h2>
+                <div>
+                    <button class="btn btn-warning" onclick="markAllRead()">✅ Mark All Read</button>
+                    <button class="btn btn-danger" onclick="deleteAll()">🗑️ Delete All</button>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCount">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="unreadCount">0</div>
+                    <div class="stat-label">Unread</div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <label>Filter by Status</label>
+                <select id="filterRead" onchange="loadNotifications()">
+                    <option value="">All</option>
+                    <option value="unread" selected>Unread</option>
+                    <option value="read">Read</option>
+                </select>
+            </div>
+
+            <div class="notification-list" id="notificationsList">
+                <p style="text-align: center; color: #666; padding: 40px;">Login to see notifications</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = 'http://localhost:8093';
+        let token = null;
+        let userKey = null;
+        let accountKey = null;
+        let socket = null;
+        let notificationsCache = {}; // Cache notifications for editing
+        let currentEditingNotificationId = null;
+
+        // ===== Authentication =====
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${baseUrl}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                if (response.ok && data.data) {
+                    token = data.data.access_token;
+                    userKey = data.data.user?.user_key;
+                    accountKey = data.data.user?.account_key;
+
+                    document.getElementById('btnConnect').disabled = false;
+                    document.getElementById('userInfo').textContent =
+                        `Logged in as: ${data.data.user?.name || email}`;
+
+                    addEvent('login_success', data.data);
+                    loadNotifications();
+                } else {
+                    addEvent('login_error', data, true);
+                    alert('Login failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                addEvent('login_error', { message: e.message }, true);
+                alert('Login error: ' + e.message);
+            }
+        }
+
+        // ===== WebSocket =====
+        function connect() {
+            socket = io(baseUrl, {
+                query: { token },
+                transports: ['websocket']
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('status').classList.add('connected');
+                document.getElementById('statusText').textContent = 'Connected';
+                addEvent('ws_connected', { sid: socket.id });
+
+                // Subscribe to notifications
+                socket.emit('subscribe_notifications', {});
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('status').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                addEvent('ws_disconnected', {});
+            });
+
+            socket.on('subscribed', (data) => {
+                addEvent('subscribed', data);
+            });
+
+            // Notification events - Auto-refresh
+            socket.on('notification', (data) => {
+                addEvent('notification_received', data);
+                setTimeout(() => loadNotifications(), 100);
+            });
+
+            socket.on('notification_read', (data) => {
+                addEvent('notification_read', data);
+                setTimeout(() => loadNotifications(), 100);
+            });
+
+            socket.on('all_notifications_read', (data) => {
+                addEvent('all_notifications_read', data);
+                setTimeout(() => loadNotifications(), 100);
+            });
+
+            socket.on('notification_deleted', (data) => {
+                addEvent('notification_deleted', data);
+                setTimeout(() => loadNotifications(), 100);
+            });
+
+            socket.on('error', (data) => {
+                addEvent('error', data, true);
+            });
+        }
+
+        // ===== API Calls =====
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const response = await fetch(`${baseUrl}${endpoint}`, options);
+            return await response.json();
+        }
+
+        // ===== Load Notifications =====
+        async function loadNotifications() {
+            if (!token) return;
+
+            const readFilter = document.getElementById('filterRead').value;
+
+            let url = '/api/notifications?limit=100';
+            if (readFilter === 'unread') url += '&read=false';
+            if (readFilter === 'read') url += '&read=true';
+
+            try {
+                const data = await apiCall(url);
+
+                if (data.success && data.data) {
+                    const notifications = data.data;
+                    const container = document.getElementById('notificationsList');
+
+                    // Cache notifications for editing
+                    notificationsCache = {};
+                    notifications.forEach(notif => {
+                        notificationsCache[notif.notification_id] = notif;
+                    });
+
+                    // Update stats
+                    document.getElementById('totalCount').textContent = notifications.length;
+                    const unread = notifications.filter(n => !n.is_read).length;
+                    document.getElementById('unreadCount').textContent = unread;
+
+                    if (notifications.length === 0) {
+                        container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No notifications</p>';
+                        return;
+                    }
+
+                    container.innerHTML = notifications.map(notif => `
+                        <div class="notification-item type-${notif.notification_type} ${!notif.is_read ? 'unread' : ''}"
+                             onclick="editNotification('${notif.notification_id}')"
+                             style="cursor: pointer;"
+                             title="Click to edit">
+                            ${!notif.is_read ? '<div class="unread-badge">NEW</div>' : ''}
+                            <div class="notification-header">
+                                <div class="notification-title">${notif.title}</div>
+                                <div class="notification-type ${notif.notification_type}">${notif.notification_type}</div>
+                            </div>
+                            <div class="notification-message">${notif.message}</div>
+                            <div class="notification-meta">
+                                Priority: <strong>${notif.priority || 'normal'}</strong> •
+                                ${new Date(notif.created_at).toLocaleString()}
+                                ${notif.reminder_at ? `<br>⏰ Reminder: ${new Date(notif.reminder_at).toLocaleString()}` : ''}
+                            </div>
+                            <div class="notification-actions" onclick="event.stopPropagation()">
+                                ${!notif.is_read ? `
+                                    <button class="btn-success" onclick="markAsRead('${notif.notification_id}')">✅ Mark Read</button>
+                                ` : ''}
+                                <button class="btn-danger" onclick="deleteNotification('${notif.notification_id}')">🗑️ Delete</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                addEvent('load_notifications_error', { message: e.message }, true);
+            }
+        }
+
+        // ===== Edit Notification =====
+        function editNotification(notificationId) {
+            const notif = notificationsCache[notificationId];
+            if (!notif) {
+                console.error('Notification not found in cache:', notificationId);
+                return;
+            }
+
+            // Populate form fields
+            document.getElementById('notifTitle').value = notif.title || '';
+            document.getElementById('notifMessage').value = notif.message || '';
+            document.getElementById('notifType').value = notif.notification_type || 'system';
+            document.getElementById('notifPriority').value = notif.priority || 'normal';
+
+            // Calculate reminder hours from reminder_at if exists
+            if (notif.reminder_at) {
+                const now = new Date();
+                const reminderDate = new Date(notif.reminder_at);
+                const hoursUntilReminder = Math.max(0, (reminderDate - now) / (1000 * 60 * 60));
+                document.getElementById('notifReminderHours').value = hoursUntilReminder.toFixed(1);
+            } else {
+                document.getElementById('notifReminderHours').value = '';
+            }
+
+            // Update UI for edit mode
+            currentEditingNotificationId = notificationId;
+            document.getElementById('formHeader').innerHTML = `📝 Edit Notification <small style="color: #888;">(ID: ${notificationId})</small>`;
+            document.getElementById('btnSubmitNotification').textContent = '💾 Update Notification';
+            document.getElementById('btnCancelEdit').style.display = 'inline-block';
+
+            // Scroll to form
+            document.querySelector('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            addEvent('notification_editing', { notification_id: notificationId });
+        }
+
+        function cancelEdit() {
+            currentEditingNotificationId = null;
+            document.getElementById('formHeader').textContent = 'Send Notification';
+            document.getElementById('btnSubmitNotification').textContent = '✨ Send (API)';
+            document.getElementById('btnCancelEdit').style.display = 'none';
+
+            // Clear form
+            document.getElementById('notifTitle').value = '';
+            document.getElementById('notifMessage').value = '';
+            document.getElementById('notifType').value = 'message';
+            document.getElementById('notifPriority').value = 'normal';
+            document.getElementById('notifReminderHours').value = '';
+        }
+
+        async function submitNotification() {
+            if (currentEditingNotificationId) {
+                await updateNotification();
+            } else {
+                await sendNotification();
+            }
+        }
+
+        async function updateNotification() {
+            const notificationId = currentEditingNotificationId;
+            const title = document.getElementById('notifTitle').value;
+            const message = document.getElementById('notifMessage').value;
+            const type = document.getElementById('notifType').value;
+            const priority = document.getElementById('notifPriority').value;
+            const reminderHours = document.getElementById('notifReminderHours').value;
+
+            if (!title || !message) {
+                alert('Please enter title and message');
+                return;
+            }
+
+            try {
+                const payload = {
+                    title,
+                    message,
+                    notification_type: type,
+                    priority
+                };
+
+                if (reminderHours && parseFloat(reminderHours) > 0) {
+                    payload.reminder_hours = parseFloat(reminderHours);
+                }
+
+                // Use PUT to update
+                const data = await apiCall(`/api/notifications/${notificationId}`, 'PUT', payload);
+
+                if (data.success) {
+                    addEvent('notification_updated', data.data);
+                    cancelEdit();
+                    loadNotifications();
+                } else {
+                    addEvent('update_error', data, true);
+                }
+            } catch (e) {
+                addEvent('update_error', { message: e.message }, true);
+            }
+        }
+
+        // ===== Send Notification =====
+        async function sendNotification() {
+            const title = document.getElementById('notifTitle').value;
+            const message = document.getElementById('notifMessage').value;
+            const type = document.getElementById('notifType').value;
+            const priority = document.getElementById('notifPriority').value;
+            const reminderHours = document.getElementById('notifReminderHours').value;
+
+            if (!title || !message) {
+                alert('Please enter title and message');
+                return;
+            }
+
+            try {
+                const payload = {
+                    title,
+                    message,
+                    notification_type: type,
+                    priority
+                };
+
+                if (reminderHours && parseFloat(reminderHours) > 0) {
+                    payload.reminder_hours = parseFloat(reminderHours);
+                }
+
+                const data = await apiCall('/api/notifications', 'POST', payload);
+
+                if (data.success) {
+                    addEvent('notification_sent', data.data);
+                    document.getElementById('notifTitle').value = '';
+                    document.getElementById('notifMessage').value = '';
+                    document.getElementById('notifReminderHours').value = '';
+                    loadNotifications();
+                } else {
+                    addEvent('send_error', data, true);
+                }
+            } catch (e) {
+                addEvent('send_error', { message: e.message }, true);
+            }
+        }
+
+        function sendNotificationViaWS() {
+            if (!socket || !socket.connected) {
+                alert('WebSocket not connected');
+                return;
+            }
+
+            const title = document.getElementById('notifTitle').value;
+            const message = document.getElementById('notifMessage').value;
+            const type = document.getElementById('notifType').value;
+            const priority = document.getElementById('notifPriority').value;
+
+            if (!title || !message) {
+                alert('Please enter title and message');
+                return;
+            }
+
+            socket.emit('send_notification', {
+                title,
+                message,
+                type,
+                priority
+            });
+
+            document.getElementById('notifTitle').value = '';
+            document.getElementById('notifMessage').value = '';
+        }
+
+        // ===== Notification Actions =====
+        async function markAsRead(notificationId) {
+            if (socket && socket.connected) {
+                socket.emit('mark_notification_read', { notification_id: notificationId });
+            } else {
+                try {
+                    const data = await apiCall(`/api/notifications/${notificationId}/read`, 'PUT');
+                    if (data.success) {
+                        addEvent('notification_read', { notification_id: notificationId });
+                        loadNotifications();
+                    }
+                } catch (e) {
+                    addEvent('error', { message: e.message }, true);
+                }
+            }
+        }
+
+        async function markAllRead() {
+            if (socket && socket.connected) {
+                socket.emit('mark_all_notifications_read', {});
+            } else {
+                try {
+                    const data = await apiCall('/api/notifications/read-all', 'PUT');
+                    if (data.success) {
+                        addEvent('all_notifications_read', data.data);
+                        loadNotifications();
+                    }
+                } catch (e) {
+                    addEvent('error', { message: e.message }, true);
+                }
+            }
+        }
+
+        async function deleteNotification(notificationId) {
+            if (!confirm('Delete this notification?')) return;
+
+            try {
+                const data = await apiCall(`/api/notifications/${notificationId}`, 'DELETE');
+                if (data.success) {
+                    addEvent('notification_deleted', { notification_id: notificationId });
+                    loadNotifications();
+                }
+            } catch (e) {
+                addEvent('error', { message: e.message }, true);
+            }
+        }
+
+        async function deleteAll() {
+            if (!confirm('Delete all notifications?')) return;
+
+            try {
+                const data = await apiCall('/api/notifications', 'DELETE');
+                if (data.success) {
+                    addEvent('all_notifications_deleted', data.data);
+                    loadNotifications();
+                }
+            } catch (e) {
+                addEvent('error', { message: e.message }, true);
+            }
+        }
+
+        // ===== Events Log =====
+        function addEvent(type, data, isError = false) {
+            const events = document.getElementById('events');
+            const div = document.createElement('div');
+            div.className = 'event' + (isError ? ' error' : '');
+            div.innerHTML = `
+                <strong>${type}</strong><br>
+                <span style="font-size: 11px; color: #888;">${JSON.stringify(data).substring(0, 100)}</span>
+            `;
+            events.insertBefore(div, events.children[1] || null);
+
+            // Keep only last 20 events
+            while (events.children.length > 21) {
+                events.removeChild(events.lastChild);
+            }
+        }
+    </script>
+</body>
+</html>

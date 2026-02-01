@@ -36,6 +36,7 @@ import {
   acknowledgeAlert,
   acknowledgeAllAlerts,
   resolveAlert,
+  deleteAlert,
   refreshAlerts,
   onAlertsChange,
 } from '../../utils/cache/alertsCache';
@@ -50,10 +51,10 @@ import SystemAlertDetailDialog from './SystemAlertDetailDialog';
 // ============================================================================
 
 export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = false, taskAlerts = [], onTaskAlertClick }) {
-  // Local state synced with cache
-  const [alerts, setAlerts] = useState(getAlertsSync);
-  const [loading, setLoading] = useState(isAlertsLoading);
-  const [error, setError] = useState(getAlertsError);
+  // Local state synced with cache - use function to get initial state
+  const [alerts, setAlerts] = useState(() => getAlertsSync() || []);
+  const [loading, setLoading] = useState(() => isAlertsLoading());
+  const [error, setError] = useState(() => getAlertsError());
 
   // Dialog state
   const [selectedAlert, setSelectedAlert] = useState(null);
@@ -64,7 +65,14 @@ export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = fal
 
   // Subscribe to cache changes
   useEffect(() => {
-    const unsubUpdated = onAlertsChange('updated', (data) => setAlerts([...data]));
+    const unsubUpdated = onAlertsChange('updated', (data) => {
+      setAlerts(Array.isArray(data) ? [...data] : []);
+    });
+
+    const unsubNew = onAlertsChange('new', () => {
+      setAlerts([...getAlertsSync()]);
+    });
+
     const unsubLoading = onAlertsChange('loading', (val) => setLoading(val));
     const unsubError = onAlertsChange('error', (err) => setError(err));
 
@@ -73,6 +81,7 @@ export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = fal
 
     return () => {
       unsubUpdated();
+      unsubNew();
       unsubLoading();
       unsubError();
     };
@@ -107,6 +116,10 @@ export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = fal
 
   const handleResolve = useCallback(async (alertId) => {
     await resolveAlert(alertId);
+  }, []);
+
+  const handleDelete = useCallback(async (alertId) => {
+    await deleteAlert(alertId);
   }, []);
 
   const handleAssignTask = useCallback(async (taskData) => {
@@ -311,6 +324,8 @@ export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = fal
                 <AlertCard
                   alert={alert}
                   onClick={() => handleAlertClick(alert, alert._isTaskAlert)}
+                  onResolve={handleResolve}
+                  onDelete={handleDelete}
                 />
               </Grid>
             ))}

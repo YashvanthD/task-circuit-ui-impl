@@ -49,110 +49,30 @@ function dedupeItems(items = []) {
   return out;
 }
 
-// Normalize UI payload keys to API DTO keys for sampling operations
-function normalizeSamplingPayload(payload = {}) {
-  const out = { ...payload };
-  // derive sampleSize from several possible UI names: sampling_count, samplingCount, count, sampleSize
-  const rawCount = payload.sampling_count ?? payload.samplingCount ?? payload.count ?? payload.sampleSize ?? payload.sample_size ?? payload.sample_count;
-  if (rawCount !== undefined) {
-    // ensure numeric
-    const n = Number(rawCount);
-    out.sampleSize = Number.isFinite(n) ? n : 0;
-  }
-  // also normalize average weight aliases
-  const rawAvg = payload.averageWeight ?? payload.avg_weight ?? payload.average_weight ?? payload.averageSize ?? payload.average_size;
-  if (rawAvg !== undefined) {
-    const w = Number(rawAvg);
-    // If alias came from avg_weight (grams), convert to kg; if explicit averageWeight provided, assume it's kg
-    if (payload.avg_weight !== undefined || payload.average_weight !== undefined || payload.averageSize !== undefined || payload.average_size !== undefined) {
-      out.averageWeight = Number.isFinite(w) ? (w / 1000) : 0; // convert grams -> kg
-    } else {
-      out.averageWeight = Number.isFinite(w) ? w : 0; // already kg
-    }
-  }
-  // normalize species: ensure we send string species code/id
-  if (payload.species !== undefined && payload.species !== null) {
-    const s = payload.species;
-    if (typeof s === 'string') {
-      out.species = s;
-    } else if (typeof s === 'object') {
-      out.species = s.species_id || s.speciesId || s.species_code || s.speciesCode || s.id || s._id || s.speciesCode || null;
-    }
-  }
-  // normalize sampling date if provided (accept YYYY-MM-DD or ISO); convert to ISO string with date component
-  const rawDate = payload.sampling_date ?? payload.samplingDate ?? payload.date ?? payload.samplingDateRaw;
-  if (rawDate !== undefined && rawDate !== null && rawDate !== '') {
-    try {
-      // If user provided YYYY-MM-DD keep as date-only ISO string
-      if (/^\d{4}-\d{2}-\d{2}$/.test(String(rawDate))) {
-        out.samplingDate = new Date(String(rawDate)).toISOString();
-      } else {
-        const d = new Date(rawDate);
-        if (!isNaN(d.getTime())) out.samplingDate = d.toISOString();
-      }
-    } catch (e) { /* ignore invalid date */ }
-  }
-  // normalize recorded by user key from UI alias to API field recordedBy
-  const recorder = payload.recorded_by_userKey ?? payload.recordedBy ?? payload.recorded_by ?? payload.recorded_by_user ?? payload.recorded_by_userKey ?? payload.recordedByUser;
-  if (recorder !== undefined) {
-    out.recordedBy = recorder;
-  }
-  // map fish_cost (per kg) to cost and total_amount to totalAmount
-  const rawCost = payload.fish_cost ?? payload.cost ?? payload.cost_amount ?? payload.costAmount;
-  if (rawCost !== undefined) {
-    const c = Number(rawCost);
-    if (Number.isFinite(c)) {
-      out.cost = c;
-      // prefer explicit unit if provided
-      out.costUnit = payload.costUnit || payload.cost_unit || payload.costUnit || 'kg';
-    }
-  }
-  const rawTotal = payload.total_amount ?? payload.totalAmount ?? payload.total_cost ?? payload.totalCost;
-  if (rawTotal !== undefined) {
-    const t = Number(rawTotal);
-    if (Number.isFinite(t)) out.totalAmount = t;
-  }
-  // normalize total_count (total fish count) from UI to totalCount
-  const rawTotalCount = payload.total_count ?? payload.totalCount ?? payload.totalCountRaw ?? payload.total;
-  if (rawTotalCount !== undefined) {
-    const tc = Number(rawTotalCount);
-    if (Number.isFinite(tc)) out.totalCount = tc;
-  }
-  // Remove common UI-only aliases to avoid duplicate/confusing fields being sent
-  delete out.sampling_count; delete out.samplingCount; delete out.count; delete out.sample_size; delete out.sample_count; delete out.avg_weight; delete out.average_size; delete out.average_weight;
-  // also remove UI recorder alias
-  delete out.recorded_by_userKey; delete out.recorded_by; delete out.recordedByUser; delete out.recorded_by_user;
-  // remove UI cost aliases
-  delete out.fish_cost; delete out.cost_amount; delete out.costAmount; delete out.total_amount; delete out.total_cost; delete out.totalCost;
-  return out;
-}
 
 export async function createSampling(payload, apiFetch = true) {
-  // Map UI payload to API DTO (GrowthRecordDTO / sampling endpoint)
-  // start from payload and normalize keys
-  const normalized = normalizeSamplingPayload(payload);
-  const speciesVal = (typeof normalized.species === 'string') ? normalized.species : (normalized.species && (normalized.species.species_id || normalized.species)) || '';
+  // Backend API expects exact field names from uc-05-growth-sampling.md
   const body = {
-    pondId: normalized.pond_id || normalized.pondId || (normalized.pond && (normalized.pond.id || normalized.pond.pond_id)),
-    species: speciesVal || '',
-    sampleSize: normalized.sampleSize || 0,
-    averageWeight: normalized.averageWeight || 0,
-    // include any additional fields passed through
-    ...normalized.extra,
-    notes: normalized.notes || normalized.note || '',
-    // allow overriding recorder if provided
-    ...(normalized.recordedBy ? { recordedBy: normalized.recordedBy, recorded_by: normalized.recordedBy } : {}),
-    ...(normalized.cost !== undefined ? { cost: normalized.cost, cost_unit: normalized.costUnit || 'kg', costUnit: normalized.costUnit || 'kg' } : {}),
-    ...(normalized.totalAmount !== undefined ? { totalAmount: normalized.totalAmount, total_amount: normalized.totalAmount } : {}),
-    ...(normalized.totalCount !== undefined ? { totalCount: normalized.totalCount, total_count: normalized.totalCount } : {}),
+    stock_id: payload.stock_id || payload.stockId,
+    pond_id: payload.pond_id || payload.pondId,
+    sample_date: payload.sample_date || payload.sampling_date || payload.samplingDate || new Date().toISOString().split('T')[0],
+    sample_count: Number(payload.sample_count || payload.sample_size || payload.sampleCount || 0),
+    total_weight_g: payload.total_weight_g ? Number(payload.total_weight_g) : undefined,
+    avg_weight_g: Number(payload.avg_weight_g || payload.avg_weight || payload.averageWeight || 0),
+    min_weight_g: payload.min_weight_g ? Number(payload.min_weight_g) : undefined,
+    max_weight_g: payload.max_weight_g ? Number(payload.max_weight_g) : undefined,
+    length_cm: payload.length_cm ? Number(payload.length_cm) : undefined,
+    condition_factor: payload.condition_factor ? Number(payload.condition_factor) : undefined,
+    health_status: payload.health_status || undefined,
+    notes: payload.notes || payload.note || '',
   };
-  // include samplingDate if normalized
-  if (normalized.samplingDate) {
-    body.samplingDate = normalized.samplingDate;
-    body.sampling_date = normalized.samplingDate;
-  }
 
-  console.debug('[sampling.createSampling] payload normalized body:', body);
+  // Remove undefined/null/empty/NaN values
+  Object.keys(body).forEach(key => {
+    if (body[key] === undefined || body[key] === null || body[key] === '' || (typeof body[key] === 'number' && isNaN(body[key]))) {
+      delete body[key];
+    }
+  });
 
   let result = null;
   if (apiFetch) {
@@ -161,16 +81,27 @@ export async function createSampling(payload, apiFetch = true) {
       try { result = await result.json(); } catch (e) { /* ignore */ }
     }
   } else {
-    // simulate created object with id and createdAt
-    result = { id: `local-${Date.now()}`, pondId: body.pondId, species: body.species, sampleSize: body.sampleSize, averageWeight: body.averageWeight, createdAt: new Date().toISOString(), cost: body.cost, totalAmount: body.totalAmount };
+    // simulate created object
+    result = {
+      sampling_id: `local-${Date.now()}`,
+      stock_id: body.stock_id,
+      pond_id: body.pond_id,
+      sample_date: body.sample_date,
+      sample_count: body.sample_count,
+      avg_weight_g: body.avg_weight_g,
+      created_at: new Date().toISOString(),
+    };
   }
 
-  // Invalidate cache for this pond so next get will refresh or allow manual sync.
+  // Invalidate cache
   try {
     const activity = readActivity();
-    activity[`sampling_${body.pondId || 'global'}`] = new Date().toISOString();
+    activity[`sampling_${body.pond_id || 'global'}`] = new Date().toISOString();
+    if (body.stock_id) {
+      activity[`stock_${body.stock_id}`] = new Date().toISOString();
+    }
     writeActivity(activity);
-    // Also append to local cache if present (dedupe to avoid duplicates)
+
     const cache = readCache() || [];
     cache.unshift(result);
     const deduped = dedupeItems(cache);
@@ -180,40 +111,82 @@ export async function createSampling(payload, apiFetch = true) {
   return result;
 }
 
-export async function getSamplings({ pondId = null, fishId = null, forceApi = false, limit = 100, skip = 0, startDate = null, endDate = null } = {}) {
+export async function getSamplings({ stockId = null, pondId = null, fishId = null, forceApi = false, limit = 100, skip = 0, startDate = null, endDate = null } = {}) {
   // If cache is fresh and not forcing API, return cached items
   const cache = readCache();
   const activity = readActivity();
-  const lastFetched = activity[`sampling_${pondId || 'global'}`];
+  const cacheKey = stockId ? `sampling_stock_${stockId}` : `sampling_${pondId || 'global'}`;
+  const lastFetched = activity[cacheKey];
 
   if (!forceApi && cache && cache.length > 0 && lastFetched) {
     const filtered = cache.filter((s) => {
-      if (pondId && (s.pondId && s.pondId !== pondId)) return false;
-      if (fishId && (s.species && s.species !== fishId)) return false;
+      if (stockId && s.stock_id && s.stock_id !== stockId) return false;
+      if (pondId && s.pond_id && s.pond_id !== pondId) return false;
+      if (fishId && s.species && s.species !== fishId) return false;
       return true;
     });
     const dedupedFiltered = dedupeItems(filtered);
     return dedupedFiltered.slice(skip, skip + limit);
   }
 
-  // Always fetch from the canonical history endpoint
-  const params = { pondId, fishId, startDate, endDate, limit, skip };
-  let res = await apiSampling.getSamplingHistory(params);
+  // Fetch from API with correct parameter names (snake_case)
+  const params = {
+    stock_id: stockId,
+    pond_id: pondId,
+    start_date: startDate,
+    end_date: endDate,
+    limit,
+    skip
+  };
+
+  // Remove null/undefined params
+  Object.keys(params).forEach(key => {
+    if (params[key] === null || params[key] === undefined) {
+      delete params[key];
+    }
+  });
+
+  let res = await apiSampling.listSamplings(params);
   try {
     if (res && res.json) res = await res.json();
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.error('[sampling.getSamplings] Failed to parse response:', e);
+  }
 
-  // normalize possible shapes
   let items = [];
-  if (Array.isArray(res)) items = res;
-  else if (res && res.data && Array.isArray(res.data.records)) items = res.data.records;
-  else if (res && res.data && Array.isArray(res.data)) items = res.data;
-  else if (res && Array.isArray(res.items)) items = res.items;
-  else if (res && res.records && Array.isArray(res.records)) items = res.records;
-  else if (res && res.ponds && Array.isArray(res.ponds)) items = res.ponds;
 
-  // dedupe, cache and update activity
-  try { const deduped = dedupeItems(items); writeCache(deduped); const activityObj = readActivity(); activityObj[`sampling_${pondId || 'global'}`] = new Date().toISOString(); writeActivity(activityObj); } catch (e) {}
+  if (res && Array.isArray(res.samplings)) {
+    items = res.samplings;
+  }
+  else if (res && res.success && res.data) {
+    if (Array.isArray(res.data.samplings)) {
+      items = res.data.samplings;
+    } else if (Array.isArray(res.data)) {
+      items = res.data;
+    }
+  }
+  // Direct array
+  else if (Array.isArray(res)) {
+    items = res;
+  }
+  // Other possible structures
+  else if (res && res.data && Array.isArray(res.data.records)) {
+    items = res.data.records;
+  } else if (res && Array.isArray(res.items)) {
+    items = res.items;
+  } else if (res && res.records && Array.isArray(res.records)) {
+    items = res.records;
+  }
+
+  try {
+    const deduped = dedupeItems(items);
+    writeCache(deduped);
+    const activityObj = readActivity();
+    activityObj[cacheKey] = new Date().toISOString();
+    writeActivity(activityObj);
+  } catch (e) {
+    console.error('[sampling.getSamplings] Cache error:', e);
+  }
 
   return dedupeItems(items);
 }
@@ -248,44 +221,57 @@ export async function getSamplingHistory({ pondId = null, species = null, startD
   return dedupeItems(items);
 }
 
-export async function updateSampling(id, payload, apiFetch = true) {
-  // Normalize payload so backend gets sampleSize key
-  const normalized = normalizeSamplingPayload(payload);
-  // ensure species normalized to string if present
-  if (normalized.species && typeof normalized.species !== 'string') {
-    normalized.species = normalized.species.species_id || normalized.species.speciesId || normalized.species.id || normalized.species._id || normalized.species;
-  }
-  // include sampling date variants if present
-  if (normalized.samplingDate) {
-    normalized.sampling_date = normalized.samplingDate;
-  }
-  // include totalCount snake_case if present
-  if (normalized.totalCount !== undefined) normalized.total_count = normalized.totalCount;
-  // include snake_case variants as some backends expect them
-  if (normalized.recordedBy) normalized.recorded_by = normalized.recordedBy;
-  if (normalized.cost !== undefined) {
-    normalized.cost_unit = normalized.costUnit || normalized.cost_unit || 'kg';
-    normalized.costUnit = normalized.costUnit || normalized.cost_unit || 'kg';
-  }
-  if (normalized.totalAmount !== undefined) normalized.total_amount = normalized.totalAmount;
+export async function updateSampling(samplingId, payload, apiFetch = true) {
+  // Backend API expects snake_case fields
+  const body = {
+    sample_date: payload.sample_date || payload.sampling_date || payload.samplingDate,
+    sample_count: payload.sample_count ? Number(payload.sample_count) : undefined,
+    avg_weight_g: payload.avg_weight_g ? Number(payload.avg_weight_g) : undefined,
+    min_weight_g: payload.min_weight_g ? Number(payload.min_weight_g) : undefined,
+    max_weight_g: payload.max_weight_g ? Number(payload.max_weight_g) : undefined,
+    notes: payload.notes,
+  };
 
-  console.debug('[sampling.updateSampling] id, normalized payload:', id, normalized);
+  // Remove undefined values
+  Object.keys(body).forEach(key => {
+    if (body[key] === undefined || body[key] === null || body[key] === '') {
+      delete body[key];
+    }
+  });
+
+
   let result = null;
   if (apiFetch) {
-    result = await apiSampling.updateSampling(id, normalized);
+    result = await apiSampling.updateSampling(samplingId, body);
     if (result && result.json) {
       try { result = await result.json(); } catch (e) { /* ignore */ }
     }
   } else {
-    result = { id, ...normalized, updatedAt: new Date().toISOString() };
+    result = { sampling_id: samplingId, ...body, updated_at: new Date().toISOString() };
   }
 
+  // Invalidate cache
   try {
     const cache = readCache() || [];
-    const next = cache.map(x => (x.id === id || x._id === id ? { ...x, ...result } : x));
+    const stockId = payload.stock_id || result.stock_id;
+    const pondId = payload.pond_id || result.pond_id;
+
+    // Update item in cache
+    const next = cache.map(x =>
+      (x.sampling_id === samplingId || x.id === samplingId)
+        ? { ...x, ...result }
+        : x
+    );
     writeCache(next);
-    const activityObj = readActivity(); activityObj[`sampling_${result.pondId || 'global'}`] = new Date().toISOString(); writeActivity(activityObj);
-  } catch (e) {}
+
+    // Update activity timestamps
+    const activityObj = readActivity();
+    if (stockId) activityObj[`sampling_stock_${stockId}`] = new Date().toISOString();
+    if (pondId) activityObj[`sampling_${pondId}`] = new Date().toISOString();
+    writeActivity(activityObj);
+  } catch (e) {
+    console.error('[sampling.updateSampling] Cache error:', e);
+  }
 
   return result;
 }

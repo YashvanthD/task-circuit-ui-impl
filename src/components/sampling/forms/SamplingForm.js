@@ -15,7 +15,7 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
     total_count: initialData.total_count ?? 100, // total fish to buy (default 100)
     avg_weight: initialData.avg_weight ?? 1000, // grams (default 1kg)
     notes: initialData.notes || '',
-    sampling_date: initialData.sampling_date || initialData.samplingDate || new Date().toISOString().slice(0,10), // YYYY-MM-DD for date picker
+    sample_date: initialData.sample_date || initialData.sampling_date || initialData.samplingDate || new Date().toISOString().slice(0,10), // YYYY-MM-DD for date picker
     // New fields
     fish_cost: initialData.fish_cost ?? 50, // INR per kg default 50
     total_amount: initialData.total_amount || 0, // editable lumpsum (manual override)
@@ -233,7 +233,7 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
       sampling_count: Number(form.sampling_count) || 0,
       total_count: Number(form.total_count) || 0,
       avg_weight: Number(form.avg_weight) || 0,
-      sampling_date: form.sampling_date || form.samplingDate || null,
+      sample_date: form.sample_date || form.sampling_date || form.samplingDate || null,
       notes: form.notes || '',
       fish_cost: Number(form.fish_cost) || 0,
       total_amount: Number(form.total_amount) || 0,
@@ -354,7 +354,7 @@ export default function SamplingForm({ initialData = {}, onSubmit, onCancel, use
               <TextField label={<>Total count <Tooltip title="Total number of fish to purchase/stock"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="total_count" value={form.total_count} onChange={e => handleChange({ total_count: e.target.value })} fullWidth />
             </Grid>
             <Grid item xs={12} sm={4}>
-              <TextField label={<>Sampling date <Tooltip title="Date when the sampling was performed"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="sampling_date" type="date" value={form.sampling_date?.slice(0,10) || ''} onChange={e => handleChange({ sampling_date: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth />
+              <TextField label={<>Sample date <Tooltip title="Date when the sampling was performed"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="sample_date" type="date" value={form.sample_date?.slice(0,10) || ''} onChange={e => handleChange({ sample_date: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth />
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField label={<>Avg weight (g) <Tooltip title="Average weight per sampled fish in grams (min 1000g used for cost calc)"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="avg_weight" value={form.avg_weight} onChange={e => handleChange({ avg_weight: e.target.value })} fullWidth />

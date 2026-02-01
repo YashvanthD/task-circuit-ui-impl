@@ -1,0 +1,64 @@
+# Task Entity Schema
+# Represents a task in the media service
+
+Task:
+  type: object
+  required:
+    - task_id
+    - title
+  properties:
+    task_id:
+      type: string
+      description: Unique identifier for the task
+      example: "task_222"
+    title:
+      type: string
+      description: Task title
+      example: "Feed Pond 1"
+    description:
+      type: string
+      description: Task description
+      example: "Morning feeding schedule"
+    status:
+      type: string
+      enum: [pending, in_progress, completed, cancelled]
+      description: Task status
+      example: "pending"
+      default: "pending"
+    priority:
+      type: string
+      enum: [low, medium, high, urgent]
+      description: Task priority
+      example: "high"
+    assignee:
+      type: string
+      description: User assigned to the task
+      example: "user_key_123"
+    due_date:
+      type: string
+      format: date
+      description: Task due date
+      example: "2024-01-16"
+    entity_type:
+      type: string
+      description: Type of entity related to task
+      example: "pond"
+    entity_id:
+      type: string
+      description: ID of related entity
+      example: "pond_456"
+    reminder_at:
+      type: string
+      format: date-time
+      description: When to send reminder
+      example: "2024-01-16T08:00:00Z"
+    completed_at:
+      type: string
+      format: date-time
+      description: When task was completed
+      example: "2024-01-16T09:00:00Z"
+    created_at:
+      type: string
+      format: date-time
+      description: When the task was created
+      example: "2024-01-15T10:00:00Z"

@@ -1,0 +1,56 @@
+# Harvest Entity Schema
+# Represents a fish harvest record
+
+Harvest:
+  type: object
+  required:
+    - harvest_id
+    - stock_id
+    - harvest_date
+  properties:
+    harvest_id:
+      type: string
+      description: Unique identifier for the harvest record
+      example: "harv_333"
+    stock_id:
+      type: string
+      description: Stock being harvested
+      example: "stock_321"
+    pond_id:
+      type: string
+      description: Pond where harvest occurred
+      example: "pond_456"
+    harvest_date:
+      type: string
+      format: date
+      description: Date of harvest
+      example: "2024-06-15"
+    quantity:
+      type: integer
+      description: Number of fish harvested
+      example: 4500
+    total_weight_kg:
+      type: number
+      format: double
+      description: Total weight harvested in kg
+      example: 1125
+    avg_weight_g:
+      type: number
+      format: double
+      description: Average weight per fish in grams
+      example: 250
+    price_per_kg:
+      type: number
+      format: double
+      description: Sale price per kilogram
+      example: 200
+    total_revenue:
+      type: number
+      format: double
+      description: Total revenue from harvest
+      example: 225000
+    created_at:
+      type: string
+      format: date-time
+      description: When the record was created
+      example: "2024-06-15T10:00:00Z"

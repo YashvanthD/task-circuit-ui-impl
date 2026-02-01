@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Paper, Typography, Grid, Button, TextField, Stack, CircularProgress, InputAdornment, Dialog, Box, useMediaQuery, useTheme, Chip } from '@mui/material';
 import PondCard from '../../components/PondCard';
-import { PondForm, PondDailyUpdateForm } from '../../components/pond/forms';
+import { AddPondForm, UpdatePondForm, PondDailyUpdateForm } from '../../components/pond/forms';
 import SearchIcon from '@mui/icons-material/Search';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import pondUtil, { pondEvents } from '../../utils/pond';
 import { parsePondList, parsePond } from '../../utils/parsePond';
-import { ConfirmDialog } from '../../components/common';
+import { ConfirmDialog } from '../../components';
 
 
 export default function PondPage() {
@@ -82,31 +82,13 @@ export default function PondPage() {
   const handleCloseAddPond = () => {
     setAddPondDialogOpen(false);
   };
-  const handleAddPond = async (newPond) => {
-    try {
-      await pondUtil.createPond(newPond);
-      // pondEvents will update the list; close dialog
-      setAddPondDialogOpen(false);
-    } catch (err) {
-      console.error('Failed to add pond', err);
-      alert('Failed to add pond: ' + (err.message || err));
-    }
-  };
   const handleEditPond = (pond) => {
     setSelectedPond(pond);
     setEditPondDialogOpen(true);
   };
-  const handleCloseEditPond = () => { setEditPondDialogOpen(false); setSelectedPond(null); };
-  const submitEditPond = async (updated) => {
-    try {
-      const id = updated.pond_id || updated.id || selectedPond?.pond_id || selectedPond?.id;
-      if (!id) { alert('Missing pond id'); return; }
-      await pondUtil.modifyPond(id, updated);
-      setEditPondDialogOpen(false);
-    } catch (err) {
-      console.error('Failed to update pond', err);
-      alert('Failed to update pond: ' + (err.message || err));
-    }
+  const handleCloseEditPond = () => {
+    setEditPondDialogOpen(false);
+    setSelectedPond(null);
   };
 
   const handleOpenDailyUpdate = (pond) => {
@@ -293,13 +275,35 @@ export default function PondPage() {
       </Dialog>
 
       {/* Add Pond Dialog */}
-      <Dialog open={addPondDialogOpen} onClose={handleCloseAddPond} maxWidth="lg" fullWidth>
-        <PondForm onSubmit={handleAddPond} onCancel={handleCloseAddPond} />
+      <Dialog open={addPondDialogOpen} onClose={handleCloseAddPond} maxWidth="sm" fullWidth>
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>Add New Pond</Typography>
+          <AddPondForm
+            onSuccess={(pond) => {
+              console.log('Pond created:', pond);
+              handleCloseAddPond();
+              fetchPonds({ force: true });
+            }}
+            onCancel={handleCloseAddPond}
+          />
+        </Box>
       </Dialog>
 
       {/* Edit Pond Dialog */}
-      <Dialog open={editPondDialogOpen} onClose={handleCloseEditPond} maxWidth="lg" fullWidth>
-        <PondForm initialData={selectedPond} onSubmit={submitEditPond} onCancel={handleCloseEditPond} />
+      <Dialog open={editPondDialogOpen} onClose={handleCloseEditPond} maxWidth="sm" fullWidth>
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>Edit Pond</Typography>
+          <UpdatePondForm
+            pondId={selectedPond?.pond_id || selectedPond?.id}
+            initialData={selectedPond}
+            onSuccess={(pond) => {
+              console.log('Pond updated:', pond);
+              handleCloseEditPond();
+              fetchPonds({ force: true });
+            }}
+            onCancel={handleCloseEditPond}
+          />
+        </Box>
       </Dialog>
 
       {/* Daily Update Dialog */}

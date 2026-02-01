@@ -47,7 +47,7 @@ import {
   removeFromLocalStorage,
   clearTasksFromLocalStorage,
   is_admin
-} from '../utils/auth';
+} from '../utils';
 
 // Import centralized paths from config.js
 import {
@@ -66,7 +66,6 @@ import {
     BASE_APP_PATH_REGISTER_COMPANY,
     BASE_APP_PATH_USER_SETTINGS, BASE_APP_PATH_SIGNUP
 } from '../config';
-import {ReportList} from "../components";
 
 /**
  * BaseLayout is the base model for all pages in the Task Circuit project.

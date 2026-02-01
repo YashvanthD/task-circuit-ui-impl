@@ -18,66 +18,109 @@ export const WS_EVENTS = {
   PONG: 'pong',
 
   // =========================================================================
+  // Alerts WebSocket Events
+  // =========================================================================
+
+  // Client -> Server
+  SUBSCRIBE_ALERTS: 'subscribe_alerts',
+  CREATE_ALERT: 'create_alert',
+  ACKNOWLEDGE_ALERT: 'acknowledge_alert',
+  RESOLVE_ALERT: 'resolve_alert',
+  DELETE_ALERT: 'delete_alert',
+
+  // Server -> Client
+  SUBSCRIBED: 'subscribed',
+  ALERT_CREATED: 'alert_created',
+  ALERT_ACKNOWLEDGED: 'alert_acknowledged',
+  ALERT_RESOLVED: 'alert_resolved',
+  ALERT_DELETED: 'alert_deleted',
+
+  // Legacy support
+  ALERT_NEW: 'alert_created',
+  ALERT_ACKNOWLEDGED_ALL: 'alert:acknowledged_all',
+  ALERT_COUNT: 'alert:count',
+  ALERT_ERROR: 'alert:error',
+  DISMISS_ALERT: 'alert:dismiss',
+  ACKNOWLEDGE_ALL_ALERTS: 'alert:acknowledge_all',
+  GET_ALERT_COUNT: 'alert:get_count',
+
+  // =========================================================================
+  // Notifications WebSocket Events
+  // =========================================================================
+
+  // Client -> Server
+  SUBSCRIBE_NOTIFICATIONS: 'subscribe_notifications',
+  SEND_NOTIFICATION: 'send_notification',
+  MARK_NOTIFICATION_READ: 'mark_notification_read',
+  MARK_ALL_NOTIFICATIONS_READ: 'mark_all_notifications_read',
+  DELETE_NOTIFICATION: 'delete_notification',
+
+  // Server -> Client
+  NOTIFICATION: 'notification',
+  NOTIFICATION_READ: 'notification_read',
+  ALL_NOTIFICATIONS_READ: 'all_notifications_read',
+  NOTIFICATION_DELETED: 'notification_deleted',
+
+  // Legacy support
+  NOTIFICATION_NEW: 'notification',
+  NOTIFICATION_READ_ALL: 'all_notifications_read',
+  NOTIFICATION_COUNT: 'notification:count',
+
+  // =========================================================================
+  // Tasks WebSocket Events
+  // =========================================================================
+
+  // Client -> Server
+  SUBSCRIBE_TASKS: 'subscribe_tasks',
+  CREATE_TASK: 'create_task',
+  UPDATE_TASK: 'update_task',
+  COMPLETE_TASK: 'complete_task',
+  DELETE_TASK: 'delete_task',
+
+  // Server -> Client
+  TASK_CREATED: 'task_created',
+  TASK_UPDATED: 'task_updated',
+  TASK_COMPLETED: 'task_completed',
+  TASK_DELETED: 'task_deleted',
+
+  // =========================================================================
   // Chat/Messaging Events
   // =========================================================================
 
-  // Message events (client -> server)
-  MESSAGE_SEND: 'chat:send',
-  MESSAGE_READ: 'chat:read',
-  MESSAGE_DELETE: 'chat:delete',
-  MESSAGE_TYPING: 'chat:typing',
+  // Client -> Server
+  SUBSCRIBE_CHAT: 'subscribe_chat',
+  SEND_MESSAGE: 'send_message',
+  MARK_MESSAGE_READ: 'mark_message_read',
+  DELETE_MESSAGE: 'delete_message',
+  TYPING: 'typing',
+  CREATE_CONVERSATION: 'create_conversation',
 
-  // Message events (server -> client)
-  MESSAGE_NEW: 'chat:message',
+  // Server -> Client
+  MESSAGE: 'message',
+  MESSAGE_READ_RECEIPT: 'message_read',
+  MESSAGE_DELETED: 'message_deleted',
+  USER_TYPING: 'user_typing',
+  CONVERSATION_CREATED: 'conversation_created',
+
+  // Legacy support
+  MESSAGE_SEND: 'send_message',
+  MESSAGE_READ: 'mark_message_read',
+  MESSAGE_DELETE: 'delete_message',
+  MESSAGE_TYPING: 'typing',
+  MESSAGE_NEW: 'message',
   MESSAGE_SENT: 'chat:message:sent',
   MESSAGE_DELIVERED: 'chat:message:delivered',
-  MESSAGE_READ_RECEIPT: 'chat:message:read',
-  MESSAGE_DELETED: 'chat:message:deleted',
+  MESSAGE_EDITED: 'chat:message:edited',
   CHAT_ERROR: 'chat:error',
-
-  // Typing indicators (server -> client)
   TYPING_START: 'chat:typing:start',
   TYPING_STOP: 'chat:typing:stop',
-
-  // Conversation events (client -> server)
-  CONVERSATION_CREATE: 'chat:conversation:create',
   CONVERSATION_JOIN: 'chat:conversation:join',
   CONVERSATION_CLEAR: 'chat:conversation:clear',
-
-  // Conversation events (server -> client)
-  CONVERSATION_CREATED: 'chat:conversation:created',
   CONVERSATION_JOINED: 'chat:conversation:joined',
   CONVERSATION_CLEARED: 'chat:conversation:cleared',
   CONVERSATION_UPDATED: 'chat:conversation:updated',
+  CONVERSATION_DELETED: 'chat:conversation:deleted',
 
-  // =========================================================================
-  // Notification events (server -> client)
-  // =========================================================================
-  NOTIFICATION_NEW: 'notification:new',
-  NOTIFICATION_READ: 'notification:read',
-  NOTIFICATION_READ_ALL: 'notification:read_all',
-  NOTIFICATION_DELETED: 'notification:deleted',
-  NOTIFICATION_COUNT: 'notification:count',
-
-  // Notification events (client -> server)
-  MARK_NOTIFICATION_READ: 'notification:mark_read',
-  MARK_ALL_NOTIFICATIONS_READ: 'notification:mark_all_read',
-
-  // =========================================================================
-  // Alert events (server -> client)
-  // =========================================================================
-  ALERT_NEW: 'alert:new',
-  ALERT_ACKNOWLEDGED: 'alert:acknowledged',
-  ALERT_ACKNOWLEDGED_ALL: 'alert:acknowledged_all',
-  ALERT_DELETED: 'alert:deleted',
-  ALERT_COUNT: 'alert:count',
-  ALERT_ERROR: 'alert:error',
-
-  // Alert events (client -> server)
-  ACKNOWLEDGE_ALERT: 'alert:acknowledge',
-  ACKNOWLEDGE_ALL_ALERTS: 'alert:acknowledge_all',
-  DISMISS_ALERT: 'alert:dismiss',
-  GET_ALERT_COUNT: 'alert:get_count',
 
   // =========================================================================
   // Cross-Pod Broadcast (server -> client)
@@ -342,35 +385,17 @@ class SocketService {
      */
     _registerEventHandlers() {
         // =========================================================================
-        // Notification events
-        // =========================================================================
-        this.socket.on(WS_EVENTS.NOTIFICATION_NEW, (data) => {
-            console.log('[SocketService] Notification new:', data);
-            this._emit(WS_EVENTS.NOTIFICATION_NEW, data);
-        });
-
-        this.socket.on(WS_EVENTS.NOTIFICATION_READ, (data) => {
-            this._emit(WS_EVENTS.NOTIFICATION_READ, data);
-        });
-
-        this.socket.on(WS_EVENTS.NOTIFICATION_READ_ALL, (data) => {
-            this._emit(WS_EVENTS.NOTIFICATION_READ_ALL, data);
-        });
-
-        this.socket.on(WS_EVENTS.NOTIFICATION_DELETED, (data) => {
-            this._emit(WS_EVENTS.NOTIFICATION_DELETED, data);
-        });
-
-        this.socket.on(WS_EVENTS.NOTIFICATION_COUNT, (data) => {
-            this._emit(WS_EVENTS.NOTIFICATION_COUNT, data);
-        });
-
-        // =========================================================================
         // Alert events
         // =========================================================================
-        this.socket.on(WS_EVENTS.ALERT_NEW, (data) => {
-            console.log('[SocketService] Alert new:', data);
-            this._emit(WS_EVENTS.ALERT_NEW, data);
+        this.socket.on(WS_EVENTS.SUBSCRIBED, (data) => {
+            console.log('[SocketService] Subscribed:', data);
+            this._emit(WS_EVENTS.SUBSCRIBED, data);
+        });
+
+        this.socket.on(WS_EVENTS.ALERT_CREATED, (data) => {
+            console.log('[SocketService] Alert created:', data);
+            this._emit(WS_EVENTS.ALERT_CREATED, data);
+            this._emit(WS_EVENTS.ALERT_NEW, data); // Legacy support
         });
 
         this.socket.on(WS_EVENTS.ALERT_ACKNOWLEDGED, (data) => {
@@ -378,14 +403,20 @@ class SocketService {
             this._emit(WS_EVENTS.ALERT_ACKNOWLEDGED, data);
         });
 
-        this.socket.on(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, (data) => {
-            console.log('[SocketService] All alerts acknowledged:', data);
-            this._emit(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, data);
+        this.socket.on(WS_EVENTS.ALERT_RESOLVED, (data) => {
+            console.log('[SocketService] Alert resolved:', data);
+            this._emit(WS_EVENTS.ALERT_RESOLVED, data);
         });
 
         this.socket.on(WS_EVENTS.ALERT_DELETED, (data) => {
             console.log('[SocketService] Alert deleted:', data);
             this._emit(WS_EVENTS.ALERT_DELETED, data);
+        });
+
+        // Legacy alert events
+        this.socket.on(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, (data) => {
+            console.log('[SocketService] All alerts acknowledged:', data);
+            this._emit(WS_EVENTS.ALERT_ACKNOWLEDGED_ALL, data);
         });
 
         this.socket.on(WS_EVENTS.ALERT_COUNT, (data) => {
@@ -399,45 +430,74 @@ class SocketService {
         });
 
         // =========================================================================
-        // Cross-Pod Broadcast
+        // Notification events
         // =========================================================================
-        this.socket.on(WS_EVENTS.TEST_BROADCAST, (data) => {
-            console.log('[SocketService] Broadcast received:', data);
-            this._emit(WS_EVENTS.TEST_BROADCAST, data);
+        this.socket.on(WS_EVENTS.NOTIFICATION, (data) => {
+            console.log('[SocketService] Notification received:', data);
+            this._emit(WS_EVENTS.NOTIFICATION, data);
+            this._emit(WS_EVENTS.NOTIFICATION_NEW, data); // Legacy support
+        });
+
+        this.socket.on(WS_EVENTS.NOTIFICATION_READ, (data) => {
+            console.log('[SocketService] Notification read:', data);
+            this._emit(WS_EVENTS.NOTIFICATION_READ, data);
+        });
+
+        this.socket.on(WS_EVENTS.ALL_NOTIFICATIONS_READ, (data) => {
+            console.log('[SocketService] All notifications read:', data);
+            this._emit(WS_EVENTS.ALL_NOTIFICATIONS_READ, data);
+            this._emit(WS_EVENTS.NOTIFICATION_READ_ALL, data); // Legacy support
+        });
+
+        this.socket.on(WS_EVENTS.NOTIFICATION_DELETED, (data) => {
+            console.log('[SocketService] Notification deleted:', data);
+            this._emit(WS_EVENTS.NOTIFICATION_DELETED, data);
+        });
+
+        // Legacy notification count
+        this.socket.on(WS_EVENTS.NOTIFICATION_COUNT, (data) => {
+            console.log('[SocketService] Notification count:', data);
+            this._emit(WS_EVENTS.NOTIFICATION_COUNT, data);
         });
 
         // =========================================================================
-        // Chat/Messaging Events - CORRECTED
+        // Task events
+        // =========================================================================
+        this.socket.on(WS_EVENTS.TASK_CREATED, (data) => {
+            console.log('[SocketService] Task created:', data);
+            this._emit(WS_EVENTS.TASK_CREATED, data);
+        });
+
+        this.socket.on(WS_EVENTS.TASK_UPDATED, (data) => {
+            console.log('[SocketService] Task updated:', data);
+            this._emit(WS_EVENTS.TASK_UPDATED, data);
+        });
+
+        this.socket.on(WS_EVENTS.TASK_COMPLETED, (data) => {
+            console.log('[SocketService] Task completed:', data);
+            this._emit(WS_EVENTS.TASK_COMPLETED, data);
+        });
+
+        this.socket.on(WS_EVENTS.TASK_DELETED, (data) => {
+            console.log('[SocketService] Task deleted:', data);
+            this._emit(WS_EVENTS.TASK_DELETED, data);
+        });
+
+        // =========================================================================
+        // Chat/Messaging Events
         // =========================================================================
 
         // New message received
-        this.socket.on(WS_EVENTS.MESSAGE_NEW, (data) => {
+        this.socket.on(WS_EVENTS.MESSAGE, (data) => {
             console.log('[SocketService] Chat message received:', data);
-            this._emit(WS_EVENTS.MESSAGE_NEW, data);
-        });
-
-        // Your message was sent (confirmation)
-        this.socket.on(WS_EVENTS.MESSAGE_SENT, (data) => {
-            console.log('[SocketService] Chat message sent confirmation:', data);
-            this._emit(WS_EVENTS.MESSAGE_SENT, data);
-        });
-
-        // Message delivered to recipient
-        this.socket.on(WS_EVENTS.MESSAGE_DELIVERED, (data) => {
-            console.log('[SocketService] Message delivered:', data);
-            this._emit(WS_EVENTS.MESSAGE_DELIVERED, data);
+            this._emit(WS_EVENTS.MESSAGE, data);
+            this._emit(WS_EVENTS.MESSAGE_NEW, data); // Legacy support
         });
 
         // Message read by recipient
         this.socket.on(WS_EVENTS.MESSAGE_READ_RECEIPT, (data) => {
             console.log('[SocketService] Message read:', data);
             this._emit(WS_EVENTS.MESSAGE_READ_RECEIPT, data);
-        });
-
-        // Message edited
-        this.socket.on(WS_EVENTS.MESSAGE_EDITED, (data) => {
-            console.log('[SocketService] Message edited:', data);
-            this._emit(WS_EVENTS.MESSAGE_EDITED, data);
         });
 
         // Message deleted
@@ -447,14 +507,15 @@ class SocketService {
         });
 
         // Typing indicators
-        this.socket.on(WS_EVENTS.TYPING_START, (data) => {
-            console.log('[SocketService] Typing start:', data);
-            this._emit(WS_EVENTS.TYPING_START, data);
-        });
-
-        this.socket.on(WS_EVENTS.TYPING_STOP, (data) => {
-            console.log('[SocketService] Typing stop:', data);
-            this._emit(WS_EVENTS.TYPING_STOP, data);
+        this.socket.on(WS_EVENTS.USER_TYPING, (data) => {
+            console.log('[SocketService] User typing:', data);
+            this._emit(WS_EVENTS.USER_TYPING, data);
+            // Legacy events
+            if (data.is_typing) {
+                this._emit(WS_EVENTS.TYPING_START, data);
+            } else {
+                this._emit(WS_EVENTS.TYPING_STOP, data);
+            }
         });
 
         // Conversation created
@@ -463,27 +524,47 @@ class SocketService {
             this._emit(WS_EVENTS.CONVERSATION_CREATED, data);
         });
 
-        // Conversation joined (room)
+        // Legacy chat events
+        this.socket.on(WS_EVENTS.MESSAGE_SENT, (data) => {
+            console.log('[SocketService] Chat message sent confirmation:', data);
+            this._emit(WS_EVENTS.MESSAGE_SENT, data);
+        });
+
+        this.socket.on(WS_EVENTS.MESSAGE_DELIVERED, (data) => {
+            console.log('[SocketService] Message delivered:', data);
+            this._emit(WS_EVENTS.MESSAGE_DELIVERED, data);
+        });
+
+        this.socket.on(WS_EVENTS.MESSAGE_EDITED, (data) => {
+            console.log('[SocketService] Message edited:', data);
+            this._emit(WS_EVENTS.MESSAGE_EDITED, data);
+        });
+
         this.socket.on(WS_EVENTS.CONVERSATION_JOINED, (data) => {
             console.log('[SocketService] Conversation joined:', data);
             this._emit(WS_EVENTS.CONVERSATION_JOINED, data);
         });
 
-        // Conversation cleared
         this.socket.on(WS_EVENTS.CONVERSATION_CLEARED, (data) => {
             console.log('[SocketService] Conversation cleared:', data);
             this._emit(WS_EVENTS.CONVERSATION_CLEARED, data);
         });
 
-        // Conversation updated
         this.socket.on(WS_EVENTS.CONVERSATION_UPDATED, (data) => {
             this._emit(WS_EVENTS.CONVERSATION_UPDATED, data);
         });
 
-        // Chat errors
         this.socket.on(WS_EVENTS.CHAT_ERROR, (data) => {
             console.error('[SocketService] Chat error:', data);
             this._emit(WS_EVENTS.CHAT_ERROR, data);
+        });
+
+        // =========================================================================
+        // Cross-Pod Broadcast
+        // =========================================================================
+        this.socket.on(WS_EVENTS.TEST_BROADCAST, (data) => {
+            console.log('[SocketService] Broadcast received:', data);
+            this._emit(WS_EVENTS.TEST_BROADCAST, data);
         });
 
         // =========================================================================

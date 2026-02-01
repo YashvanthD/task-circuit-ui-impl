@@ -5,11 +5,7 @@
  * @module utils/helpers/dashboard
  */
 
-import { refreshNotifications } from '../cache/notificationsCache';
-import { refreshAlerts } from '../cache/alertsCache';
-import { refreshTasks } from '../cache/tasksCache';
-import { refreshPonds } from '../cache/pondsCache';
-import { refreshSamplings } from '../cache/samplingsCache';
+import { refreshNotifications, refreshAlerts, refreshTasks, refreshPonds, refreshSamplings } from '../cache';
 
 // ============================================================================
 // Dashboard Refresh Functions

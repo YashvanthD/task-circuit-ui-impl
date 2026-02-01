@@ -19,7 +19,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 
-import { POND_STATUS_OPTIONS } from '../../constants';
+import { POND_STATUS } from '../../constants';
 
 /**
  * PondFilters - Filter and search controls for pond list.
@@ -68,7 +68,7 @@ export default function PondFilters({
           onChange={(e) => onStatusChange?.(e.target.value)}
         >
           <MenuItem value="all">All Status</MenuItem>
-          {POND_STATUS_OPTIONS.map((opt) => (
+          {POND_STATUS.map((opt) => (
             <MenuItem key={opt.value} value={opt.value}>
               {opt.label}
             </MenuItem>

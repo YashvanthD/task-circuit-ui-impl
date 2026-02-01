@@ -1,30 +1,32 @@
 /**
  * SearchInput Component
- * Reusable search input with icon.
+ * Centralized, reusable search input with consistent styling
+ * Theme-aware, responsive, and follows MUI best practices
  *
  * @module components/common/SearchInput
  */
 
 import React from 'react';
-import { TextField, InputAdornment } from '@mui/material';
+import { TextField, InputAdornment, IconButton } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
-import IconButton from '@mui/material/IconButton';
 
 /**
- * SearchInput - Reusable search input
+ * SearchInput - Reusable search input with best practices
  *
  * @param {Object} props
  * @param {string} props.value - Current search value
  * @param {Function} props.onChange - Change handler
  * @param {string} props.placeholder - Placeholder text
- * @param {string} props.size - Size ('small' | 'medium')
+ * @param {string} props.size - Size ('small'|'medium')
  * @param {boolean} props.fullWidth - Full width mode
- * @param {number} props.minWidth - Minimum width
- * @param {number} props.maxWidth - Maximum width
- * @param {boolean} props.showClear - Show clear button when has value
+ * @param {number} props.minWidth - Minimum width (default: 200)
+ * @param {number} props.maxWidth - Maximum width (default: 400)
+ * @param {boolean} props.showClear - Show clear button when has value (default: true)
  * @param {Function} props.onClear - Clear handler
  * @param {boolean} props.disabled - Disabled state
+ * @param {string} props.label - Optional label
+ * @param {Object} props.sx - Additional sx styles
  */
 export default function SearchInput({
   value = '',
@@ -37,6 +39,9 @@ export default function SearchInput({
   showClear = true,
   onClear,
   disabled = false,
+  label,
+  sx = {},
+  ...rest
 }) {
   const handleChange = (e) => {
     onChange?.(e.target.value);
@@ -49,34 +54,45 @@ export default function SearchInput({
 
   return (
     <TextField
-      placeholder={placeholder}
-      size={size}
       value={value}
       onChange={handleChange}
+      placeholder={placeholder}
+      label={label}
+      size={size}
       disabled={disabled}
-      sx={{
-        minWidth,
-        maxWidth,
-        ...(fullWidth && { width: '100%', maxWidth: 'none' }),
-        '& .MuiOutlinedInput-root': {
-          borderRadius: 2,
-          bgcolor: 'action.hover',
-        },
-      }}
+      fullWidth={fullWidth}
       InputProps={{
         startAdornment: (
           <InputAdornment position="start">
-            <SearchIcon color="action" />
+            <SearchIcon sx={{ color: 'text.secondary' }} />
           </InputAdornment>
         ),
         endAdornment: showClear && value ? (
           <InputAdornment position="end">
-            <IconButton size="small" onClick={handleClear} edge="end">
+            <IconButton
+              onClick={handleClear}
+              size="small"
+              edge="end"
+              aria-label="clear search"
+              sx={{ color: 'text.secondary' }}
+            >
               <ClearIcon fontSize="small" />
             </IconButton>
           </InputAdornment>
         ) : null,
       }}
+      sx={{
+        minWidth: fullWidth ? '100%' : { xs: '100%', sm: minWidth },
+        maxWidth: fullWidth ? '100%' : maxWidth,
+        bgcolor: 'background.paper',
+        '& .MuiOutlinedInput-root': {
+          '&:hover': {
+            bgcolor: 'action.hover',
+          },
+        },
+        ...sx,
+      }}
+      {...rest}
     />
   );
 }

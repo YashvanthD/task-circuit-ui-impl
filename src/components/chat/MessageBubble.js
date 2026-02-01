@@ -1,6 +1,7 @@
 /**
  * MessageBubble Component
- * Single chat message bubble.
+ * Single chat message bubble with proper sender/receiver differentiation.
+ * Based on Chat Message Sender/Receiver Differentiation Guide.
  *
  * @module components/chat/MessageBubble
  */
@@ -28,6 +29,7 @@ import {
   Schedule as ScheduleIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
+import {getMessageStatus} from "../../utils/chat";
 
 // ============================================================================
 // Helper Functions
@@ -84,25 +86,13 @@ export default function MessageBubble({
     reactions = [],
     delivered_at,
     read_at,
+    is_delivered,
+    is_read,
   } = message;
 
-  // Derive effective status to handle cases where backend provides timestamps
-  // but not a status string (or after reload before WS events arrive).
-  // Priority: read_at > delivered_at > status > sent/sending
-  // Always check timestamps first as they are authoritative from server
-  let effectiveStatus = status;
-  if (read_at) {
-    effectiveStatus = 'read';
-  } else if (delivered_at) {
-    effectiveStatus = 'delivered';
-  } else if (!effectiveStatus || effectiveStatus === 'sending') {
-    // If no timestamps and no valid status, derive from status string or default
-    effectiveStatus = status || (isOwn ? 'sent' : null);
-  }
-  // Ensure own messages show at least 'sent' as fallback
-  if (!effectiveStatus && isOwn) {
-    effectiveStatus = 'sent';
-  }
+  // Use utility to determine effective status
+  // Handles: read_at > delivered_at > status > sent/sending
+  const effectiveStatus = getMessageStatus(message, isOwn);
 
   const handleMenuOpen = (e) => {
     e.stopPropagation();

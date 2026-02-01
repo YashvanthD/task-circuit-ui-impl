@@ -1,0 +1,86 @@
+# Maintenance Entity Schema
+# Represents pond maintenance record
+Maintenance:
+  type: object
+  required:
+    - maintenance_id
+    - pond_id
+    - maintenance_date
+  properties:
+    maintenance_id:
+      type: string
+      description: Unique identifier for the maintenance record
+      example: "maint_777"
+    pond_id:
+      type: string
+      description: Pond being maintained
+      example: "pond_456"
+    maintenance_date:
+      type: string
+      format: date
+      description: Date of maintenance
+      example: "2024-02-15"
+    maintenance_type:
+      type: string
+      description: Type of maintenance
+      example: "cleaning"
+      enum: [cleaning, repair, inspection, equipment_service, water_change, other]
+    description:
+      type: string
+      description: Detailed description of maintenance
+      example: "Pond bottom cleaning"
+    cost:
+      type: number
+      format: double
+      description: Cost of maintenance
+      example: 5000
+    duration_hours:
+      type: number
+      format: double
+      description: Duration in hours
+      example: 4
+    status:
+      type: string
+      enum: [scheduled, in_progress, completed, cancelled]
+      description: Maintenance status
+      example: "completed"
+      default: "scheduled"
+    performed_by:
+      type: string
+      description: User or contractor who performed maintenance
+      example: "user_key_123"
+    contractor:
+      type: string
+      description: External contractor name (if applicable)
+      example: "Pond Services Ltd"
+    equipment_used:
+      type: string
+      description: Equipment or materials used
+      example: "Pressure washer, cleaning chemicals"
+    issues_found:
+      type: string
+      description: Issues discovered during maintenance
+      example: "Minor crack in pond liner"
+    action_taken:
+      type: string
+      description: Actions taken
+      example: "Liner repaired, pond cleaned"
+    next_maintenance_date:
+      type: string
+      format: date
+      description: Scheduled next maintenance date
+      example: "2024-05-15"
+    notes:
+      type: string
+      description: Additional notes
+      example: "Routine quarterly maintenance"
+    created_at:
+      type: string
+      format: date-time
+      description: When the record was created
+      example: "2024-02-15T10:00:00Z"
+    updated_at:
+      type: string
+      format: date-time
+      description: When the record was last updated
+      example: "2024-02-15T10:00:00Z"

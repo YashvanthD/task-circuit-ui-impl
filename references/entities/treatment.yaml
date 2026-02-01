@@ -1,0 +1,53 @@
+# Treatment Entity Schema
+# Represents a fish treatment record
+
+Treatment:
+  type: object
+  required:
+    - treatment_id
+    - stock_id
+    - treatment_date
+  properties:
+    treatment_id:
+      type: string
+      description: Unique identifier for the treatment record
+      example: "treat_888"
+    stock_id:
+      type: string
+      description: Stock being treated
+      example: "stock_321"
+    pond_id:
+      type: string
+      description: Pond where treatment occurred
+      example: "pond_456"
+    treatment_date:
+      type: string
+      format: date
+      description: Date of treatment
+      example: "2024-03-05"
+    treatment_type:
+      type: string
+      description: Type of treatment
+      example: "antibiotic"
+      enum: [antibiotic, vaccine, antifungal, antiparasitic, other]
+    medication:
+      type: string
+      description: Medication used
+      example: "Oxytetracycline"
+    dosage:
+      type: string
+      description: Dosage administered
+      example: "50mg/kg"
+    withdrawal_days:
+      type: integer
+      description: Withdrawal period in days
+      example: 21
+    reason:
+      type: string
+      description: Reason for treatment
+      example: "Bacterial infection"
+    created_at:
+      type: string
+      format: date-time
+      description: When the record was created
+      example: "2024-03-05T10:00:00Z"

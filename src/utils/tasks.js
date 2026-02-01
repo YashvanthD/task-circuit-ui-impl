@@ -1,29 +1,38 @@
 import { apiFetch, API_TASK } from '../api';
+import { normalizeTask } from './store/dataStore';
 
-// Task utility functions
+// Task utility functions with centralized dataStore normalization
 
 const TASKS_KEY = 'tasks';
 const TASKS_LAST_FETCHED_KEY = 'tasks_last_fetched';
 const TASKS_STALE_MS = 5 * 60 * 1000; // 5 minutes
 
+/**
+ * Normalize tasks using centralized normalizeTask
+ */
 function normalizeTasks(list) {
   if (!Array.isArray(list)) return [];
-  return list.map((t) => {
-    // Priority: taskId (camelCase), then task_id, then id/_id
-    const rawId = t.taskId || t.task_id || t.id || t._id;
-    const task_id = rawId != null ? String(rawId) : undefined;
-    return { ...t, task_id };
-  });
+  return list.map(t => normalizeTask(t)).filter(Boolean);
 }
 
 function extractTasksFromResponse(data) {
-  // API_DOC: GET /task/ -> { meta, tasks: [...] }
+  // Backend can return:
+  // 1. Direct array: [task1, task2, ...]
+  // 2. Wrapped: { tasks: [...] }
+  // 3. Nested: { data: { tasks: [...] } }
   if (!data) return [];
-  const rawTasks = Array.isArray(data.tasks)
-    ? data.tasks
-    : data.data && Array.isArray(data.data.tasks)
-    ? data.data.tasks
-    : [];
+
+  // Handle direct array
+  if (Array.isArray(data)) {
+    return normalizeTasks(data);
+  }
+
+  // Handle wrapped formats
+  const rawTasks = data.tasks
+    || (data.data && data.data.tasks)
+    || (Array.isArray(data.data) ? data.data : null)
+    || [];
+
   return normalizeTasks(rawTasks);
 }
 
@@ -56,7 +65,10 @@ export async function getTasks(forceApiCall = false) {
   }
 
   try {
-    const res = await apiFetch(API_TASK.LIST, { method: 'GET' });
+    const res = await apiFetch(API_TASK.LIST, {
+      method: 'GET',
+      skipCamelize: true // Backend uses snake_case
+    });
     const data = await res.json();
     if (!res.ok || data.success === false) {
       throw new Error(data.error || 'Failed to fetch tasks');
@@ -107,6 +119,7 @@ export async function updateTask(taskId, updates) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
+      skipCamelize: true // Backend uses snake_case
     });
   } catch {
     // ignore; cache already updated, API failure will be visible on next fetch
@@ -126,7 +139,10 @@ export function getTasksLastFetched() {
  * Fetch all tasks from API (no cache), using /task/.
  */
 export async function fetchAllTasks() {
-  const res = await apiFetch(API_TASK.LIST, { method: 'GET' });
+  const res = await apiFetch(API_TASK.LIST, {
+    method: 'GET',
+    skipCamelize: true // Backend uses snake_case
+  });
   const data = await res.json();
   if (!res.ok || data.success === false) {
     throw new Error(data.error || 'Failed to fetch tasks');
@@ -144,6 +160,7 @@ export async function saveTask(task, isEdit = false) {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(task),
+    skipCamelize: true // Backend uses snake_case
   });
   const data = await res.json();
   if (!res.ok || data.success === false) {
@@ -156,10 +173,44 @@ export async function saveTask(task, isEdit = false) {
  * Delete a task using /task/<task_id>.
  */
 export async function deleteTask(taskId) {
-  const res = await apiFetch(API_TASK.DELETE(taskId), { method: 'DELETE' });
+  const res = await apiFetch(API_TASK.DELETE(taskId), {
+    method: 'DELETE',
+    skipCamelize: true // Backend uses snake_case
+  });
   const data = await res.json();
   if (!res.ok || data.success === false) {
     throw new Error(data.error || 'Failed to delete task');
   }
   return data;
+}
+
+/**
+ * Get task by ID from cache
+ * @param {string} taskId - Task ID
+ * @returns {Promise<object|null>}
+ */
+export async function getTaskById(taskId) {
+  const tasks = await getTasks();
+  if (!tasks) return null;
+  return tasks.find(t => t.task_id === String(taskId)) || null;
+}
+
+/**
+ * Get pending tasks
+ * @returns {Promise<Array>}
+ */
+export async function getPendingTasks() {
+  const tasks = await getTasks();
+  if (!tasks) return [];
+  return tasks.filter(t => t.status === 'pending');
+}
+
+/**
+ * Get completed tasks
+ * @returns {Promise<Array>}
+ */
+export async function getCompletedTasks() {
+  const tasks = await getTasks();
+  if (!tasks) return [];
+  return tasks.filter(t => t.status === 'completed');
 }

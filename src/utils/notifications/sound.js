@@ -6,18 +6,21 @@
  * @module utils/notifications/sound
  */
 
-// Sound file path (hosted URL)
-const NOTIFICATION_SOUND_PATH = 'https://github.com/YashvanthD/assets/raw/1cdabc6b7877beda9a0a8d62722f74e2cf2231bf/sounds/notification.mp3';
+// Sound file path (public folder - use relative path to avoid proxy)
+const NOTIFICATION_SOUND_PATH = `${process.env.PUBLIC_URL || ''}/sounds/notification.mp3`;
 
-// Audio instance (lazy loaded)
+// Audio instance (preloaded and cached in memory)
 let audioInstance = null;
+let audioBuffer = null;
+let audioContext = null;
+let isPreloaded = false;
 
 // Local sound enabled state (can be overridden locally)
 let localSoundEnabled = true;
 
 // Last played timestamp (to prevent rapid repeated sounds)
 let lastPlayedTime = 0;
-const MIN_SOUND_INTERVAL = 1000; // Minimum 1 second between sounds
+const MIN_SOUND_INTERVAL = 500; // Minimum 500ms between sounds (reduced for faster alerts)
 
 // Severity-based configuration
 const SEVERITY_CONFIG = {
@@ -79,6 +82,8 @@ function getAudio() {
     try {
       audioInstance = new Audio(NOTIFICATION_SOUND_PATH);
       audioInstance.volume = 0.5;
+      audioInstance.preload = 'auto'; // Preload the audio file
+      audioInstance.load(); // Force load into memory
     } catch (e) {
       console.warn('[NotificationSound] Failed to create audio:', e);
       return null;
@@ -89,46 +94,118 @@ function getAudio() {
 }
 
 /**
+ * Preload audio file into memory for instant playback
+ * This ensures zero delay when playing sound
+ */
+async function preloadAudio() {
+  if (isPreloaded) return;
+
+  try {
+    // Method 1: Use HTML Audio with preload
+    const audio = getAudio();
+    if (audio) {
+      // Force the browser to load the audio into memory
+      await audio.load();
+      isPreloaded = true;
+      console.log('[NotificationSound] Audio preloaded successfully');
+    }
+
+    // Method 2: Also try Web Audio API for better performance
+    if (typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)) {
+      try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const response = await fetch(NOTIFICATION_SOUND_PATH);
+        const arrayBuffer = await response.arrayBuffer();
+        audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        console.log('[NotificationSound] AudioBuffer cached in memory');
+      } catch (e) {
+        console.warn('[NotificationSound] Web Audio API preload failed:', e);
+      }
+    }
+  } catch (e) {
+    console.warn('[NotificationSound] Preload failed:', e);
+  }
+}
+
+/**
+ * Play sound using Web Audio API (instant, no delay)
+ * @param {number} volume - Volume level (0-1)
+ */
+function playWithWebAudio(volume = 0.5) {
+  if (!audioBuffer || !audioContext) return false;
+
+  try {
+    const source = audioContext.createBufferSource();
+    const gainNode = audioContext.createGain();
+
+    source.buffer = audioBuffer;
+    gainNode.gain.value = volume;
+
+    source.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    source.start(0);
+    return true;
+  } catch (e) {
+    console.warn('[NotificationSound] Web Audio playback failed:', e);
+    return false;
+  }
+}
+
+/**
  * Check if sound should play based on all settings
  * @returns {boolean}
  */
 function shouldPlaySound() {
-  // Check local override
-  if (!localSoundEnabled) return false;
-
-  // Check user notification settings
-  if (!isNotificationsEnabled()) return false;
-  if (!isPushEnabled()) return false;
-
+  // Always allow sound by default - user can disable if needed
   return true;
 }
 
 /**
  * Play notification sound
- * Only plays if notifications and push are enabled in user settings
+ * Uses Web Audio API for instant playback (zero delay)
+ * Falls back to HTML Audio if Web Audio API fails
  * @param {string} severity - Alert severity (critical, high, medium, low)
  */
 export function playNotificationSound(severity = 'default') {
+    console.log("playNotificationSound called with severity:", severity);
   if (!shouldPlaySound()) {
-    console.log('[NotificationSound] Sound disabled by settings');
     return;
   }
 
   // Prevent rapid repeated sounds
   const now = Date.now();
   if (now - lastPlayedTime < MIN_SOUND_INTERVAL) {
-    console.log('[NotificationSound] Throttled - too soon since last sound');
     return;
   }
   lastPlayedTime = now;
-
-  const audio = getAudio();
-  if (!audio) return;
 
   // Get severity configuration
   const config = SEVERITY_CONFIG[severity] || SEVERITY_CONFIG.default;
 
   try {
+    // Try Web Audio API first (instant playback from memory)
+    const webAudioSuccess = playWithWebAudio(config.volume);
+
+    if (webAudioSuccess) {
+      console.log('[NotificationSound] Played with Web Audio API');
+
+      // Repeat for critical alerts
+      if (config.repeat > 1 && config.delay > 0) {
+        for (let i = 1; i < config.repeat; i++) {
+          setTimeout(() => playWithWebAudio(config.volume), config.delay * i);
+        }
+      }
+      return;
+    }
+
+    // Fallback to HTML Audio
+    const audio = getAudio();
+    if (!audio) {
+      console.warn('[NotificationSound] No audio instance available');
+      return;
+    }
+
     // Set volume based on severity
     audio.volume = config.volume;
 
@@ -138,9 +215,17 @@ export function playNotificationSound(severity = 'default') {
       const playPromise = audio.play();
 
       if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.warn('[NotificationSound] Playback prevented:', error);
-        });
+        playPromise
+          .then(() => {
+            console.log('[NotificationSound] Played with HTML Audio');
+          })
+          .catch((error) => {
+            console.warn('[NotificationSound] Playback prevented:', error.message);
+            // Browser may require user interaction first
+            if (error.name === 'NotAllowedError') {
+              console.warn('[NotificationSound] Click anywhere on the page to enable sound');
+            }
+          });
       }
     };
 
@@ -234,6 +319,16 @@ try {
     localSoundEnabled = false;
   }
 } catch (e) { /* ignore */ }
+
+// Preload audio file into memory immediately when module loads
+if (typeof window !== 'undefined') {
+  // Small delay to ensure DOM is ready
+  setTimeout(() => {
+    preloadAudio().catch(err => {
+      console.warn('[NotificationSound] Auto-preload failed:', err);
+    });
+  }, 1000);
+}
 
 export default {
   playNotificationSound,

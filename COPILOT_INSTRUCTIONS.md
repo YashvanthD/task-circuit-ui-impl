@@ -1,267 +1,548 @@
-# Project Setup Prompt
-
-Use the following prompt to recreate the React web app with best practices:
-
+# Copilot Instructions for Task Circuit UI
+**Last Updated:** February 1, 2026  
+**Status:** ✅ Production Ready
 ---
-
-**React Web App Setup Steps**
-
-1. Create the following folders inside `src/`:
-   - `components/` (reusable UI components)
-   - `layouts/` (layout components)
-   - `pages/` (page-level components)
-   - `forms/` (form-related components)
-   - `utils/` (helper functions)
-   - `api/` (centralized API modules, constants, and client)
-2. Use only `.js` files for all React components, pages, and layouts. Do not use `.tsx` or TypeScript for UI.
-3. Use functional React components and hooks. Add JSDoc comments for documentation.
-4. Create `BaseLayout.js` with a sticky top nav bar and a conditional side nav bar (visible only when logged in).
-5. Use Material UI for navigation, buttons, icons, and layout components.
-6. Set up routing in `App.js` using React Router for `/` (LandingPage) and `/home` (HomePage).
-7. Use CSS Modules, styled-components, or Material UI's styling system for styles. Avoid global CSS unless necessary.
-8. Use Framer Motion for animations if needed.
-9. Use React hooks for state. For persistent storage, use `localStorage` or `sessionStorage` via utility functions in `utils/`.
-10. Keep all code modular, reusable, and DRY. Avoid duplication.
-11. All components, layouts, and utilities must have JSDoc comments.
-12. Example entry files:
-    - `src/index.js`:
-      ```jsx
-      import React from 'react';
-      import ReactDOM from 'react-dom/client';
-      import App from './App';
-      import { CssBaseline } from '@mui/material';
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(
-        <React.StrictMode>
-          <CssBaseline />
-          <App />
-        </React.StrictMode>
-      );
-      ```
-    - `src/App.js`:
-      ```jsx
-      import React from 'react';
-      import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-      import LandingPage from './pages/LandingPage';
-      import HomePage from './pages/HomePage';
-      export default function App() {
-        return (
-          <Router>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/home" element={<HomePage />} />
-            </Routes>
-          </Router>
-        );
-      }
-      ```
-
+## 🎯 Core Principles
+### 1. **Use Centralized Components**
+Always use the 29 reusable components from the component library. Never create custom implementations.
+### 2. **Clean UI Components**
+UI components should have **minimal logic**. Move business logic to models, services, and utilities.
+### 3. **Models Handle Data**
+Use model classes for data validation, transformation, and API payload generation.
+### 4. **Services Handle API Calls**
+Use service layers for all API operations. Never call APIs directly from UI components.
+### 5. **Utils for Reusable Functions**
+Place reusable helper functions in utilities, not in components.
 ---
-
-# Next Instructions
-
-After initial setup, automatically proceed with these next steps:
-
-1. Add sample components in `components/` (e.g., `Button.js`, `Card.js`).
-2. Add a sample form in `forms/` (e.g., `LoginForm.js`).
-3. Add utility functions in `utils/` (e.g., `storage.js` for localStorage/sessionStorage helpers).
-4. Add JSDoc comments to all new files and functions.
-5. Add a README.md in the root with setup and usage instructions.
-6. Test the app by running `npm start` and verify all routes and layouts work as expected.
-7. Refactor and modularize code as needed for maintainability.
-
+## 📁 Folder Structure
+Follow this exact structure for all new code:
+```
+src/
+├── components/
+│   ├── common/                    # ⭐ Reusable UI Components (DON'T MODIFY)
+│   │   ├── forms/                 # Form components (9)
+│   │   └── ...                    # UI components (7)
+│   └── [feature]/                 # Feature-specific components
+│       ├── forms/
+│       └── [Feature]Card.js
+│
+├── models/                        # ⭐ Data Models
+│   ├── Fish.js
+│   ├── Pond.js
+│   ├── Farm.js
+│   └── index.js
+│
+├── services/                      # ⭐ API Services
+│   ├── fishService.js
+│   ├── pondService.js
+│   └── index.js
+│
+├── utils/                         # ⭐ Utilities
+│   ├── storage/
+│   ├── validation/
+│   └── helpers.js
+│
+├── pages/                         # Page Components
+│   └── user/
+│       ├── FishPage.js
+│       └── PondPage.js
+│
+└── api/                           # API Configuration
+    ├── client.js
+    └── constants.js
+```
 ---
-
-# Task Circuit Copilot Instructions (December 2025)
-
-## Documentation Update Policy
-- Whenever you update endpoints, authentication logic, or API usage, always update both COPILOT_INSTRUCTIONS.md and API_DOC.md together.
-- API_DOC.md contains endpoint references, curl examples, and expected responses.
-- COPILOT_INSTRUCTIONS.md contains implementation details, project structure, and best practices.
-- Keep both files in sync for robust development and maintenance.
-
-## Project Structure & Setup
-- React web app using Material UI for all UI components and layouts.
-- Code organized into:
-  - `src/layouts/` (BaseLayout.js, UserLayout.js)
-  - `src/pages/` (LandingPage.js, HomePage.js, LoginPage.js)
-  - `src/pages/user/` (DashboardPage.js, other user pages)
-  - `src/utils/` (auth, helpers, resources utilities)
-  - `src/api/` (centralized API modules - auth.js, user.js, task.js, pond.js, fish.js, sampling.js, company.js, client.js, constants.js)
-  - `src/config.js` (BASE_URL)
-
-## API Module Structure
-- All API calls are centralized in `src/api/` folder.
-- Each domain has its own module: `auth.js`, `user.js`, `task.js`, `pond.js`, `fish.js`, `sampling.js`, `company.js`.
-- API constants (endpoint paths) are in `src/api/constants.js`.
-- API client utilities (`apiFetch`, `ApiError`, etc.) are in `src/api/client.js`.
-- Import API functions from `src/api/` (e.g., `import { login, signup } from '../api'`).
-- Use the domain-specific API functions instead of raw `apiFetch` calls with endpoints.
-
-## Authentication & Session Management
-- On login, use `processLoginResponse` to store access_token, refresh_token, expiry, and user info in localStorage.
-- Access token expiry is extracted from the JWT and used for accurate scheduling.
-- Token refresh and validation are handled by robust schedulers in `storage.js`.
-- Session is valid if access_token, refresh_token, and user info are present in localStorage.
-- UserLayout checks for all three before allowing access to user pages.
-- On logout, clear all tokens, user info, and tasks from localStorage.
-
-## Token Refresh & Validation
-- Token refresh is scheduled 2 minutes before expiry, or every 30 minutes if expiry is missing.
-- Scheduler uses expiry from the validator API if available, and reschedules accordingly.
-- No duplicate or excessive requests; only one timer is active at a time.
-- Use `validateAccessToken` and `refreshAccessToken` utilities for robust management.
-
-## Task Management
-- Tasks are cached in localStorage and reused if fetched within the last 5 minutes.
-- On DashboardPage mount, tasks are loaded from localStorage if recent, otherwise fetched from API and saved.
-- All task updates (mark as done, unread, etc.) use the `updateTask` function, which syncs changes with both API and localStorage.
-- Utility functions: `saveTasksToLocalStorage`, `loadTasksFromLocalStorage`, `clearTasksFromLocalStorage`, `getTasksLastFetched`.
-
-## Layouts & Navigation
-- Public pages (landing, home, login) use BaseLayout (no sidebar).
-- User pages under `/taskcircuit/user/*` use UserLayout, which wraps BaseLayout and enables the sidebar.
-- Sidebar is only visible for user pages after login and supports collapse/expand.
-- Top nav bar is always visible, sticky, and shows project name and user actions.
-
-## Best Practices
-- Always use API functions from `src/api/` for API calls (e.g., `import { login } from '../api'`).
-- Use token/session utilities from `src/utils/auth/` for authentication and session management.
-- Use localStorage for caching tasks and user info, and keep data in sync with API.
-- All code is modular, documented, and extensible for future features.
-- Remove unused imports and variables to keep code clean.
-
-## Extensibility
-- To add new API endpoints, update `src/api/constants.js` and create/update the corresponding API module in `src/api/`.
-- To add new user pages, create a new component in `src/pages/user/` and add a route in App.js.
-- To add new sidebar items, update the navItems array in BaseLayout.js.
-- To extend task logic, use and adapt the utilities and updateTask pattern in DashboardPage.js.
-
+## ✅ Component Usage Rules
+### **ALWAYS Use These Components:**
+**Form Components (9):**
+```javascript
+import {
+  FormContainer,    // ← Wrapper for all forms
+  FormSection,      // ← Section headers
+  FormField,        // ← Text/number/date inputs
+  FormDropdown,     // ← Dropdowns with refresh
+  FormRadio,        // ← Radio buttons
+  FormFileUpload,   // ← File uploads
+  FormKeyValue,     // ← Dynamic key-value pairs
+  FormRepeater,     // ← Repeatable sections (add/remove items)
+  FormActions       // ← Submit/Cancel buttons
+} from './components/common/forms';
+```
+**UI Components (7):**
+```javascript
+import {
+  ActionButton,     // ← All buttons
+  SearchInput,      // ← Search fields
+  BaseCard,         // ← All cards
+  StatusChip,       // ← Status badges
+  PageHeader,       // ← Page headers
+  DataGrid,         // ← Data lists/grids
+  FilterBar         // ← Search/filter toolbar
+} from './components/common';
+```
+**State Components:**
+```javascript
+import {
+  LoadingState,     // ← Loading indicators
+  EmptyState,       // ← No data states
+  ErrorState,       // ← Error displays
+  ConfirmDialog     // ← Confirmation dialogs
+} from './components/common';
+```
+### **NEVER:**
+- ❌ Create custom buttons (use `ActionButton`)
+- ❌ Create custom cards (use `BaseCard`)
+- ❌ Create custom form wrappers (use `FormContainer`)
+- ❌ Create custom search inputs (use `SearchInput`)
+- ❌ Create custom loading/empty/error states
 ---
-
-# Task Circuit Project Instructions (as of 2025-12-05)
-
-## Layout & Navigation
-- The project uses a unified BaseLayout for all pages, with a fixed top navigation bar and a sticky, collapsible sidebar for user pages.
-- The sidebar contains navigation buttons for Dashboard, Tasks, and Pool, each with icons and active/hover states.
-- The main content container is flush with the sidebar, scrollable, and loads all page content. Only this container updates on route changes.
-- All buttons use modern color schemes, shadows, and spacing for best UI and accessibility.
-
-## Routing & Page Structure
-- Routing is managed in `App.js` using React Router.
-- All `/taskcircuit/user/*` pages are wrapped by `UserLayout`, which enforces authentication and sidebar visibility.
-- Individual user pages (DashboardPage, TasksPage, ChatPage, PondPage, ReportsPage, InvoicePage, SalesTaxPage, DatasetPage, ManageUsersPage) are loaded in the main container.
-- Sidebar navigation is controlled by the `navItems` array in BaseLayout.js. To add new pages, update `navItems` and add a route in App.js.
-
-## Authentication
-- Sidebar and user pages are only visible to logged-in users (checked via access token, refresh token, and user info in local storage).
-- If not logged in, users are redirected to the login page.
-- Logout clears tokens and user info from local storage and redirects to login.
-
-## Page Content
-- Dashboard, Tasks, and Pool pages are implemented and visible in the main container when their sidebar buttons are clicked.
-- Each page uses a consistent container style (`<Paper sx={{ padding: 4, maxWidth: 1000, margin: '40px auto' }}>`).
-- TasksPage and PoolPage export only their content; layout is handled by the router.
-
-## Best Practices
-- Never wrap user pages with `UserLayout` inside their own files—only use the router for layout.
-- Always check for authentication before rendering user pages.
-- Use debug logs for API calls and state changes to aid troubleshooting.
-- Keep instructions and API docs up to date as the project evolves.
-
+## 🏗️ Clean Architecture Pattern
+### **Page Component (Minimal Logic):**
+```javascript
+// ✅ GOOD - Clean page component
+function FishPage() {
+  const [fish, setFish] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    loadFish();
+  }, []);
+  // ✅ Call service, not API
+  const loadFish = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const fishList = await fetchFish(); // ← Service handles API
+      setFish(fishList);                 // ← Already transformed by model
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  // ✅ Use service for create
+  const handleAdd = async (formData) => {
+    try {
+      await createFish(formData);        // ← Service handles everything
+      loadFish();                        // ← Refresh list
+    } catch (err) {
+      alert('Failed to add fish');
+    }
+  };
+  // ✅ Use reusable components
+  return (
+    <>
+      <PageHeader
+        title="Fish Management"
+        actions={
+          <ActionButton icon={<AddIcon />} onClick={() => setShowForm(true)}>
+            Add Fish
+          </ActionButton>
+        }
+      />
+      <DataGrid
+        items={fish}
+        loading={loading}
+        error={error}
+        renderItem={(fish) => <FishCard fish={fish} />}
+      />
+    </>
+  );
+}
+```
+### **❌ BAD Example - Everything in Component:**
+```javascript
+// ❌ BAD - Don't do this!
+function FishPage() {
+  const [fish, setFish] = useState([]);
+  const loadFish = async () => {
+    // ❌ API call in component
+    const response = await fetch('/api/fish');
+    const data = await response.json();
+    // ❌ Data transformation in component
+    const transformed = data.map(f => ({
+      ...f,
+      weight: parseFloat(f.weight)
+    }));
+    setFish(transformed);
+  };
+  // ❌ Business logic in component
+  const handleSubmit = async (formData) => {
+    const payload = {
+      name: formData.name,
+      weight: parseFloat(formData.weight),
+      // ... more transformations
+    };
+    // ❌ Direct API call
+    await fetch('/api/fish', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  };
+  // ❌ Custom components instead of reusable ones
+  return (
+    <div>
+      <h1>Fish Management</h1>
+      <button onClick={handleAdd}>Add</button>
+      {fish.map(f => <div key={f.id}>{f.name}</div>)}
+    </div>
+  );
+}
+```
 ---
-
-# Task Circuit Sidebar & Layout Instructions (as of December 5, 2025)
-
-## Sidebar Button Order
-The sidebar navigation is arranged in the following order:
-1. Dashboard
-2. Tasks
-3. Chat
-4. Pond
-5. Reports
-6. Invoice
-7. Sales Tax
-8. Dataset
-9. Manage Users
-
-## Sidebar Design
-- Sidebar navigation uses Material UI ListItemButton for each nav item.
-- Button background color uses theme's secondary color (`secondary.main`) for a modern look.
-- Button text color is set to `grey.400` for improved readability and a lighter, cool appearance.
-- On hover, background changes to `primary.light` and text color to `primary.dark`.
-- On active, background is `primary.light` and text color is `primary.dark`.
-- All sidebar buttons have shadow and spacing for a floating, accessible UI.
-- Sidebar supports collapse/expand with smooth transitions.
-- Each button uses a relevant Material UI icon (Dashboard, Assignment, Chat, Pool, Analytics, Receipt, LocalAtm, Storage, AccountCircle).
-
-## Layout
-- Top navigation bar is fixed and sticky, always visible.
-- Sidebar is sticky and only visible for user pages after login.
-- Main content container is flush with sidebar, scrollable, and loads all page content.
-- All navigation and layout are robust, consistent, and visually appealing.
-
-## Routing & Page Structure
-- Routing is managed in `App.js` using React Router.
-- All `/taskcircuit/user/*` pages are wrapped by `UserLayout`, which enforces authentication and sidebar visibility.
-- Individual user pages (DashboardPage, TasksPage, ChatPage, PondPage, ReportsPage, InvoicePage, SalesTaxPage, DatasetPage, ManageUsersPage) are loaded in the main container.
-- Sidebar navigation is controlled by the `navItems` array in BaseLayout.js. To add new pages, update `navItems` and add a route in App.js.
-
-## Best Practices
-- Use theme colors for all UI elements for consistency and accessibility.
-- Keep sidebar and layout instructions up to date in COPILOT_INSTRUCTIONS.md for future development.
-- Test all UI changes for readability, accessibility, and responsiveness.
-- Remove unused imports and variables to keep code clean.
-
+## 📦 Model Usage
+### **Model Structure:**
+```javascript
+// src/models/Fish.js
+export class Fish {
+  constructor(data) {
+    this._raw = data;
+    this._errors = [];
+    // Parse fields
+    this.fish_id = data.fish_id || '';
+    this.name = data.name || '';
+    this.weight = parseFloat(data.weight) || 0;
+  }
+  // ✅ Validation
+  isValid() {
+    this._errors = [];
+    if (!this.name) this._errors.push('Name required');
+    if (this.weight <= 0) this._errors.push('Weight must be positive');
+    return this._errors.length === 0;
+  }
+  // ✅ API Payload
+  toAPIPayload() {
+    return {
+      fish_id: this.fish_id,
+      name: this.name,
+      weight: this.weight
+    };
+  }
+  // ✅ Form Data
+  toFormData() {
+    return {
+      name: this.name,
+      weight: this.weight.toString()
+    };
+  }
+  // ✅ Static Factories
+  static fromFormData(formData) {
+    return new Fish({
+      name: formData.name,
+      weight: parseFloat(formData.weight)
+    });
+  }
+  static fromAPIResponse(apiData) {
+    return new Fish(apiData);
+  }
+  // ✅ Default Data
+  static getDefaultFormData() {
+    return {
+      name: '',
+      weight: '',
+      status: 'active'
+    };
+  }
+}
+```
+### **Using Models:**
+```javascript
+// ✅ In Forms
+const handleSubmit = () => {
+  const fish = Fish.fromFormData(form);
+  if (!fish.isValid()) {
+    console.error('Errors:', fish.errors);
+    return;
+  }
+  onSubmit(fish.toAPIPayload());
+};
+// ✅ In Services
+export async function createFish(fishData) {
+  const fish = Fish.fromFormData(fishData);
+  if (!fish.isValid()) {
+    throw new Error('Invalid fish data');
+  }
+  const response = await apiFetch(API_FISH.CREATE, {
+    method: 'POST',
+    body: JSON.stringify(fish.toAPIPayload())
+  });
+  return Fish.fromAPIResponse(response.data);
+}
+```
 ---
-
-# Task Circuit Project Copilot Instructions
-
-## General Layout & Design
-- Use BaseLayout for all pages, with sticky top and side nav bars.
-- Side nav bar is hidden unless user is logged in (refresh_token in storage).
-- Top nav bar shows profile, logout, and settings when logged in; login/signup/register otherwise.
-- All navigation and endpoints use baseUrl and endpoint lists from config files.
-- All containers and cards use smooth scrolling, full width, and modern spacing.
-- Use MUI icons and components for best UI/UX.
-
-## Fish Data Management
-- FishPage lists all fish with cards: fish name, ID, image/icon, scientific name (gray), total count, next date, and ponds list.
-- Entire fish card is clickable to open Fish view dialog.
-- Add Fish Data button (right) opens FishForm for new entry; search (left) filters by name.
-- FishForm supports all biological, catch, and custom fields, with dropdowns and addable custom fields.
-- Fish view shows all data line by line, with clear sections, full width, smooth scrolling, and fish ID.
-- All new fish get a unique ID on creation.
-
-## Forms & Components
-- All forms (signup, register company, update password, update mobile/email, add user, add pond, add fish) use MUI Paper, TextField, Button, and proper validation.
-- Use dialog/modal for form entry and editing.
-- All forms and cards use icons, modern spacing, and robust error handling.
-
-## API & Storage
-- Always use access_token for authentication; refresh every 30min via scheduler.
-- Validate token via /auth/validate endpoint; refresh via /auth/token.
-- Store user info and tasks in localStorage; always check storage first before API call.
-- All endpoints and baseUrl are taken from config files.
-- Log API calls and token refreshes for debugging.
-- On 401, validate/refresh token or force login.
-
-## Fish API Example
-- Add fish: POST /fish (fields: all biological, catch, custom)
-- Get fish: GET /fish/:id
-- List fish: GET /fish
-- Update fish: PUT /fish/:id
-- Delete fish: DELETE /fish/:id
-
-## UI/UX Conventions
-- Use full width for main containers and cards.
-- Use Stack for vertical/horizontal alignment.
-- Use icons for buttons and card visuals.
-- Use gray for secondary text, color for highlights.
-- All cards and forms are visually grouped, floating, and modern.
-- All navigation and actions are robust and accessible.
-
-## Next Steps
-- For new components/forms, follow above conventions.
-- Document all new endpoints and UI features in this file and API docs.
-- Keep instructions and docs updated as features evolve.
+## 🔧 Service Usage
+### **Service Structure:**
+```javascript
+// src/services/fishService.js
+import { apiFetch } from '../api/client';
+import { API_FISH } from '../api/constants';
+import { Fish } from '../models';
+import { storageManager } from '../utils/storage';
+// ✅ Fetch with cache
+export async function fetchFish(force = false) {
+  // Check cache
+  if (!force && !storageManager.isCacheStale('fish')) {
+    const cached = storageManager.getCache('fish');
+    if (cached) return cached.map(f => Fish.fromAPIResponse(f));
+  }
+  // Fetch from API
+  try {
+    const response = await apiFetch(API_FISH.LIST);
+    const fishList = response.data.fish.map(f => Fish.fromAPIResponse(f));
+    // Update cache
+    storageManager.setCache('fish', fishList.map(f => f.toAPIPayload()));
+    return fishList;
+  } catch (error) {
+    console.error('[Fish Service] Fetch error:', error);
+    throw error;
+  }
+}
+// ✅ Create
+export async function createFish(fishData) {
+  try {
+    const fish = Fish.fromFormData(fishData);
+    if (!fish.isValid()) {
+      throw new Error('Invalid fish data');
+    }
+    const response = await apiFetch(API_FISH.CREATE, {
+      method: 'POST',
+      body: JSON.stringify(fish.toAPIPayload())
+    });
+    // Clear cache to force refresh
+    storageManager.clearCache('fish');
+    return Fish.fromAPIResponse(response.data.fish);
+  } catch (error) {
+    console.error('[Fish Service] Create error:', error);
+    throw error;
+  }
+}
+// ✅ Update
+export async function updateFish(fishId, fishData) {
+  try {
+    const fish = Fish.fromFormData(fishData);
+    fish.fish_id = fishId;
+    if (!fish.isValid()) {
+      throw new Error('Invalid fish data');
+    }
+    const response = await apiFetch(API_FISH.UPDATE.replace(':id', fishId), {
+      method: 'PUT',
+      body: JSON.stringify(fish.toAPIPayload())
+    });
+    storageManager.clearCache('fish');
+    return Fish.fromAPIResponse(response.data.fish);
+  } catch (error) {
+    console.error('[Fish Service] Update error:', error);
+    throw error;
+  }
+}
+// ✅ Delete
+export async function deleteFish(fishId) {
+  try {
+    await apiFetch(API_FISH.DELETE.replace(':id', fishId), {
+      method: 'DELETE'
+    });
+    storageManager.clearCache('fish');
+    return true;
+  } catch (error) {
+    console.error('[Fish Service] Delete error:', error);
+    throw error;
+  }
+}
+```
+---
+## 📋 Checklist for New Features
+### **Before You Start:**
+- [ ] Check if similar component/feature exists
+- [ ] Review model structure for the entity
+- [ ] Check service layer for the entity
+- [ ] Review component library (COMPONENT_LIBRARY.md)
+### **Creating a New Feature:**
+- [ ] Create model class (if needed)
+- [ ] Create service layer (if needed)
+- [ ] Use reusable components (don't create custom)
+- [ ] Keep UI components clean (no logic)
+- [ ] Call services, not APIs directly
+- [ ] Use models for validation
+- [ ] Use models for transformation
+- [ ] Integrate with storage (cache)
+- [ ] Add loading/error/empty states
+- [ ] Test in dark and light themes
+- [ ] Test on mobile and desktop
+- [ ] Add JSDoc comments
+### **Form Creation:**
+- [ ] Use `FormContainer` wrapper
+- [ ] Use `FormSection` for groups
+- [ ] Use `FormField`, `FormDropdown`, etc.
+- [ ] Use `FormActions` at the end
+- [ ] Validate using model's `isValid()`
+- [ ] Use model's `toAPIPayload()` for submission
+### **Page Creation:**
+- [ ] Use `PageHeader` component
+- [ ] Use `FilterBar` if filtering needed
+- [ ] Use `DataGrid` for lists
+- [ ] Use `LoadingState`, `EmptyState`, `ErrorState`
+- [ ] Call services for data
+- [ ] Keep logic minimal
+---
+## 🚀 Quick Start Template
+```javascript
+// New Feature Page Template
+import React, { useState, useEffect } from 'react';
+import { Grid } from '@mui/material';
+import {
+  PageHeader,
+  ActionButton,
+  FilterBar,
+  DataGrid,
+  BaseCard,
+  LoadingState,
+  EmptyState,
+  ErrorState
+} from '../components/common';
+import {
+  FormContainer,
+  FormSection,
+  FormField,
+  FormActions
+} from '../components/common/forms';
+import { MyEntity } from '../models';
+import { fetchMyEntities, createMyEntity } from '../services/myEntityService';
+function MyFeaturePage() {
+  // State
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  // Load data
+  useEffect(() => {
+    loadData();
+  }, []);
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchMyEntities();
+      setItems(data);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Create
+  const handleCreate = async (formData) => {
+    try {
+      await createMyEntity(formData);
+      setShowForm(false);
+      loadData();
+    } catch (err) {
+      alert('Failed to create');
+    }
+  };
+  // Render
+  return (
+    <>
+      <PageHeader
+        title="My Feature"
+        subtitle="Manage items"
+        actions={
+          <ActionButton icon={<AddIcon />} onClick={() => setShowForm(true)}>
+            Add New
+          </ActionButton>
+        }
+      />
+      <FilterBar
+        searchTerm={search}
+        onSearchChange={setSearch}
+        onRefresh={loadData}
+        loading={loading}
+      />
+      <DataGrid
+        items={items}
+        loading={loading}
+        error={error}
+        renderItem={(item) => (
+          <BaseCard title={item.name}>
+            {item.description}
+          </BaseCard>
+        )}
+        emptyActionLabel="Add Item"
+        onEmptyAction={() => setShowForm(true)}
+      />
+      {/* Form Dialog */}
+      {showForm && (
+        <MyFeatureForm
+          onSubmit={handleCreate}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+    </>
+  );
+}
+// Form Component
+function MyFeatureForm({ onSubmit, onCancel }) {
+  const [form, setForm] = useState(MyEntity.getDefaultFormData());
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
+  const handleSubmit = () => {
+    const entity = MyEntity.fromFormData(form);
+    if (!entity.isValid()) {
+      alert('Invalid data');
+      return;
+    }
+    onSubmit(entity.toAPIPayload());
+  };
+  return (
+    <FormContainer title="Add Item" onSubmit={handleSubmit}>
+      <Grid container spacing={3}>
+        <FormSection title="Basic Info">
+          <FormField
+            label="Name"
+            value={form.name}
+            onChange={(e) => handleChange('name', e.target.value)}
+            required
+            xs={12}
+          />
+        </FormSection>
+        <FormActions
+          submitText="Create"
+          onCancel={onCancel}
+        />
+      </Grid>
+    </FormContainer>
+  );
+}
+```
+---
+## 📖 Documentation
+| Document | Purpose |
+|----------|---------|
+| **[COMPONENT_LIBRARY.md](./COMPONENT_LIBRARY.md)** | Complete component usage guide (ALL 29 components) |
+| **[FORM_COMPONENTS_GUIDE.md](./FORM_COMPONENTS_GUIDE.md)** | Form components detailed guide |
+| **[UI_COMPONENTS_GUIDE.md](./UI_COMPONENTS_GUIDE.md)** | UI components detailed guide |
+| **[STORAGE_FORM_GUIDE.md](./STORAGE_FORM_GUIDE.md)** | Storage & form management |
+| **[API_HANDBOOK.md](./references/API_HANDBOOK.md)** | Backend API reference |
+---
+## ✅ Summary
+**ALWAYS:**
+- ✅ Use the 29 reusable components
+- ✅ Keep UI components clean (no logic)
+- ✅ Use models for data handling
+- ✅ Use services for API calls
+- ✅ Use utils for helpers
+- ✅ Theme-aware (use theme tokens)
+- ✅ Responsive (use grid sizing)
+**NEVER:**
+- ❌ Create custom buttons/cards/forms
+- ❌ Call APIs from UI components
+- ❌ Transform data in UI components
+- ❌ Validate in UI components
+- ❌ Hardcode colors (use theme)
+- ❌ Duplicate code
+---
+**Status:** ✅ Production Ready  
+**Components:** 29 Reusable Components  
+**Architecture:** Clean, Centralized, Scalable
+**Follow these guidelines for consistent, maintainable code!** 🚀

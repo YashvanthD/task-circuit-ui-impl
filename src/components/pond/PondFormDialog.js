@@ -21,7 +21,7 @@ import {
   Typography,
 } from '@mui/material';
 
-import { POND_STATUS_OPTIONS } from '../../constants';
+import { POND_STATUS } from '../../constants';
 
 /**
  * PondFormDialog - Reusable dialog for pond creation and editing.
@@ -94,7 +94,7 @@ export default function PondFormDialog({
                 label="Status"
                 onChange={handleChange}
               >
-                {POND_STATUS_OPTIONS.map((opt) => (
+                {POND_STATUS.map((opt) => (
                   <MenuItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </MenuItem>

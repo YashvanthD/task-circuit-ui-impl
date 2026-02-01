@@ -29,7 +29,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import ScaleIcon from '@mui/icons-material/Scale';
 import CategoryIcon from '@mui/icons-material/Category';
 
-import { formatDate } from '../../utils/helpers/formatters';
+import { formatDate } from '../../utils';
 
 // ============================================================================
 // Helper Functions

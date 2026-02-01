@@ -39,7 +39,6 @@ export {
 
 // Permission utilities
 export {
-  ROLE_LEVELS,
   extractUser,
   getUserRole,
   getUserRoles,

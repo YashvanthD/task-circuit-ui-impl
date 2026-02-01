@@ -1,0 +1,46 @@
+# Transfer Entity Schema
+# Represents a fish transfer between ponds
+
+Transfer:
+  type: object
+  required:
+    - transfer_id
+    - stock_id
+    - from_pond_id
+    - to_pond_id
+    - transfer_date
+  properties:
+    transfer_id:
+      type: string
+      description: Unique identifier for the transfer record
+      example: "trans_666"
+    stock_id:
+      type: string
+      description: Stock being transferred
+      example: "stock_321"
+    from_pond_id:
+      type: string
+      description: Source pond
+      example: "pond_456"
+    to_pond_id:
+      type: string
+      description: Destination pond
+      example: "pond_789"
+    transfer_date:
+      type: string
+      format: date
+      description: Date of transfer
+      example: "2024-04-01"
+    quantity:
+      type: integer
+      description: Number of fish transferred
+      example: 1000
+    reason:
+      type: string
+      description: Reason for transfer
+      example: "Better water quality"
+    created_at:
+      type: string
+      format: date-time
+      description: When the record was created
+      example: "2024-04-01T10:00:00Z"

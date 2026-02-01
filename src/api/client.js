@@ -102,6 +102,66 @@ export function buildApiUrl(url) {
 }
 
 // ============================================================================
+// Case Conversion Utilities
+// ============================================================================
+
+/**
+ * Convert snake_case to camelCase
+ */
+function toCamelCase(str) {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+/**
+ * Convert camelCase to snake_case
+ */
+function toSnakeCase(str) {
+  return str.replace(/([A-Z])/g, '_$1').toLowerCase();
+}
+
+/**
+ * Recursively convert object keys from snake_case to camelCase
+ * @param {any} obj - Object, array, or primitive to convert
+ * @returns {any} Converted object with camelCase keys
+ */
+export function camelizeKeys(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => camelizeKeys(item));
+  }
+
+  const camelized = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const camelKey = toCamelCase(key);
+    camelized[camelKey] = camelizeKeys(value);
+  }
+  return camelized;
+}
+
+/**
+ * Recursively convert object keys from camelCase to snake_case
+ * @param {any} obj - Object, array, or primitive to convert
+ * @returns {any} Converted object with snake_case keys
+ */
+export function snakifyKeys(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== 'object') return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => snakifyKeys(item));
+  }
+
+  const snakified = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const snakeKey = toSnakeCase(key);
+    snakified[snakeKey] = snakifyKeys(value);
+  }
+  return snakified;
+}
+
+// ============================================================================
 // JSON Parsing
 // ============================================================================
 
@@ -146,8 +206,10 @@ async function handleTokenRefresh() {
 
       if (res.ok) {
         const data = await res.json();
-        if (data.access_token) {
-          setAccessToken(data.access_token);
+        // Support both snake_case and camelCase from backend
+        const accessToken = data.access_token || data.accessToken;
+        if (accessToken) {
+          setAccessToken(accessToken);
           return true;
         }
       }
@@ -169,15 +231,28 @@ async function handleTokenRefresh() {
 
 /**
  * Main API fetch wrapper with auth handling.
+ * By default, automatically camelizes JSON response keys (snake_case -> camelCase).
+ *
  * @param {string} url - endpoint URL
  * @param {object} options - fetch options
- * @param {boolean} options.skipAuth - Skip adding auth header (for public APIs)
- * @returns {Promise<Response>} fetch response
+ * @param {boolean} options.skipAuth - Skip adding auth header (for public APIs, default: false)
+ * @param {boolean} options.skipCamelize - Skip camelizing response keys (default: false, meaning camelize by default)
+ * @returns {Promise<Response>} fetch response with camelized .json() method (unless skipCamelize=true)
+ *
+ * @example
+ * // Returns Response with camelized .json() by default
+ * const res = await apiFetch('/api/user/profile');
+ * const data = await res.json(); // camelized keys
+ *
+ * @example
+ * // Skip camelization if needed
+ * const res = await apiFetch('/api/user/profile', { skipCamelize: true });
+ * const data = await res.json(); // original snake_case keys
  */
 export async function apiFetch(url, options = {}) {
   const fullUrl = buildApiUrl(url);
 
-  const { skipAuth, ...restOptions } = options;
+  const { skipAuth, skipCamelize = true, ...restOptions } = options;
   const opts = { ...restOptions };
   opts.headers = { ...opts.headers };
 
@@ -216,24 +291,85 @@ export async function apiFetch(url, options = {}) {
       try {
         res = await fetch(fullUrl, opts);
       } catch (err) {
+        showErrorAlert('Failed to connect after token refresh', 'Network Error');
         throw new NetworkError('Failed to connect on retry', err);
       }
+    } else {
+      // Token refresh failed
+      showErrorAlert('Your session has expired. Please login again.', 'Session Expired');
     }
+  }
+
+  // Handle non-ok responses (except 401 which is handled above)
+  if (!res.ok && res.status !== 401) {
+    // Try to get error message from response
+    try {
+      const errorData = await safeJsonParse(res);
+      const errorMessage = errorData?.message || errorData?.error || errorData?.detail ||
+                          `Request failed with status ${res.status}`;
+
+      let title = 'Error';
+      switch (res.status) {
+        case 400: title = 'Bad Request'; break;
+        case 403: title = 'Access Denied'; break;
+        case 404: title = 'Not Found'; break;
+        case 409: title = 'Conflict'; break;
+        case 422: title = 'Validation Error'; break;
+        case 429: title = 'Too Many Requests'; break;
+        case 500: title = 'Server Error'; break;
+        case 502: title = 'Bad Gateway'; break;
+        case 503: title = 'Service Unavailable'; break;
+        default: title = `Error ${res.status}`;
+      }
+
+      // Show error popup (unless explicitly disabled via options)
+      if (options.showErrors !== false) {
+        showErrorAlert(errorMessage, title);
+      }
+    } catch (parseErr) {
+      // If we can't parse the error, show a generic message
+      if (options.showErrors !== false) {
+        showErrorAlert(`Request failed with status ${res.status}`, `Error ${res.status}`);
+      }
+    }
+  }
+
+  // Auto-camelize JSON responses if requested (default: true)
+  if (!skipCamelize && res.ok && res.headers.get('content-type')?.includes('application/json')) {
+    const originalJson = res.json.bind(res);
+    res.json = async function() {
+      const data = await originalJson();
+      return camelizeKeys(data);
+    };
   }
 
   return res;
 }
 
 /**
- * API fetch with automatic JSON parsing.
+ * API fetch with automatic JSON parsing and key transformation.
+ * By default, converts all snake_case keys to camelCase for JavaScript convention.
+ *
  * @param {string} url - endpoint URL
  * @param {object} options - fetch options
  * @param {boolean} options.showErrors - Whether to show error alerts (default: true)
- * @returns {Promise<object>} Parsed JSON
+ * @param {boolean} options.skipCamelize - Skip camelizing response keys (default: false, meaning camelize by default)
+ * @param {boolean} options.skipAuth - Skip adding auth header (default: false)
+ * @returns {Promise<object>} Parsed JSON with camelCase keys (unless skipCamelize=true)
+ *
+ * @example
+ * // Returns camelized response by default
+ * const data = await apiJsonFetch('/api/user/profile');
+ * // data.userKey, data.displayName, etc.
+ *
+ * @example
+ * // Skip camelization if needed
+ * const data = await apiJsonFetch('/api/user/profile', { skipCamelize: true });
+ * // data.user_key, data.display_name, etc.
  */
 export async function apiJsonFetch(url, options = {}) {
-  const { showErrors = true, ...fetchOptions } = options;
-  const res = await apiFetch(url, fetchOptions);
+  const { showErrors = true, skipCamelize = false, ...fetchOptions } = options;
+  const res = await apiFetch(url, { ...fetchOptions, skipCamelize });
   const data = await safeJsonParse(res);
 
   if (!res.ok) {
@@ -244,6 +380,7 @@ export async function apiJsonFetch(url, options = {}) {
     throw error;
   }
 
+  // Note: camelization already happened in apiFetch if skipCamelize=false
   return data;
 }
 
@@ -281,6 +418,8 @@ export default {
   safeJsonParse,
   buildApiUrl,
   extractResponseData,
+  camelizeKeys,
+  snakifyKeys,
   ApiError,
   NetworkError,
 };

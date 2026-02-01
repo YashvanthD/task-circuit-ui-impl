@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GrowFin Chat Test Console - Multi-User</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a1a;
+            color: #eee;
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 18px; }
+        .header-links { display: flex; gap: 15px; }
+        .header-links a { color: white; text-decoration: none; font-size: 12px; opacity: 0.8; }
+        .header-links a:hover { opacity: 1; }
+
+        /* Main Layout - Two User Panels */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        @media (max-width: 1200px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+        /* User Panel */
+        .user-panel {
+            background: #12122a;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid transparent;
+        }
+        .user-panel.user-a { border-color: #667eea; }
+        .user-panel.user-b { border-color: #f093fb; }
+
+        .user-header {
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-panel.user-a .user-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .user-panel.user-b .user-header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+
+        .user-title { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .user-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            opacity: 0.9;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff4757;
+        }
+        .status-dot.connected { background: #2ed573; }
+
+        .user-body { padding: 12px; }
+
+        /* Auth Section */
+        .auth-section {
+            background: #0a0a1a;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .auth-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .auth-row:last-child { margin-bottom: 0; }
+        .auth-row input {
+            flex: 1;
+            padding: 8px 10px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 12px;
+        }
+        .auth-row input:focus { outline: none; border-color: #667eea; }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 11px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #2ed573; color: #0a0a1a; }
+        .btn-danger { background: #ff4757; color: white; }
+        .btn-warning { background: #ffa502; color: #0a0a1a; }
+        .btn-info { background: #1e90ff; color: white; }
+        .btn-pink { background: #f093fb; color: #0a0a1a; }
+        .btn-sm { padding: 5px 10px; font-size: 10px; }
+
+        /* Lists */
+        .list-section {
+            background: #0a0a1a;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .list-header {
+            padding: 10px 12px;
+            background: #1a1a2e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .list-content {
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .list-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1a1a2e;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 12px;
+        }
+        .list-item:hover { background: #1a1a2e; }
+        .list-item:last-child { border-bottom: none; }
+        .list-item.active { background: #667eea33; border-left: 3px solid #667eea; }
+        .list-item-title { font-weight: 600; margin-bottom: 2px; }
+        .list-item-meta { font-size: 10px; color: #888; }
+        .list-empty { padding: 20px; text-align: center; color: #666; font-size: 11px; }
+
+        /* Chat Section */
+        .chat-section {
+            background: #0a0a1a;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .chat-header {
+            padding: 10px 12px;
+            background: #1a1a2e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-title { font-size: 12px; font-weight: 600; }
+        .chat-actions { display: flex; gap: 6px; }
+
+        .chat-messages {
+            height: 250px;
+            overflow-y: auto;
+            padding: 12px;
+            background: #0f0f20;
+        }
+        .chat-empty {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .message {
+            margin-bottom: 10px;
+            max-width: 80%;
+        }
+        .message.sent {
+            margin-left: auto;
+            text-align: right;
+        }
+        .message.received {
+            margin-right: auto;
+        }
+        .message-bubble {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+        .message.sent .message-bubble {
+            background: #667eea;
+            border-bottom-right-radius: 4px;
+        }
+        .message.received .message-bubble {
+            background: #2a2a4a;
+            border-bottom-left-radius: 4px;
+        }
+        .message-meta {
+            font-size: 10px;
+            color: #666;
+            margin-top: 3px;
+        }
+        .message-typing {
+            color: #888;
+            font-style: italic;
+            font-size: 11px;
+            padding: 5px 0;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            background: #1a1a2e;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #333;
+            border-radius: 20px;
+            background: #0a0a1a;
+            color: #eee;
+            font-size: 13px;
+        }
+        .chat-input input:focus { outline: none; border-color: #667eea; }
+        .chat-input button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        /* Events Panel */
+        .events-panel {
+            background: #12122a;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .events-header {
+            padding: 12px 15px;
+            background: #1a1a2e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .events-header h3 { font-size: 14px; }
+        .events-content {
+            height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .event-item {
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            font-size: 11px;
+            background: #1a1a2e;
+            border-left: 3px solid #667eea;
+        }
+        .event-item.user-a { border-color: #667eea; }
+        .event-item.user-b { border-color: #f093fb; }
+        .event-item.error { border-color: #ff4757; background: #ff475722; }
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        .event-type { font-weight: 600; }
+        .event-time { color: #666; }
+        .event-data {
+            font-family: monospace;
+            font-size: 10px;
+            color: #888;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Notification Toast Animations */
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .notification-toast {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .notification-toast:hover {
+            transform: scale(1.02);
+        }
+
+        /* Create Conversation Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 20px;
+            width: 400px;
+            max-width: 90%;
+        }
+        .modal h3 { margin-bottom: 15px; font-size: 16px; }
+        .modal-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #0a0a1a;
+            color: #eee;
+            margin-bottom: 10px;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 15px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <h1>💬 Multi-User Chat Test Console</h1>
+            <small style="opacity: 0.8; font-size: 11px;">Test real-time chat with two users side by side</small>
+        </div>
+        <div class="header-links">
+            <a href="/test-console">📋 API Console</a>
+            <a href="/test-websocket">🔌 WS Console</a>
+            <a href="/swagger">📚 Swagger</a>
+        </div>
+    </div>
+
+    <!-- Main Layout - Two Users -->
+    <div class="main-layout">
+        <!-- User A Panel -->
+        <div class="user-panel user-a">
+            <div class="user-header">
+                <div class="user-title">👤 User A</div>
+                <div class="user-status">
+                    <div class="status-dot" id="statusA"></div>
+                    <span id="statusTextA">Disconnected</span>
+                </div>
+            </div>
+            <div class="user-body">
+                <!-- Auth -->
+                <div class="auth-section">
+                    <div class="auth-row">
+                        <input type="email" id="emailA" value="yash@example.com" placeholder="Email">
+                        <input type="password" id="passwordA" value="12345678" placeholder="Password">
+                    </div>
+                    <div class="auth-row">
+                        <button class="btn btn-primary" onclick="login('A')">🔐 Login</button>
+                        <button class="btn btn-success" onclick="connect('A')" id="btnConnectA" disabled>Connect</button>
+                        <button class="btn btn-danger" onclick="disconnect('A')" id="btnDisconnectA" disabled>Disconnect</button>
+                    </div>
+                    <div id="userInfoA" style="margin-top: 8px; font-size: 11px; color: #888;"></div>
+                </div>
+
+                <!-- Users List -->
+                <div class="list-section">
+                    <div class="list-header">
+                        <span>👥 Users</span>
+                        <button class="btn btn-sm btn-info" onclick="loadUsers('A')">Refresh</button>
+                    </div>
+                    <div class="list-content" id="usersListA">
+                        <div class="list-empty">Login to see users</div>
+                    </div>
+                </div>
+
+                <!-- Conversations List -->
+                <div class="list-section">
+                    <div class="list-header">
+                        <span>💬 Conversations</span>
+                        <button class="btn btn-sm btn-success" onclick="showCreateConversation('A')">+ New</button>
+                    </div>
+                    <div class="list-content" id="conversationsListA">
+                        <div class="list-empty">Login to see conversations</div>
+                    </div>
+                </div>
+
+                <!-- Chat -->
+                <div class="chat-section">
+                    <div class="chat-header">
+                        <div class="chat-title" id="chatTitleA">Select a conversation</div>
+                    </div>
+                    <div class="chat-messages" id="chatMessagesA">
+                        <div class="chat-empty">Select a conversation to start chatting</div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="messageInputA" placeholder="Type a message..." onkeypress="handleKeyPress(event, 'A')" oninput="sendTyping('A')">
+                        <button class="btn btn-primary" onclick="sendMessage('A')">➤</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User B Panel -->
+        <div class="user-panel user-b">
+            <div class="user-header">
+                <div class="user-title">👤 User B</div>
+                <div class="user-status">
+                    <div class="status-dot" id="statusB"></div>
+                    <span id="statusTextB">Disconnected</span>
+                </div>
+            </div>
+            <div class="user-body">
+                <!-- Auth -->
+                <div class="auth-section">
+                    <div class="auth-row">
+                        <input type="email" id="emailB" value="test@example.com" placeholder="Email">
+                        <input type="password" id="passwordB" value="12345678" placeholder="Password">
+                    </div>
+                    <div class="auth-row">
+                        <button class="btn btn-pink" onclick="login('B')">🔐 Login</button>
+                        <button class="btn btn-success" onclick="connect('B')" id="btnConnectB" disabled>Connect</button>
+                        <button class="btn btn-danger" onclick="disconnect('B')" id="btnDisconnectB" disabled>Disconnect</button>
+                    </div>
+                    <div id="userInfoB" style="margin-top: 8px; font-size: 11px; color: #888;"></div>
+                </div>
+
+                <!-- Users List -->
+                <div class="list-section">
+                    <div class="list-header">
+                        <span>👥 Users</span>
+                        <button class="btn btn-sm btn-info" onclick="loadUsers('B')">Refresh</button>
+                    </div>
+                    <div class="list-content" id="usersListB">
+                        <div class="list-empty">Login to see users</div>
+                    </div>
+                </div>
+
+                <!-- Conversations List -->
+                <div class="list-section">
+                    <div class="list-header">
+                        <span>💬 Conversations</span>
+                        <button class="btn btn-sm btn-success" onclick="showCreateConversation('B')">+ New</button>
+                    </div>
+                    <div class="list-content" id="conversationsListB">
+                        <div class="list-empty">Login to see conversations</div>
+                    </div>
+                </div>
+
+                <!-- Chat -->
+                <div class="chat-section">
+                    <div class="chat-header">
+                        <div class="chat-title" id="chatTitleB">Select a conversation</div>
+                    </div>
+                    <div class="chat-messages" id="chatMessagesB">
+                        <div class="chat-empty">Select a conversation to start chatting</div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="messageInputB" placeholder="Type a message..." onkeypress="handleKeyPress(event, 'B')" oninput="sendTyping('B')">
+                        <button class="btn btn-pink" onclick="sendMessage('B')">➤</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Events Panel -->
+    <div class="events-panel">
+        <div class="events-header">
+            <h3>📡 Real-time Events</h3>
+            <button class="btn btn-sm btn-warning" onclick="clearEvents()">Clear</button>
+        </div>
+        <div class="events-content" id="eventsContainer"></div>
+    </div>
+
+    <!-- Create Conversation Modal -->
+    <div class="modal-overlay" id="createConvModal">
+        <div class="modal">
+            <h3>➕ Create New Conversation</h3>
+            <input type="text" class="modal-input" id="newConvTitle" placeholder="Conversation Title">
+            <input type="text" class="modal-input" id="newConvParticipants" placeholder="Participant user keys (comma separated)">
+            <select class="modal-input" id="newConvType">
+                <option value="direct">Direct (1-on-1)</option>
+                <option value="group">Group</option>
+            </select>
+            <div class="modal-actions">
+                <button class="btn btn-danger" onclick="hideCreateConversation()">Cancel</button>
+                <button class="btn btn-success" onclick="createConversation()">Create</button>
+            </div>
+            <input type="hidden" id="createConvUser">
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = 'http://localhost:8093';
+
+        // User state
+        const users = {
+            A: { token: null, socket: null, userKey: null, accountKey: null, selectedConv: null, email: null, name: null },
+            B: { token: null, socket: null, userKey: null, accountKey: null, selectedConv: null, email: null, name: null }
+        };
+
+        let typingTimeouts = { A: null, B: null };
+
+        // ==========================================
+        // Authentication
+        // ==========================================
+
+        async function login(user) {
+            const email = document.getElementById(`email${user}`).value;
+            const password = document.getElementById(`password${user}`).value;
+
+            addEvent(user, 'login_attempt', { email });
+
+            try {
+                const response = await fetch(`${baseUrl}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.data) {
+                    users[user].token = data.data.access_token;
+                    users[user].userKey = data.data.user?.user_key;
+                    users[user].accountKey = data.data.user?.account_key;
+                    users[user].email = email;
+                    users[user].name = data.data.user?.name || email.split('@')[0];
+
+                    document.getElementById(`btnConnect${user}`).disabled = false;
+                    document.getElementById(`userInfo${user}`).innerHTML = `
+                        <strong>${users[user].name}</strong> (${users[user].userKey})
+                    `;
+
+                    addEvent(user, 'login_success', { user_key: users[user].userKey });
+
+                    // Request notification permission
+                    if (Notification.permission === 'default') {
+                        Notification.requestPermission();
+                    }
+
+                    // Auto load data
+                    loadUsers(user);
+                    loadConversations(user);
+                } else {
+                    addEvent(user, 'login_failed', data, true);
+                }
+            } catch (error) {
+                addEvent(user, 'error', { message: error.message }, true);
+            }
+        }
+
+        // ==========================================
+        // Notifications
+        // ==========================================
+
+        function showNotification(user, data) {
+            const notifDiv = document.createElement('div');
+            notifDiv.className = 'notification-toast';
+            notifDiv.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 5px;">${data.title}</div>
+                <div style="font-size: 13px; opacity: 0.9;">${data.message}</div>
+            `;
+            notifDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: ${user === 'A' ? '20px' : '50%'};
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+                max-width: 300px;
+            `;
+
+            document.body.appendChild(notifDiv);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                notifDiv.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => notifDiv.remove(), 300);
+            }, 5000);
+
+            // Click to dismiss
+            notifDiv.onclick = () => {
+                notifDiv.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => notifDiv.remove(), 300);
+            };
+        }
+
+        // ==========================================
+        // WebSocket Connection
+        // ==========================================
+
+        function connect(user) {
+            if (!users[user].token) {
+                addEvent(user, 'error', { message: 'Please login first' }, true);
+                return;
+            }
+
+            addEvent(user, 'connecting', {});
+
+            users[user].socket = io(baseUrl, {
+                query: { token: users[user].token },
+                transports: ['websocket', 'polling']
+            });
+
+            const socket = users[user].socket;
+
+            socket.on('connect', () => {
+                document.getElementById(`status${user}`).classList.add('connected');
+                document.getElementById(`statusText${user}`).textContent = 'Connected';
+                document.getElementById(`btnConnect${user}`).disabled = true;
+                document.getElementById(`btnDisconnect${user}`).disabled = false;
+                addEvent(user, 'connected', { sid: socket.id });
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById(`status${user}`).classList.remove('connected');
+                document.getElementById(`statusText${user}`).textContent = 'Disconnected';
+                document.getElementById(`btnConnect${user}`).disabled = false;
+                document.getElementById(`btnDisconnect${user}`).disabled = true;
+                addEvent(user, 'disconnected', {});
+            });
+
+            socket.on('connected', (data) => {
+                addEvent(user, 'authenticated', data);
+            });
+
+            socket.on('joined', (data) => {
+                addEvent(user, 'joined_room', data);
+            });
+
+            // Chat events - Auto-refresh for real-time sync
+            socket.on('new_message', (data) => {
+                addEvent(user, 'new_message', data);
+                handleIncomingMessage(user, data);
+                // Always refresh conversation list to update last message
+                setTimeout(() => loadConversations(user), 100);
+            });
+
+            socket.on('message', (data) => {
+                addEvent(user, 'message', data);
+                handleIncomingMessage(user, data);
+                setTimeout(() => loadConversations(user), 100);
+            });
+
+            socket.on('typing', (data) => {
+                addEvent(user, 'typing', data);
+                showTypingIndicator(user, data);
+            });
+
+            socket.on('stop_typing', (data) => {
+                const container = document.getElementById(`chatMessages${user}`);
+                const typingIndicator = container.querySelector('.message-typing');
+                if (typingIndicator) typingIndicator.remove();
+            });
+
+            // Conversation management events - Auto-refresh
+            socket.on('conversation_created', (data) => {
+                addEvent(user, 'conversation_created', data);
+                setTimeout(() => loadConversations(user), 100);
+            });
+
+            socket.on('conversation_deleted', (data) => {
+                addEvent(user, 'conversation_deleted', data);
+                // Refresh for the user who deleted it
+                if (data.deleted_by === users[user].userKey) {
+                    setTimeout(() => loadConversations(user), 100);
+                    if (users[user].selectedConv === data.conversation_id) {
+                        users[user].selectedConv = null;
+                        document.getElementById(`chatTitle${user}`).textContent = 'Select a conversation';
+                        document.getElementById(`chatMessages${user}`).innerHTML = '<div class="chat-empty">Select a conversation</div>';
+                    }
+                }
+            });
+
+            socket.on('conversation_cleared', (data) => {
+                addEvent(user, 'conversation_cleared', data);
+                if (data.cleared_by === users[user].userKey && users[user].selectedConv === data.conversation_id) {
+                    setTimeout(() => loadMessages(user), 100);
+                }
+            });
+
+            socket.on('message_deleted', (data) => {
+                addEvent(user, 'message_deleted', data);
+                // Refresh messages if viewing this conversation
+                if (users[user].selectedConv === data.conversation_id) {
+                    setTimeout(() => loadMessages(user), 100);
+                }
+                // Update conversation list (last message might have changed)
+                setTimeout(() => loadConversations(user), 100);
+            });
+
+            // Notification events - Show notification for new messages
+            socket.on('notification', (data) => {
+                addEvent(user, 'notification_received', data);
+
+                // Show browser notification if it's a message notification
+                if (data.notification_type === 'message' && Notification.permission === 'granted') {
+                    new Notification(data.title, {
+                        body: data.message,
+                        icon: '/favicon.ico',
+                        tag: data.metadata?.conversation_id
+                    });
+                }
+
+                // Show in-page notification
+                showNotification(user, data);
+            });
+
+            socket.on('error', (data) => {
+                addEvent(user, 'error', data, true);
+            });
+
+            socket.on('connect_error', (error) => {
+                addEvent(user, 'connect_error', { message: error.message }, true);
+            });
+        }
+
+        function disconnect(user) {
+            if (users[user].socket) {
+                users[user].socket.disconnect();
+                users[user].socket = null;
+            }
+        }
+
+        // ==========================================
+        // Delete & Clear Functions
+        // ==========================================
+
+        async function deleteConversation(user, convId, convTitle) {
+            if (!confirm(`Delete conversation "${convTitle}"? This will hide it from your list.`)) return;
+
+            try {
+                // Try WebSocket first if connected
+                if (users[user].socket?.connected) {
+                    users[user].socket.emit('delete_conversation', { conversation_id: convId });
+                } else {
+                    // Fallback to API
+                    const data = await apiCall(user, `/api/chat/conversations/${convId}`, 'DELETE');
+                    if (data.success) {
+                        addEvent(user, 'conversation_deleted', { conversation_id: convId });
+                        if (users[user].selectedConv === convId) {
+                            users[user].selectedConv = null;
+                            document.getElementById(`chatTitle${user}`).textContent = 'Select a conversation';
+                            document.getElementById(`chatMessages${user}`).innerHTML = '<div class="chat-empty">Select a conversation</div>';
+                        }
+                        loadConversations(user);
+                    }
+                }
+            } catch (e) {
+                addEvent(user, 'error', { message: e.message }, true);
+            }
+        }
+
+        async function clearConversation(user, convId, convTitle) {
+            if (!confirm(`Clear all messages in "${convTitle}"? Messages will be hidden for you.`)) return;
+
+            try {
+                // Try WebSocket first if connected
+                if (users[user].socket?.connected) {
+                    users[user].socket.emit('clear_conversation', { conversation_id: convId });
+                } else {
+                    // Fallback to API
+                    const data = await apiCall(user, `/api/chat/conversations/${convId}/clear`, 'POST');
+                    if (data.success) {
+                        addEvent(user, 'conversation_cleared', { conversation_id: convId });
+                        if (users[user].selectedConv === convId) {
+                            loadMessages(user);
+                        }
+                    }
+                }
+            } catch (e) {
+                addEvent(user, 'error', { message: e.message }, true);
+            }
+        }
+
+        async function deleteMessage(user, messageId, forEveryone) {
+            const confirmText = forEveryone ?
+                'Delete this message for everyone?' :
+                'Delete this message for you?';
+
+            if (!confirm(confirmText)) return;
+
+            try {
+                // Try WebSocket first if connected
+                if (users[user].socket?.connected) {
+                    users[user].socket.emit('delete_message', {
+                        message_id: messageId,
+                        for_everyone: forEveryone
+                    });
+                } else {
+                    // Fallback to API
+                    const url = `/api/chat/messages/${messageId}?for_everyone=${forEveryone}`;
+                    const data = await apiCall(user, url, 'DELETE');
+                    if (data.success) {
+                        addEvent(user, 'message_deleted', { message_id: messageId, for_everyone: forEveryone });
+                        loadMessages(user);
+                    }
+                }
+            } catch (e) {
+                addEvent(user, 'error', { message: e.message }, true);
+            }
+        }
+
+        async function deleteMessageForReceiver(user, messageId) {
+            if (!confirm('Delete this message for you?')) return;
+
+            try {
+                // Receivers can only delete for themselves via API
+                // We'll use a custom endpoint or flag to mark message as deleted for this user
+                const url = `/api/chat/messages/${messageId}/delete-for-me`;
+                const data = await apiCall(user, url, 'POST');
+
+                if (data.success) {
+                    addEvent(user, 'message_deleted_for_me', { message_id: messageId });
+                    loadMessages(user);
+                } else {
+                    // Fallback: use the same delete endpoint with for_everyone=false
+                    // This will add the user to deleted_by array
+                    const fallbackUrl = `/api/chat/messages/${messageId}?for_everyone=false`;
+                    const fallbackData = await apiCall(user, fallbackUrl, 'DELETE');
+                    if (fallbackData.success) {
+                        addEvent(user, 'message_deleted_for_me', { message_id: messageId });
+                        loadMessages(user);
+                    }
+                }
+            } catch (e) {
+                addEvent(user, 'error', { message: e.message }, true);
+            }
+        }
+
+        // ==========================================
+        // API Calls
+        // ==========================================
+
+        async function apiCall(user, endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${users[user].token}`
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const response = await fetch(`${baseUrl}${endpoint}`, options);
+            return await response.json();
+        }
+
+        // ==========================================
+        // Users
+        // ==========================================
+
+        async function loadUsers(user) {
+            if (!users[user].token) return;
+
+            try {
+                // Get users list from auth service
+                const data = await apiCall(user, '/api/users/list');
+                const container = document.getElementById(`usersList${user}`);
+
+                // API returns { success, data: { users: [...], pagination: {...} } }
+                const usersList = data.data?.users || data.data || [];
+
+                if (data.success && usersList.length > 0) {
+                    // Filter out current user
+                    const otherUsers = usersList.filter(u => u.user_key !== users[user].userKey);
+
+                    if (otherUsers.length > 0) {
+                        container.innerHTML = otherUsers.map(u => {
+                            const userName = (u.display_name || u.name || u.email || 'User').replace(/'/g, "\\'");
+                            return `
+                            <div class="list-item" onclick="selectUserForChat('${user}', '${u.user_key}', '${userName}')">
+                                <div class="list-item-title">${u.display_name || u.name || u.email || 'Unknown'}</div>
+                                <div class="list-item-meta">${u.user_key} • ${u.role || 'user'}</div>
+                            </div>
+                        `}).join('');
+                    } else {
+                        container.innerHTML = '<div class="list-empty">No other users found</div>';
+                    }
+                } else {
+                    container.innerHTML = '<div class="list-empty">No users found</div>';
+                }
+            } catch (e) {
+                document.getElementById(`usersList${user}`).innerHTML = '<div class="list-empty">Users API not available</div>';
+            }
+        }
+
+        function selectUserForChat(fromUser, targetUserKey, targetUserName) {
+            // Start a direct conversation with this user
+            document.getElementById('newConvTitle').value = `Chat with ${targetUserName}`;
+            document.getElementById('newConvParticipants').value = targetUserKey;
+            document.getElementById('newConvType').value = 'direct';
+            document.getElementById('createConvUser').value = fromUser;
+            document.getElementById('createConvModal').classList.add('show');
+        }
+
+        // ==========================================
+        // Conversations
+        // ==========================================
+
+        async function loadConversations(user) {
+            if (!users[user].token) return;
+
+            try {
+                const data = await apiCall(user, '/api/chat/conversations');
+                const container = document.getElementById(`conversationsList${user}`);
+
+                if (data.success && data.data && data.data.length > 0) {
+                    container.innerHTML = data.data.map(conv => {
+                        const title = (conv.title || 'Untitled').replace(/'/g, "\\'");
+                        return `
+                        <div class="list-item ${users[user].selectedConv === conv.conversation_id ? 'active' : ''}"
+                             onclick="selectConversation(event, '${user}', '${conv.conversation_id}', '${title}')">
+                            <div class="list-item-title">${conv.title || 'Untitled'}</div>
+                            <div class="list-item-meta">
+                                ${conv.last_message?.content?.substring(0, 30) || 'No messages'} •
+                                ${conv.participants?.length || 0} participants
+                            </div>
+                            <div style="margin-top: 4px; display: flex; gap: 4px;">
+                                <button class="btn btn-sm btn-warning" onclick="event.stopPropagation(); clearConversation('${user}', '${conv.conversation_id}', '${title}')" style="font-size:10px;padding:2px 6px;">Clear</button>
+                                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteConversation('${user}', '${conv.conversation_id}', '${title}')" style="font-size:10px;padding:2px 6px;">Delete</button>
+                            </div>
+                        </div>
+                    `}).join('');
+                } else {
+                    container.innerHTML = '<div class="list-empty">No conversations yet</div>';
+                }
+            } catch (e) {
+                document.getElementById(`conversationsList${user}`).innerHTML = `<div class="list-empty">Error: ${e.message}</div>`;
+            }
+        }
+
+        function selectConversation(evt, user, convId, title) {
+            users[user].selectedConv = convId;
+            document.getElementById(`chatTitle${user}`).textContent = title;
+
+            // Update active state
+            document.querySelectorAll(`#conversationsList${user} .list-item`).forEach(item => {
+                item.classList.remove('active');
+            });
+            if (evt && evt.target) {
+                const listItem = evt.target.closest('.list-item');
+                if (listItem) listItem.classList.add('active');
+            }
+
+            // Join the conversation room via WebSocket
+            if (users[user].socket?.connected) {
+                users[user].socket.emit('join_conversation', { conversation_id: convId });
+            }
+
+            // Load messages
+            loadMessages(user);
+        }
+
+        async function loadMessages(user) {
+            const convId = users[user].selectedConv;
+            if (!convId || !users[user].token) return;
+
+            try {
+                const data = await apiCall(user, `/api/chat/conversations/${convId}/messages`);
+                const container = document.getElementById(`chatMessages${user}`);
+
+                if (data.success && data.data && data.data.length > 0) {
+                    container.innerHTML = data.data.reverse().map(msg => {
+                        const isSent = msg.sender_key === users[user].userKey;
+                        // Both sender and receiver can delete messages
+                        const deleteOptions = isSent ? `
+                            <div style="font-size: 10px; margin-top: 4px; opacity: 0.7; cursor: pointer;">
+                                <span onclick="deleteMessage('${user}', '${msg.message_id}', false)" style="margin-right: 8px;">🗑️ Delete for me</span>
+                                <span onclick="deleteMessage('${user}', '${msg.message_id}', true)">🗑️ Delete for all</span>
+                            </div>
+                        ` : `
+                            <div style="font-size: 10px; margin-top: 4px; opacity: 0.7; cursor: pointer;">
+                                <span onclick="deleteMessageForReceiver('${user}', '${msg.message_id}')">🗑️ Delete for me</span>
+                            </div>
+                        `;
+                        return `
+                            <div class="message ${isSent ? 'sent' : 'received'}" data-message-id="${msg.message_id}">
+                                <div class="message-bubble">${msg.content}</div>
+                                <div class="message-meta">
+                                    ${isSent ? 'You' : (msg.sender_name || msg.sender_key)} •
+                                    ${new Date(msg.created_at).toLocaleTimeString()}
+                                    ${msg.is_edited ? ' (edited)' : ''}
+                                </div>
+                                ${deleteOptions}
+                            </div>
+                        `;
+                    }).join('');
+                    container.scrollTop = container.scrollHeight;
+                } else {
+                    container.innerHTML = '<div class="chat-empty">No messages yet. Start the conversation!</div>';
+                }
+            } catch (e) {
+                document.getElementById(`chatMessages${user}`).innerHTML = `<div class="chat-empty">Error loading messages</div>`;
+            }
+        }
+
+        function showCreateConversation(user) {
+            document.getElementById('newConvTitle').value = '';
+            document.getElementById('newConvParticipants').value = '';
+            document.getElementById('newConvType').value = 'group';
+            document.getElementById('createConvUser').value = user;
+            document.getElementById('createConvModal').classList.add('show');
+        }
+
+        function hideCreateConversation() {
+            document.getElementById('createConvModal').classList.remove('show');
+        }
+
+        async function createConversation() {
+            const user = document.getElementById('createConvUser').value;
+            const title = document.getElementById('newConvTitle').value;
+            const participants = document.getElementById('newConvParticipants').value.split(',').map(p => p.trim()).filter(p => p);
+            const type = document.getElementById('newConvType').value;
+
+            if (!title) {
+                alert('Please enter a title');
+                return;
+            }
+
+            try {
+                const data = await apiCall(user, '/api/chat/conversations', 'POST', {
+                    title,
+                    type,
+                    participants
+                });
+
+                if (data.success) {
+                    addEvent(user, 'conversation_created', data.data);
+                    hideCreateConversation();
+
+                    // Auto-refresh will happen via WebSocket for all connected users
+                    setTimeout(() => {
+                        loadConversations(user);
+                        // Select the new conversation
+                        selectConversation(null, user, data.data.conversation_id, title);
+                    }, 100);
+                } else {
+                    addEvent(user, 'error', data, true);
+                }
+            } catch (e) {
+                addEvent(user, 'error', { message: e.message }, true);
+            }
+        }
+
+        // ==========================================
+        // Messaging
+        // ==========================================
+
+        function sendMessage(user) {
+            const input = document.getElementById(`messageInput${user}`);
+            const content = input.value.trim();
+            const convId = users[user].selectedConv;
+
+            if (!content || !convId) return;
+
+            if (users[user].socket?.connected) {
+                // Send via WebSocket
+                users[user].socket.emit('send_message', {
+                    conversation_id: convId,
+                    content: content,
+                    type: 'text'
+                });
+
+                // Add message to UI immediately (optimistic update)
+                addMessageToUI(user, {
+                    content,
+                    sender_key: users[user].userKey,
+                    created_at: new Date().toISOString()
+                }, true);
+
+                addEvent(user, 'message_sent', { conversation_id: convId, content });
+            } else {
+                // Fallback to REST API
+                apiCall(user, `/api/chat/conversations/${convId}/messages`, 'POST', {
+                    content,
+                    type: 'text'
+                }).then(data => {
+                    if (data.success) {
+                        addMessageToUI(user, data.data, true);
+                        addEvent(user, 'message_sent', data.data);
+                    }
+                });
+            }
+
+            input.value = '';
+        }
+
+        function handleKeyPress(event, user) {
+            if (event.key === 'Enter') {
+                sendMessage(user);
+            }
+        }
+
+        function sendTyping(user) {
+            const convId = users[user].selectedConv;
+            if (!convId || !users[user].socket?.connected) return;
+
+            // Debounce typing events
+            if (typingTimeouts[user]) return;
+
+            users[user].socket.emit('typing', {
+                conversation_id: convId,
+                user_name: users[user].name || users[user].email || users[user].userKey
+            });
+
+            typingTimeouts[user] = setTimeout(() => {
+                typingTimeouts[user] = null;
+            }, 2000);
+        }
+
+        function handleIncomingMessage(user, data) {
+            // Only show if it's for the selected conversation and not from self
+            if (data.conversation_id === users[user].selectedConv &&
+                data.sender_key !== users[user].userKey) {
+                addMessageToUI(user, data, false);
+            }
+
+            // Refresh conversation list to update last message
+            loadConversations(user);
+        }
+
+        function addMessageToUI(user, msg, isSent) {
+            const container = document.getElementById(`chatMessages${user}`);
+
+            // Remove empty state if present
+            const emptyState = container.querySelector('.chat-empty');
+            if (emptyState) emptyState.remove();
+
+            // Remove typing indicator
+            const typingIndicator = container.querySelector('.message-typing');
+            if (typingIndicator) typingIndicator.remove();
+
+            const div = document.createElement('div');
+            div.className = `message ${isSent ? 'sent' : 'received'}`;
+            div.innerHTML = `
+                <div class="message-bubble">${msg.content}</div>
+                <div class="message-meta">
+                    ${isSent ? 'You' : (msg.sender_name || msg.sender_key || 'Unknown')} •
+                    ${new Date(msg.created_at || Date.now()).toLocaleTimeString()}
+                </div>
+            `;
+
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showTypingIndicator(user, data) {
+            // Only show if it's for the selected conversation
+            if (data.conversation_id !== users[user].selectedConv) return;
+
+            const container = document.getElementById(`chatMessages${user}`);
+
+            // Remove existing typing indicator
+            const existing = container.querySelector('.message-typing');
+            if (existing) existing.remove();
+
+            // Use user_name if available, otherwise fallback to user_key
+            const displayName = data.user_name || data.user_key;
+
+            const div = document.createElement('div');
+            div.className = 'message-typing';
+            div.textContent = `${displayName} is typing...`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                div.remove();
+            }, 3000);
+        }
+
+        // ==========================================
+        // Events
+        // ==========================================
+
+        function addEvent(user, type, data, isError = false) {
+            const container = document.getElementById('eventsContainer');
+            const time = new Date().toLocaleTimeString();
+
+            const div = document.createElement('div');
+            div.className = `event-item user-${user.toLowerCase()} ${isError ? 'error' : ''}`;
+            div.innerHTML = `
+                <div class="event-header">
+                    <span class="event-type">[User ${user}] ${type}</span>
+                    <span class="event-time">${time}</span>
+                </div>
+                <div class="event-data">${JSON.stringify(data, null, 2)}</div>
+            `;
+
+            container.insertBefore(div, container.firstChild);
+
+            // Keep only last 50 events
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function clearEvents() {
+            document.getElementById('eventsContainer').innerHTML = '';
+        }
+
+        // Initialize
+        addEvent('A', 'console_ready', { message: 'Multi-User Chat Console loaded' });
+    </script>
+</body>
+</html>

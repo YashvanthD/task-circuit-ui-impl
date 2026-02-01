@@ -14,7 +14,6 @@ import {
   clearCache,
   getFromCacheById,
   persistCache,
-  loadPersistedCache,
 } from './baseCache';
 import {
   listConversations,
@@ -25,6 +24,7 @@ import { getUsersSync, onUsersChange } from './usersCache';
 import { socketService, WS_EVENTS } from '../websocket';
 import { showErrorAlert } from '../alertManager';
 import { playNotificationSound } from '../notifications/sound';
+import { enrichMessageWithReceivers, calculateReceivers } from '../chat/messageUtils';
 
 // ============================================================================
 // Cache Instances
@@ -163,6 +163,10 @@ export function subscribeToChatWebSocket() {
 
   console.log('[ChatCache] Setting up WebSocket event listeners...');
 
+  // Subscribe to chat channel
+  socketService.emit(WS_EVENTS.SUBSCRIBE_CHAT, {});
+  console.log('[ChatCache] Subscribed to chat channel');
+
   // Set user as online when connected
   socketService.setOnline();
 
@@ -179,6 +183,8 @@ export function subscribeToChatWebSocket() {
   // Listen for 'connected' event from server (authentication confirmation)
   socketService.on(WS_EVENTS.CONNECTED, (data) => {
     console.log('[ChatCache] Authenticated as:', data?.user_key);
+    // Subscribe to chat channel after authentication
+    socketService.emit(WS_EVENTS.SUBSCRIBE_CHAT, {});
     // Set user as online when authenticated
     socketService.setOnline();
     // Reload conversations after authentication
@@ -192,17 +198,24 @@ export function subscribeToChatWebSocket() {
     })();
   });
 
-  // New message received (chat:message)
-  // User B receives this when User A sends a message
-  socketService.on(WS_EVENTS.MESSAGE_NEW, (message) => {
+  // Message handler function (shared for both MESSAGE and MESSAGE_NEW events)
+  const handleNewMessage = (message) => {
     // Backend sends: messageId, conversationId, senderKey, senderName, senderAvatar, content, type, status, createdAt
     const conversationId = message.conversation_id || message.conversationId;
     const messageId = message.message_id || message.messageId;
-    const senderKey = message.sender_key || message.senderKey;
+    // Extract sender with multiple fallbacks
+    const senderKey = message.sender_key || message.senderKey || message.sender || message.sender_id || message.senderId;
     let senderName = message.sender_name || message.senderName;
     const currentUserKey = getCurrentUserKey();
 
-    console.log('[ChatCache] New message received:', { messageId, conversationId, senderKey });
+    console.log('[ChatCache] New message received:', {
+      messageId,
+      conversationId,
+      senderKey,
+      rawSenderKey: message.sender_key,
+      rawSender: message.sender,
+      currentUserKey
+    });
 
     // Enrich sender_name from users cache if not provided
     if (!senderName && senderKey) {
@@ -214,6 +227,14 @@ export function subscribeToChatWebSocket() {
     // Add to messages cache
     const msgCache = getOrCreateMessagesCache(conversationId);
 
+    // Get conversation for receiver calculation
+    const conversation = conversationsCache.byId.get(String(conversationId));
+    const participants = conversation?.participants || [];
+
+    // Calculate receivers from participants
+    // Rule: receivers = participants - sender
+    const receivers = message.receivers || calculateReceivers(participants, senderKey);
+
     // Normalize message format
     const normalizedMessage = {
       message_id: messageId,
@@ -221,6 +242,7 @@ export function subscribeToChatWebSocket() {
       sender_key: senderKey,
       sender_name: senderName,
       sender_avatar: message.sender_avatar || message.senderAvatar,
+      receivers: receivers, // Add receivers field
       content: message.content,
       message_type: message.type || message.message_type || 'text',
       status: message.status || 'sent',
@@ -228,6 +250,12 @@ export function subscribeToChatWebSocket() {
       edited_at: message.edited_at || message.editedAt || null,
       reply_to: message.reply_to || message.replyTo || null,
       reactions: message.reactions || [],
+      delivered_to: message.delivered_to || message.deliveredTo || [],
+      read_by: message.read_by || message.readBy || [],
+      delivered_at: message.delivered_at || message.deliveredAt || null,
+      read_at: message.read_at || message.readAt || null,
+      is_delivered: message.is_delivered || false,
+      is_read: message.is_read || false,
     };
 
     // Check if message already exists (avoid duplicates)
@@ -291,7 +319,7 @@ export function subscribeToChatWebSocket() {
 
       // Play notification sound for new conversations (messages from others)
       if (senderKey !== currentUserKey) {
-        playNotificationSound();
+        playNotificationSound('low');
       }
     } else {
       const conv = conversationsCache.data[convIndex];
@@ -310,7 +338,7 @@ export function subscribeToChatWebSocket() {
         conversationsCache.totalUnread++;
 
         // Play notification sound for messages from others
-        playNotificationSound();
+        playNotificationSound('low');
       }
 
       // Move conversation to top if not already
@@ -323,7 +351,11 @@ export function subscribeToChatWebSocket() {
       conversationsCache.events.emit('message', { conversation_id: conversationId, message: normalizedMessage });
       persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
     }
-  });
+  };
+
+  // Listen to both MESSAGE and MESSAGE_NEW events (for compatibility)
+  socketService.on(WS_EVENTS.MESSAGE, handleNewMessage);
+  socketService.on(WS_EVENTS.MESSAGE_NEW, handleNewMessage);
 
   // Message sent confirmation (chat:message:sent)
   // User A receives this after sending a message
@@ -826,11 +858,16 @@ function getOrCreateMessagesCache(conversationId) {
  * Uses users from cache to generate mock conversations
  */
 export async function getConversations(force = false) {
-  if (!force && hasValidCache(conversationsCache)) {
+  // Always fetch if cache is empty (first load)
+  const shouldFetch = force || !conversationsCache.lastFetch || conversationsCache.data.length === 0 || !hasValidCache(conversationsCache);
+
+  if (!shouldFetch) {
+    console.log('[ChatCache] Using cached conversations:', conversationsCache.data.length);
     return conversationsCache.data;
   }
 
   if (conversationsCache.loading) {
+    console.log('[ChatCache] Already loading conversations, returning current data');
     return conversationsCache.data;
   }
 
@@ -841,11 +878,27 @@ export async function getConversations(force = false) {
     conversationsCache.totalUnread = 0;
   }
 
+  console.log('[ChatCache] Fetching conversations from API...');
   setCacheLoading(conversationsCache, true);
 
   try {
     const response = await listConversations();
-    const raw = response?.data?.conversations || [];
+    console.log('[ChatCache] API Response:', response);
+
+    // Handle different response formats:
+    // 1. {data: {conversations: [...]}} - standard wrapper
+    // 2. {data: [...]} - direct array
+    let raw = [];
+    if (response?.data) {
+      if (Array.isArray(response.data)) {
+        // Case 2: data is directly an array
+        raw = response.data;
+      } else if (response.data.conversations) {
+        // Case 1: data.conversations exists
+        raw = response.data.conversations;
+      }
+    }
+    console.log('[ChatCache] Raw conversations:', raw.length);
 
     // Users cache snapshot to enrich conversation participant info
     const usersForEnrichment = getUsersSync() || [];
@@ -910,10 +963,12 @@ export async function getConversations(force = false) {
       };
     });
 
+    console.log('[ChatCache] Normalized conversations:', normalizedConversations.length);
     updateCache(conversationsCache, normalizedConversations, 'conversation_id');
 
     // Calculate total unread
     conversationsCache.totalUnread = normalizedConversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+    console.log('[ChatCache] Cache updated:', normalizedConversations.length, 'conversations,', conversationsCache.totalUnread, 'total unread');
 
     persistCache(conversationsCache, STORAGE_KEY_CONVERSATIONS);
     setCacheLoading(conversationsCache, false);
@@ -1068,20 +1123,44 @@ export async function getMessagesForConversation(conversationId, force = false, 
     console.log('[ChatCache] Fetching messages for:', conversationId);
     const response = await getMessages(conversationId, { limit: 50, ...params });
 
-    // Get messages array from response
-    const rawMessages = response?.data?.messages || [];
+    // Handle different response formats:
+    // 1. {data: {messages: [...]}} - standard wrapper
+    // 2. {data: [...]} - direct array
+    let rawMessages = [];
+    if (response?.data) {
+      if (Array.isArray(response.data)) {
+        // Case 2: data is directly an array
+        rawMessages = response.data;
+      } else if (response.data.messages) {
+        // Case 1: data.messages exists
+        rawMessages = response.data.messages;
+      }
+    }
     console.log('[ChatCache] Received messages:', rawMessages.length);
 
     // Get users for enriching sender names
     const users = getUsersSync() || [];
     const currentUserKey = getCurrentUserKey();
 
+    // Get conversation for receiver calculation
+    const conversation = conversationsCache.byId.get(String(conversationId));
+    const participants = conversation?.participants || [];
+
     // Normalize messages to snake_case format and enrich sender names
     // Trust server data completely on fresh fetch
     const normalizedMessages = rawMessages.map((msg) => {
-        const senderKey = msg.sender_key || msg.senderKey;
+        // Extract sender with multiple fallbacks
+        const senderKey = msg.sender_key || msg.senderKey || msg.sender || msg.sender_id || msg.senderId;
         let senderName = msg.sender_name || msg.senderName;
         const msgId = msg.message_id || msg.messageId || msg.id;
+
+        console.log('[ChatCache] Normalizing message:', {
+          msgId,
+          senderKey,
+          rawSenderKey: msg.sender_key,
+          rawSender: msg.sender,
+          currentUserKey
+        });
 
         // Enrich sender_name from users cache if not provided
         if (!senderName && senderKey) {
@@ -1101,11 +1180,16 @@ export async function getMessagesForConversation(conversationId, force = false, 
           status = 'delivered';
         }
 
+        // Calculate receivers from participants if not provided
+        // Rule: receivers = participants - sender
+        const receivers = msg.receivers || calculateReceivers(participants, senderKey);
+
         return {
           message_id: msgId,
           conversation_id: msg.conversation_id || msg.conversationId || conversationId,
           sender_key: senderKey,
           sender_name: senderName,
+          receivers: receivers, // Add receivers field
           content: msg.content,
           message_type: msg.message_type || msg.type || 'text',
           status: status,
@@ -1114,7 +1198,11 @@ export async function getMessagesForConversation(conversationId, force = false, 
           reply_to: msg.reply_to || msg.replyTo || null,
           reactions: msg.reactions || [],
           delivered_at: deliveredAt,
+          delivered_to: msg.delivered_to || msg.deliveredTo || [],
           read_at: readAt,
+          read_by: msg.read_by || msg.readBy || [],
+          is_delivered: msg.is_delivered || !!deliveredAt,
+          is_read: msg.is_read || !!readAt,
        };
      });
 

@@ -1,0 +1,187 @@
+# User Entity Schema
+# Represents a user in the system
+
+User:
+  type: object
+  required:
+    - user_key
+    - account_key
+    - email
+  properties:
+    user_key:
+      type: string
+      description: Unique identifier for the user
+      example: "123456789"
+    account_key:
+      type: string
+      description: Organization/account the user belongs to
+      example: "987654321"
+    email:
+      type: string
+      format: email
+      description: User's email address
+      example: "user@example.com"
+    username:
+      type: string
+      description: User's username
+      example: "johndoe"
+    role:
+      type: string
+      enum: [owner, admin, manager, staff, viewer]
+      description: User's role in the organization
+      example: "owner"
+    status:
+      type: string
+      enum: [active, inactive, suspended, invited]
+      description: User account status
+      example: "active"
+    profile:
+      $ref: '#/UserProfile'
+    settings:
+      $ref: '#/UserSettings'
+    permissions:
+      $ref: '#/UserPermissions'
+    created_at:
+      type: string
+      format: date-time
+      description: When the user was created
+      example: "2024-01-15T10:00:00Z"
+    updated_at:
+      type: string
+      format: date-time
+      description: When the user was last updated
+      example: "2024-01-30T10:00:00Z"
+    last_login:
+      type: string
+      format: date-time
+      description: Last login timestamp
+      example: "2024-01-30T10:00:00Z"
+
+UserProfile:
+  type: object
+  properties:
+    first_name:
+      type: string
+      description: User's first name
+      example: "John"
+    last_name:
+      type: string
+      description: User's last name
+      example: "Doe"
+    phone:
+      type: string
+      description: User's phone number
+      example: "+1234567890"
+    avatar_url:
+      type: string
+      format: uri
+      description: URL to user's avatar image
+      example: "https://example.com/avatar.jpg"
+    bio:
+      type: string
+      description: User's biography
+      example: "Fish farming enthusiast"
+    address:
+      type: string
+      description: User's address
+      example: "123 Main St, City, State"
+
+UserSettings:
+  type: object
+  properties:
+    timezone:
+      type: string
+      description: User's preferred timezone
+      example: "Asia/Kolkata"
+      default: "UTC"
+    locale:
+      type: string
+      description: User's preferred locale
+      example: "en-IN"
+      default: "en-US"
+    theme:
+      type: string
+      enum: [light, dark, auto]
+      description: User's preferred theme
+      example: "light"
+      default: "light"
+    notifications_enabled:
+      type: boolean
+      description: Whether notifications are enabled
+      example: true
+      default: true
+    email_notifications:
+      type: boolean
+      description: Whether email notifications are enabled
+      example: true
+      default: true
+
+UserPermissions:
+  type: object
+  properties:
+    can_manage_users:
+      type: boolean
+      description: Permission to manage users
+      example: true
+      default: false
+    can_manage_farms:
+      type: boolean
+      description: Permission to manage farms
+      example: true
+      default: false
+    can_manage_ponds:
+      type: boolean
+      description: Permission to manage ponds
+      example: true
+      default: false
+    can_manage_stocks:
+      type: boolean
+      description: Permission to manage stocks
+      example: true
+      default: false
+    can_view_reports:
+      type: boolean
+      description: Permission to view reports
+      example: true
+      default: true
+    can_manage_settings:
+      type: boolean
+      description: Permission to manage settings
+      example: false
+      default: false
+
+UserAuthInfo:
+  type: object
+  properties:
+    username:
+      type: string
+      description: User's username
+      example: "johndoe"
+    email:
+      type: string
+      format: email
+      description: User's email
+      example: "john@example.com"
+    mfa_enabled:
+      type: boolean
+      description: Whether MFA is enabled
+      example: false
+    last_login:
+      type: string
+      format: date-time
+      description: Last login timestamp
+      example: "2024-01-30T10:00:00Z"
+
+TokenSettings:
+  type: object
+  properties:
+    access_token_expire_days:
+      type: integer
+      description: Days until access token expires
+      example: 7
+      default: 7
+    refresh_token_expire_days:
+      type: integer
+      description: Days until refresh token expires
+      example: 30
+      default: 30

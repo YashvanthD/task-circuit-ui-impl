@@ -5,7 +5,7 @@
  * @module api/auth
  */
 
-import { apiFetch } from './client';
+import { apiFetch, apiJsonFetch } from './client';
 import { API_AUTH } from './constants';
 
 /**
@@ -34,13 +34,15 @@ export function getAuthHeaders({ contentType = 'application/json', accept = 'app
 
 /**
  * Login with credentials
+ * Returns camelized JSON response
  */
 export async function login(credentials) {
-  return apiFetch(API_AUTH.LOGIN, {
+  return apiJsonFetch(API_AUTH.LOGIN, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
     skipAuth: true,
+    showErrors: false, // Let LoginPage handle errors
   });
 }
 

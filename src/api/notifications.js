@@ -7,7 +7,7 @@
 
 import { apiFetch } from './client';
 import { getAuthHeaders } from './auth';
-import { API_NOTIFICATION } from './constants';
+import { API_NOTIFICATION, API_ALERT } from './constants';
 
 // ============================================================================
 // Mock Data for Development
@@ -368,36 +368,6 @@ export async function broadcastNotification(data) {
  * @returns {Promise<object>} { alerts, count }
  */
 export async function listAlerts(params = {}) {
-  if (USE_MOCK) {
-    await new Promise((r) => setTimeout(r, 200));
-
-    let result = [...mockAlerts];
-
-    if (params.unacknowledged) {
-      result = result.filter((a) => !a.acknowledged);
-    }
-    if (params.severity) {
-      result = result.filter((a) => a.severity === params.severity);
-    }
-    if (params.type) {
-      result = result.filter((a) => a.type === params.type);
-    }
-
-    // Sort by created_at (newest first)
-    result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    const skip = params.skip || 0;
-    const limit = params.limit || 50;
-    const paginated = result.slice(skip, skip + limit);
-
-    return {
-      success: true,
-      data: {
-        alerts: paginated,
-        count: result.length,
-      },
-    };
-  }
 
   const qs = new URLSearchParams();
   if (params.unacknowledged) qs.append('unacknowledged', 'true');
@@ -408,7 +378,7 @@ export async function listAlerts(params = {}) {
 
   const queryString = qs.toString();
   try {
-    const response = await apiFetch(`${API_NOTIFICATION.ALERT_LIST}${queryString ? '?' + queryString : ''}`, {
+    const response = await apiFetch(`${API_ALERT.LIST}${queryString ? '?' + queryString : ''}`, {
       method: 'GET',
       headers: getAuthHeaders({ contentType: null }),
     });
@@ -436,7 +406,7 @@ export async function getAlert(alertId) {
   }
 
   try {
-    const response = await apiFetch(API_NOTIFICATION.ALERT_DETAIL(alertId), {
+    const response = await apiFetch(API_ALERT.DETAIL(alertId), {
       method: 'GET',
       headers: getAuthHeaders({ contentType: null }),
     });
@@ -472,7 +442,7 @@ export async function createAlert(data) {
   }
 
   try {
-    const response = await apiFetch(API_NOTIFICATION.ALERT_CREATE, {
+    const response = await apiFetch(API_ALERT.CREATE, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(data),
@@ -506,13 +476,48 @@ export async function acknowledgeAlert(alertId) {
   }
 
   try {
-    const response = await apiFetch(API_NOTIFICATION.ALERT_ACKNOWLEDGE(alertId), {
+    const response = await apiFetch(API_ALERT.ACKNOWLEDGE(alertId), {
       method: 'PUT',
       headers: getAuthHeaders({ contentType: null }),
     });
     return response.json();
   } catch (error) {
     console.error('[Notifications API] Failed to acknowledge alert:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Resolve an alert
+ * @param {string} alertId - Alert ID
+ * @returns {Promise<object>} Updated alert
+ */
+export async function resolveAlert(alertId) {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 100));
+    const index = mockAlerts.findIndex((a) => a.alert_id === alertId);
+    if (index !== -1) {
+      mockAlerts[index] = {
+        ...mockAlerts[index],
+        resolved: true,
+        resolved_at: new Date().toISOString(),
+        resolved_by: 'current_user',
+        acknowledged: true,
+        acknowledged_at: mockAlerts[index].acknowledged_at || new Date().toISOString(),
+      };
+      return { success: true, data: mockAlerts[index] };
+    }
+    return { success: false, error: 'Alert not found' };
+  }
+
+  try {
+    const response = await apiFetch(API_ALERT.RESOLVE(alertId), {
+      method: 'PUT',
+      headers: getAuthHeaders({ contentType: null }),
+    });
+    return response.json();
+  } catch (error) {
+    console.error('[Notifications API] Failed to resolve alert:', error);
     return { success: false, error: error.message };
   }
 }
@@ -534,7 +539,7 @@ export async function deleteAlert(alertId) {
   }
 
   try {
-    const response = await apiFetch(API_NOTIFICATION.ALERT_DELETE(alertId), {
+    const response = await apiFetch(API_ALERT.DELETE(alertId), {
       method: 'DELETE',
       headers: getAuthHeaders({ contentType: null }),
     });

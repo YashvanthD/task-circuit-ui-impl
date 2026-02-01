@@ -5,7 +5,7 @@
  * @module utils/notifications/notificationsStore
  */
 
-import { STORAGE_KEYS, CACHE_TTL } from './constants';
+import { NOTIFICATION_STORAGE_KEYS, CACHE_TTL } from '../../constants';
 import { notificationEvents, NOTIFICATION_EVENTS, createEventEmitter } from './events';
 import { normalizeNotification } from './normalizers';
 import { listNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from '../../api/notifications';
@@ -43,7 +43,7 @@ function persistToStorage() {
       unreadCount: state.unreadCount,
       lastFetch: state.lastFetch,
     };
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(toStore));
+    localStorage.setItem(NOTIFICATION_STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(toStore));
   } catch (e) {
     // Ignore storage errors
   }
@@ -51,7 +51,7 @@ function persistToStorage() {
 
 function loadFromStorage() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+    const stored = localStorage.getItem(NOTIFICATION_STORAGE_KEYS.NOTIFICATIONS);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.lastFetch && Date.now() - parsed.lastFetch < CACHE_TTL.NOTIFICATIONS) {
@@ -182,7 +182,7 @@ export function clearCache() {
   state.unreadCount = 0;
   state.lastFetch = null;
   state.error = null;
-  localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+  localStorage.removeItem(NOTIFICATION_STORAGE_KEYS.NOTIFICATIONS);
   events.emit('updated', state.data);
 }
 

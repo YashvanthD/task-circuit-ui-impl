@@ -11,14 +11,15 @@ import * as messagesStoreModule from './messagesStore';
 import * as typingStoreModule from './typingStore';
 import { subscribeToWebSocket } from './wsHandler';
 
-// Constants
-export { STORAGE_KEYS, CACHE_TTL, MESSAGE_STATUS, CONVERSATION_TYPE } from './constants';
-
 // Events
 export { chatEvents, CHAT_EVENTS, createEventEmitter } from './events';
 
 // Normalizers
 export { normalizeMessage, normalizeConversation, normalizeParticipantsInfo, createLastMessage } from './normalizers';
+
+// Message utilities (sender/receiver differentiation)
+export * from './messageUtils';
+export { default as messageUtils } from './messageUtils';
 
 // Stores
 

@@ -1,0 +1,56 @@
+# Purchase Entity Schema
+# Represents a purchase record
+
+Purchase:
+  type: object
+  required:
+    - purchase_id
+    - purchase_date
+    - item_type
+  properties:
+    purchase_id:
+      type: string
+      description: Unique identifier for the purchase record
+      example: "purch_555"
+    purchase_date:
+      type: string
+      format: date
+      description: Date of purchase
+      example: "2024-01-10"
+    item_type:
+      type: string
+      description: Type of item purchased
+      example: "feed"
+      enum: [feed, fingerlings, equipment, medication, supplies, other]
+    item_name:
+      type: string
+      description: Name of item purchased
+      example: "Fish Pellets"
+    quantity:
+      type: number
+      format: double
+      description: Quantity purchased
+      example: 1000
+    unit:
+      type: string
+      description: Unit of measurement
+      example: "kg"
+    price_per_unit:
+      type: number
+      format: double
+      description: Price per unit
+      example: 100
+    total_cost:
+      type: number
+      format: double
+      description: Total cost of purchase
+      example: 100000
+    supplier:
+      type: string
+      description: Supplier name
+      example: "ABC Feed Co."
+    created_at:
+      type: string
+      format: date-time
+      description: When the record was created
+      example: "2024-01-10T10:00:00Z"

@@ -1,475 +1,324 @@
 /**
  * FishForm Component
- * Comprehensive form for adding/editing fish species with all fields.
+ * Form for adding/editing fish using reusable form components
  *
  * @module components/fish/forms/FishForm
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Grid, Button, Collapse } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+
 import {
-  Typography,
-  TextField,
-  Button,
-  Stack,
-  Grid,
-  Autocomplete,
-  IconButton,
-  Divider,
-  Chip,
-  Box,
-  FormControlLabel,
-  Switch,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import RefreshIcon from '@mui/icons-material/Refresh';
+  FormContainer,
+  FormSection,
+  FormField,
+  FormDropdown,
+  FormKeyValue,
+  FormActions
+} from '../../common/forms';
 
-import { getPondOptions } from '../../../utils/options';
-
-// ============================================================================
-// Main Component
-// ============================================================================
+import { Fish } from '../../../models';
+import { fetchPonds } from '../../../services';
 
 /**
- * FishForm - Form for adding/editing fish
+ * FishForm - Clean form using reusable components
  *
  * @param {Object} props
- * @param {Object} props.initialData - Initial form data
+ * @param {Object} props.initialData - Initial form data (Fish model or raw data)
  * @param {Function} props.onSubmit - Submit callback
  * @param {Function} props.onCancel - Cancel callback
- * @param {Array} props.pondOptions - Available pond options (optional, will fetch if not provided)
+ * @param {boolean} props.loading - Loading state
  * @param {string} props.mode - 'add' or 'edit'
  */
 export default function FishForm({
   initialData = {},
   onSubmit,
   onCancel,
-  pondOptions: externalPondOptions,
+  loading = false,
   mode = 'add',
 }) {
   const isEdit = mode === 'edit';
-  const mountedRef = useRef(true);
 
-  // Form state
-  const [form, setForm] = useState(() => ({
-    // Basic info
-    common_name: initialData.common_name || initialData.name || '',
-    scientific_name: initialData.scientific_name || '',
-    local_name: initialData.local_name || '',
+  // Initialize form with default data or initial data
+  const [form, setForm] = useState(() => {
+    if (initialData && Object.keys(initialData).length > 0) {
+      // If editing, convert Fish model/API data to form format
+      const fish = new Fish(initialData);
+      return {
+        common_name: fish.common_name || '',
+        scientific_name: fish.scientific_name || '',
+        local_name: fish.local_name || '',
+        count: fish.count || '',
+        average_weight: fish.average_weight || '',
+        min_weight: fish.min_weight || '',
+        max_weight: fish.max_weight || '',
+        ponds: fish.ponds || [],
+        capture_date: fish.capture_date || '',
+        stock_date: fish.stock_date || '',
+        status: fish.status || 'active',
+        source: fish.source || '',
+        notes: fish.notes || '',
+        price_per_kg: fish.price_per_kg || '',
+        custom_fields: fish.custom_fields || {}
+      };
+    }
+    // If adding new, use default form data
+    return Fish.getDefaultFormData();
+  });
 
-    // Counts and measurements
-    count: initialData.count || initialData.total_count || 0,
-    average_weight: initialData.average_weight || initialData.avg_weight || 0,
-    min_weight: initialData.min_weight || 0,
-    max_weight: initialData.max_weight || 0,
-
-    // Location
-    ponds: initialData.ponds
-      ? (Array.isArray(initialData.ponds) ? initialData.ponds : [initialData.ponds])
-      : [],
-
-    // Dates
-    capture_date: initialData.capture_date || '',
-    stock_date: initialData.stock_date || '',
-
-    // Additional info
-    status: initialData.status || 'active',
-    source: initialData.source || '',
-    notes: initialData.notes || '',
-
-    // Custom fields
-    custom_fields: initialData.custom_fields || {},
-
-    // Track if selling/pricing info
-    include_pricing: Boolean(initialData.price_per_kg),
-    price_per_kg: initialData.price_per_kg || 0,
-  }));
-
-  // Custom fields input state
-  const [newCustomField, setNewCustomField] = useState({ key: '', value: '' });
-
-  // Pond options state
-  const [pondOptions, setPondOptions] = useState(externalPondOptions || []);
+  // Ponds state
+  const [ponds, setPonds] = useState([]);
   const [loadingPonds, setLoadingPonds] = useState(false);
+
+  // UI state
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Status options
   const statusOptions = ['active', 'inactive', 'harvested', 'sold'];
 
+  // Load ponds
   useEffect(() => {
-    mountedRef.current = true;
-    if (!externalPondOptions) {
-      loadPonds();
-    }
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [externalPondOptions]);
+    loadPonds();
+  }, []);
 
   const loadPonds = async () => {
     setLoadingPonds(true);
     try {
-      const options = await getPondOptions({ force: false });
-      if (mountedRef.current) {
-        setPondOptions(Array.isArray(options) ? options : []);
-      }
-    } catch (e) {
-      console.warn('Failed to load pond options:', e);
+      const pondsList = await fetchPonds();
+      setPonds(pondsList);
+    } catch (error) {
+      console.error('[FishForm] Failed to load ponds:', error);
     } finally {
-      if (mountedRef.current) {
-        setLoadingPonds(false);
-      }
+      setLoadingPonds(false);
     }
   };
 
+  // Handle field change
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleAddCustomField = () => {
-    if (newCustomField.key.trim()) {
-      setForm((prev) => ({
-        ...prev,
-        custom_fields: {
-          ...prev.custom_fields,
-          [newCustomField.key.trim()]: newCustomField.value,
-        },
-      }));
-      setNewCustomField({ key: '', value: '' });
+  // Handle submit
+  const handleSubmit = () => {
+    // Create Fish model from form data
+    const fish = Fish.fromFormData(form);
+
+    // Validate
+    if (!fish.isValid()) {
+      console.error('[FishForm] Validation errors:', fish.errors);
+      // TODO: Show validation errors to user
+      return;
     }
-  };
 
-  const handleRemoveCustomField = (key) => {
-    setForm((prev) => {
-      const { [key]: removed, ...rest } = prev.custom_fields;
-      return { ...prev, custom_fields: rest };
-    });
-  };
-
-  const handleSubmit = (e) => {
-    e?.preventDefault();
-
-    // Normalize ponds to IDs
-    const pondIds = form.ponds.map((p) =>
-      typeof p === 'object' ? p.id || p.pond_id : p
-    );
-
-    const payload = {
-      ...form,
-      ponds: pondIds,
-      count: Number(form.count) || 0,
-      average_weight: Number(form.average_weight) || 0,
-      min_weight: Number(form.min_weight) || 0,
-      max_weight: Number(form.max_weight) || 0,
-      price_per_kg: form.include_pricing ? Number(form.price_per_kg) || 0 : null,
-    };
-
-    // Remove temporary fields
-    delete payload.include_pricing;
-
+    // Submit API payload
     if (onSubmit) {
-      onSubmit(payload);
+      onSubmit(fish.toAPIPayload());
     }
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit}>
+    <FormContainer
+      title={isEdit ? 'Edit Fish' : 'Add New Fish'}
+      onSubmit={handleSubmit}
+    >
       <Grid container spacing={3}>
         {/* Basic Information */}
-        <Grid item xs={12}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-            Basic Information
-          </Typography>
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <TextField
+        <FormSection
+          title="Basic Information"
+          subtitle="Enter the fish species details"
+        >
+          <FormField
             label="Common Name"
             value={form.common_name}
             onChange={(e) => handleChange('common_name', e.target.value)}
-            fullWidth
             required
+            placeholder="e.g., Tilapia"
+            helperText="Primary name for this fish species"
+            xs={12} sm={6}
           />
-        </Grid>
 
-        <Grid item xs={12} sm={6}>
-          <TextField
+          <FormField
             label="Scientific Name"
             value={form.scientific_name}
             onChange={(e) => handleChange('scientific_name', e.target.value)}
-            fullWidth
+            placeholder="e.g., Oreochromis niloticus"
+            helperText="Optional scientific classification"
+            xs={12} sm={6}
           />
-        </Grid>
 
-        <Grid item xs={12} sm={6}>
-          <TextField
+          <FormField
             label="Local Name"
             value={form.local_name}
             onChange={(e) => handleChange('local_name', e.target.value)}
-            fullWidth
+            placeholder="Local/regional name"
+            xs={12} sm={6}
           />
-        </Grid>
 
-        <Grid item xs={12} sm={6}>
-          <Autocomplete
-            options={statusOptions}
+          <FormDropdown
+            label="Status"
             value={form.status}
             onChange={(e, val) => handleChange('status', val || 'active')}
-            renderInput={(params) => (
-              <TextField {...params} label="Status" fullWidth />
-            )}
+            options={statusOptions}
+            required
+            xs={12} sm={6}
           />
-        </Grid>
+        </FormSection>
 
-        {/* Counts and Measurements */}
-        <Grid item xs={12}>
-          <Divider sx={{ my: 1 }} />
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2, mb: 1 }}>
-            Counts & Measurements
-          </Typography>
-        </Grid>
-
-        <Grid item xs={12} sm={3}>
-          <TextField
-            label="Count"
+        {/* Quantity & Measurements */}
+        <FormSection
+          title="Quantity & Measurements"
+          subtitle="Fish count and weight details"
+        >
+          <FormField
+            label="Total Count"
             type="number"
             value={form.count}
             onChange={(e) => handleChange('count', e.target.value)}
-            fullWidth
+            unit="fish"
+            inputProps={{ min: 0 }}
+            xs={12} sm={6} md={3}
           />
-        </Grid>
 
-        <Grid item xs={12} sm={3}>
-          <TextField
-            label="Average Weight (g)"
+          <FormField
+            label="Average Weight"
             type="number"
             value={form.average_weight}
             onChange={(e) => handleChange('average_weight', e.target.value)}
-            fullWidth
+            unit="g"
+            inputProps={{ min: 0, step: 0.1 }}
+            xs={12} sm={6} md={3}
           />
-        </Grid>
 
-        <Grid item xs={12} sm={3}>
-          <TextField
-            label="Min Weight (g)"
+          <FormField
+            label="Min Weight"
             type="number"
             value={form.min_weight}
             onChange={(e) => handleChange('min_weight', e.target.value)}
-            fullWidth
+            unit="g"
+            inputProps={{ min: 0, step: 0.1 }}
+            xs={12} sm={6} md={3}
           />
-        </Grid>
 
-        <Grid item xs={12} sm={3}>
-          <TextField
-            label="Max Weight (g)"
+          <FormField
+            label="Max Weight"
             type="number"
             value={form.max_weight}
             onChange={(e) => handleChange('max_weight', e.target.value)}
-            fullWidth
+            unit="g"
+            inputProps={{ min: 0, step: 0.1 }}
+            xs={12} sm={6} md={3}
           />
-        </Grid>
+        </FormSection>
 
         {/* Location */}
-        <Grid item xs={12}>
-          <Divider sx={{ my: 1 }} />
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2, mb: 1 }}>
-            Location
-          </Typography>
-        </Grid>
-
-        <Grid item xs={11}>
-          <Autocomplete
-            multiple
-            options={pondOptions}
-            getOptionLabel={(opt) => opt.label || opt.id || String(opt)}
-            value={form.ponds.map((p) =>
-              pondOptions.find((o) => o.id === p || o.id === p?.id) || { id: p, label: String(p) }
-            )}
+        <FormSection
+          title="Location"
+          subtitle="Select ponds where this fish is located"
+        >
+          <FormDropdown
+            label="Ponds"
+            value={form.ponds}
             onChange={(e, val) => handleChange('ponds', val)}
+            options={ponds}
+            getOptionLabel={(opt) => opt.name || opt.pond_id || 'Unnamed Pond'}
+            multiple
             loading={loadingPonds}
-            renderInput={(params) => (
-              <TextField {...params} label="Ponds" fullWidth />
-            )}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  label={option.label || option.id}
-                  size="small"
-                  {...getTagProps({ index })}
-                  key={option.id || index}
+            onRefresh={loadPonds}
+            helperText="Select one or more ponds"
+            xs={12}
+          />
+        </FormSection>
+
+        {/* Advanced Options (Collapsible) */}
+        <Grid item xs={12} sx={{ mt: 2 }}>
+          <Button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            endIcon={showAdvanced ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {showAdvanced ? 'Hide' : 'Show'} Advanced Options
+          </Button>
+        </Grid>
+
+        <Grid item xs={12}>
+          <Collapse in={showAdvanced}>
+            <Grid container spacing={3}>
+              {/* Dates Section */}
+              <FormSection title="Dates" divider={false}>
+                <FormField
+                  label="Capture Date"
+                  type="date"
+                  value={form.capture_date}
+                  onChange={(e) => handleChange('capture_date', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  xs={12} sm={6}
                 />
-              ))
-            }
-          />
+
+                <FormField
+                  label="Stock Date"
+                  type="date"
+                  value={form.stock_date}
+                  onChange={(e) => handleChange('stock_date', e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  xs={12} sm={6}
+                />
+              </FormSection>
+
+              {/* Additional Information Section */}
+              <FormSection title="Additional Information" divider={false}>
+                <FormField
+                  label="Source"
+                  value={form.source}
+                  onChange={(e) => handleChange('source', e.target.value)}
+                  placeholder="e.g., Hatchery, Wild caught"
+                  xs={12} sm={6}
+                />
+
+                <FormField
+                  label="Price per kg"
+                  type="number"
+                  value={form.price_per_kg}
+                  onChange={(e) => handleChange('price_per_kg', e.target.value)}
+                  unit="₹"
+                  unitPosition="start"
+                  inputProps={{ min: 0, step: 0.01 }}
+                  xs={12} sm={6}
+                />
+
+                <FormField
+                  label="Notes"
+                  value={form.notes}
+                  onChange={(e) => handleChange('notes', e.target.value)}
+                  multiline
+                  rows={3}
+                  placeholder="Additional notes or observations..."
+                  xs={12}
+                />
+              </FormSection>
+
+              {/* Custom Fields Section */}
+              <Grid item xs={12}>
+                <FormKeyValue
+                  label="Custom Fields"
+                  value={form.custom_fields}
+                  onChange={(newFields) => handleChange('custom_fields', newFields)}
+                  keyLabel="Field Name"
+                  valueLabel="Field Value"
+                />
+              </Grid>
+            </Grid>
+          </Collapse>
         </Grid>
 
-        <Grid item xs={1} sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton onClick={() => loadPonds()} title="Refresh ponds">
-            <RefreshIcon />
-          </IconButton>
-        </Grid>
-
-        {/* Dates */}
-        <Grid item xs={12}>
-          <Divider sx={{ my: 1 }} />
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2, mb: 1 }}>
-            Dates
-          </Typography>
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <TextField
-            label="Capture Date"
-            type="date"
-            value={form.capture_date}
-            onChange={(e) => handleChange('capture_date', e.target.value)}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <TextField
-            label="Stock Date"
-            type="date"
-            value={form.stock_date}
-            onChange={(e) => handleChange('stock_date', e.target.value)}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
-        </Grid>
-
-        {/* Additional Info */}
-        <Grid item xs={12}>
-          <Divider sx={{ my: 1 }} />
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2, mb: 1 }}>
-            Additional Information
-          </Typography>
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <TextField
-            label="Source"
-            value={form.source}
-            onChange={(e) => handleChange('source', e.target.value)}
-            fullWidth
-            placeholder="e.g., Hatchery, Wild caught"
-          />
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.include_pricing}
-                onChange={(e) => handleChange('include_pricing', e.target.checked)}
-              />
-            }
-            label="Include pricing"
-          />
-          {form.include_pricing && (
-            <TextField
-              label="Price per kg"
-              type="number"
-              value={form.price_per_kg}
-              onChange={(e) => handleChange('price_per_kg', e.target.value)}
-              fullWidth
-              sx={{ mt: 1 }}
-            />
-          )}
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField
-            label="Notes"
-            value={form.notes}
-            onChange={(e) => handleChange('notes', e.target.value)}
-            fullWidth
-            multiline
-            rows={3}
-          />
-        </Grid>
-
-        {/* Custom Fields */}
-        <Grid item xs={12}>
-          <Divider sx={{ my: 1 }} />
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 2, mb: 1 }}>
-            Custom Fields
-          </Typography>
-        </Grid>
-
-        {Object.entries(form.custom_fields).map(([key, value]) => (
-          <Grid item xs={12} key={key}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <TextField
-                label="Field"
-                value={key}
-                disabled
-                size="small"
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                label="Value"
-                value={value}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    custom_fields: { ...prev.custom_fields, [key]: e.target.value },
-                  }))
-                }
-                size="small"
-                sx={{ flex: 2 }}
-              />
-              <IconButton
-                onClick={() => handleRemoveCustomField(key)}
-                color="error"
-                size="small"
-              >
-                <DeleteIcon />
-              </IconButton>
-            </Stack>
-          </Grid>
-        ))}
-
-        <Grid item xs={12}>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <TextField
-              label="New Field Name"
-              value={newCustomField.key}
-              onChange={(e) => setNewCustomField((prev) => ({ ...prev, key: e.target.value }))}
-              size="small"
-              sx={{ flex: 1 }}
-            />
-            <TextField
-              label="Value"
-              value={newCustomField.value}
-              onChange={(e) => setNewCustomField((prev) => ({ ...prev, value: e.target.value }))}
-              size="small"
-              sx={{ flex: 2 }}
-            />
-            <IconButton
-              onClick={handleAddCustomField}
-              color="primary"
-              disabled={!newCustomField.key.trim()}
-            >
-              <AddIcon />
-            </IconButton>
-          </Stack>
-        </Grid>
-
-        {/* Actions */}
-        <Grid item xs={12}>
-          <Divider sx={{ my: 2 }} />
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button variant="outlined" onClick={onCancel}>
-              Cancel
-            </Button>
-            <Button variant="contained" type="submit">
-              {isEdit ? 'Update' : 'Add'} Fish
-            </Button>
-          </Stack>
-        </Grid>
+        {/* Form Actions */}
+        <FormActions
+          submitText={isEdit ? 'Update Fish' : 'Add Fish'}
+          onCancel={onCancel}
+          loading={loading}
+        />
       </Grid>
-    </Box>
+    </FormContainer>
   );
 }
-

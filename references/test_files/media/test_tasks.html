@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasks Test Console</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a1a;
+            color: #eee;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2ed573 0%, #12CBC4 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 { font-size: 24px; }
+        .header p { opacity: 0.9; margin-top: 5px; font-size: 14px; }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: #12122a;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #2ed573;
+        }
+
+        .auth-section {
+            background: #0a0a1a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #eee;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #2ed573; color: white; }
+        .btn-warning { background: #ffa502; color: white; }
+        .btn-danger { background: #ff4757; color: white; }
+        .btn-info { background: #1e90ff; color: white; }
+        .btn { margin-right: 8px; margin-bottom: 8px; }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4757;
+        }
+        .status-dot.connected { background: #2ed573; }
+
+        .task-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .task-item {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #2ed573;
+        }
+        .task-item.status-pending { border-color: #ffd32a; }
+        .task-item.status-in_progress { border-color: #1e90ff; }
+        .task-item.status-completed { border-color: #2ed573; opacity: 0.7; }
+        .task-item.status-cancelled { border-color: #95afc0; opacity: 0.5; }
+        .task-item.priority-urgent { border-color: #ff4757; }
+        .task-item.priority-high { border-color: #ffa502; }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        .task-title { font-weight: 600; font-size: 16px; }
+        .task-badges {
+            display: flex;
+            gap: 6px;
+        }
+        .task-badge {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .task-status {
+            background: #95afc0;
+            color: #000;
+        }
+        .task-status.pending { background: #ffd32a; color: #000; }
+        .task-status.in_progress { background: #1e90ff; }
+        .task-status.completed { background: #2ed573; }
+        .task-status.cancelled { background: #95afc0; color: #000; }
+
+        .task-priority {
+            background: #95afc0;
+            color: #000;
+        }
+        .task-priority.urgent { background: #ff4757; color: white; }
+        .task-priority.high { background: #ffa502; color: white; }
+        .task-priority.normal { background: #1e90ff; color: white; }
+
+        .task-description { margin: 10px 0; color: #ccc; }
+        .task-meta {
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+        }
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .task-actions button {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .events {
+            background: #0a0a1a;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .event {
+            padding: 8px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #1a1a2e;
+            border-left: 3px solid #667eea;
+        }
+        .event.error { border-color: #ff4757; background: #ff475722; }
+
+        .filter-section {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .filter-section label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-card {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        .stat-card.pending .stat-number { color: #ffd32a; }
+        .stat-card.in_progress .stat-number { color: #1e90ff; }
+        .stat-card.completed .stat-number { color: #2ed573; }
+        .stat-card.total .stat-number { color: #95afc0; }
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✅ Tasks Test Console</h1>
+        <p>Create, manage, and track tasks with real-time WebSocket updates</p>
+    </div>
+
+    <div class="container">
+        <!-- Left Panel -->
+        <div class="panel">
+            <h2>Authentication & Controls</h2>
+
+            <div class="auth-section">
+                <input type="email" id="email" value="yash@example.com" placeholder="Email">
+                <input type="password" id="password" value="12345678" placeholder="Password">
+                <button class="btn btn-primary" onclick="login()">🔐 Login</button>
+                <button class="btn btn-success" id="btnConnect" onclick="connect()" disabled>📡 Connect WS</button>
+                <div class="status">
+                    <div class="status-dot" id="status"></div>
+                    <span id="statusText">Disconnected</span>
+                </div>
+                <div id="userInfo" style="font-size: 12px; color: #888;"></div>
+            </div>
+
+            <h2>Create Task</h2>
+            <div class="form-group">
+                <label>Title</label>
+                <input type="text" id="taskTitle" placeholder="Task title">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="taskDescription" rows="3" placeholder="Task description"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="taskType">
+                    <option value="general">General</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="feeding">Feeding</option>
+                    <option value="sampling">Sampling</option>
+                    <option value="harvest">Harvest</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Priority</label>
+                <select id="taskPriority">
+                    <option value="low">Low</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                </select>
+            </div>
+            <button class="btn btn-success" onclick="createTask()">✨ Create Task</button>
+            <button class="btn btn-info" onclick="createTaskViaWS()">✨ Create via WebSocket</button>
+
+            <div class="events" id="events">
+                <strong>Events Log</strong>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>Tasks List</h2>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card total">
+                    <div class="stat-number" id="totalCount">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-card pending">
+                    <div class="stat-number" id="pendingCount">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+                <div class="stat-card in_progress">
+                    <div class="stat-number" id="inProgressCount">0</div>
+                    <div class="stat-label">In Progress</div>
+                </div>
+                <div class="stat-card completed">
+                    <div class="stat-number" id="completedCount">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <label>Filter by Status</label>
+                <select id="filterStatus" onchange="loadTasks()">
+                    <option value="">All</option>
+                    <option value="pending" selected>Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+                <label style="margin-top: 10px;">Filter by Priority</label>
+                <select id="filterPriority" onchange="loadTasks()">
+                    <option value="">All</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="high">High</option>
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+
+            <div class="task-list" id="tasksList">
+                <p style="text-align: center; color: #666; padding: 40px;">Login to see tasks</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const baseUrl = 'http://localhost:8093';
+        let token = null;
+        let userKey = null;
+        let accountKey = null;
+        let socket = null;
+
+        // ===== Authentication =====
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${baseUrl}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                if (response.ok && data.data) {
+                    token = data.data.access_token;
+                    userKey = data.data.user?.user_key;
+                    accountKey = data.data.user?.account_key;
+
+                    document.getElementById('btnConnect').disabled = false;
+                    document.getElementById('userInfo').textContent =
+                        `Logged in as: ${data.data.user?.name || email}`;
+
+                    addEvent('login_success', data.data);
+                    loadTasks();
+                } else {
+                    addEvent('login_error', data, true);
+                    alert('Login failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                addEvent('login_error', { message: e.message }, true);
+                alert('Login error: ' + e.message);
+            }
+        }
+
+        // ===== WebSocket =====
+        function connect() {
+            socket = io(baseUrl, {
+                query: { token },
+                transports: ['websocket']
+            });
+
+            socket.on('connect', () => {
+                document.getElementById('status').classList.add('connected');
+                document.getElementById('statusText').textContent = 'Connected';
+                addEvent('ws_connected', { sid: socket.id });
+
+                // Subscribe to tasks
+                socket.emit('subscribe_tasks', {});
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('status').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                addEvent('ws_disconnected', {});
+            });
+
+            socket.on('subscribed', (data) => {
+                addEvent('subscribed', data);
+            });
+
+            // Task events - Auto-refresh
+            socket.on('task_created', (data) => {
+                addEvent('task_created', data);
+                setTimeout(() => loadTasks(), 100);
+            });
+
+            socket.on('task_started', (data) => {
+                addEvent('task_started', data);
+                setTimeout(() => loadTasks(), 100);
+            });
+
+            socket.on('task_completed', (data) => {
+                addEvent('task_completed', data);
+                setTimeout(() => loadTasks(), 100);
+            });
+
+            socket.on('task_cancelled', (data) => {
+                addEvent('task_cancelled', data);
+                setTimeout(() => loadTasks(), 100);
+            });
+
+            socket.on('task_assigned', (data) => {
+                addEvent('task_assigned', data);
+                setTimeout(() => loadTasks(), 100);
+            });
+
+            socket.on('task_deleted', (data) => {
+                addEvent('task_deleted', data);
+                setTimeout(() => loadTasks(), 100);
+            });
+
+            socket.on('error', (data) => {
+                addEvent('error', data, true);
+            });
+        }
+
+        // ===== API Calls =====
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const response = await fetch(`${baseUrl}${endpoint}`, options);
+            return await response.json();
+        }
+
+        // ===== Load Tasks =====
+        async function loadTasks() {
+            if (!token) return;
+
+            const status = document.getElementById('filterStatus').value;
+            const priority = document.getElementById('filterPriority').value;
+
+            let url = '/api/tasks/?limit=100';
+            if (status) url += `&status=${status}`;
+            if (priority) url += `&priority=${priority}`;
+
+            try {
+                const data = await apiCall(url);
+
+                if (data.success && data.data) {
+                    const tasks = data.data;
+                    const container = document.getElementById('tasksList');
+
+                    // Update stats
+                    document.getElementById('totalCount').textContent = tasks.length;
+                    document.getElementById('pendingCount').textContent =
+                        tasks.filter(t => t.status === 'pending').length;
+                    document.getElementById('inProgressCount').textContent =
+                        tasks.filter(t => t.status === 'in_progress').length;
+                    document.getElementById('completedCount').textContent =
+                        tasks.filter(t => t.status === 'completed').length;
+
+                    if (tasks.length === 0) {
+                        container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No tasks found</p>';
+                        return;
+                    }
+
+                    container.innerHTML = tasks.map(task => `
+                        <div class="task-item status-${task.status} priority-${task.priority}">
+                            <div class="task-header">
+                                <div class="task-title">${task.title}</div>
+                                <div class="task-badges">
+                                    <div class="task-status ${task.status}">${task.status.replace('_', ' ')}</div>
+                                    <div class="task-priority ${task.priority}">${task.priority}</div>
+                                </div>
+                            </div>
+                            ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
+                            <div class="task-meta">
+                                Type: <strong>${task.task_type || 'general'}</strong> •
+                                Created: ${new Date(task.created_at).toLocaleString()}
+                            </div>
+                            <div class="task-actions">
+                                ${task.status === 'pending' ? `
+                                    <button class="btn-info" onclick="startTask('${task.task_id}')">▶️ Start</button>
+                                ` : ''}
+                                ${task.status === 'in_progress' ? `
+                                    <button class="btn-success" onclick="completeTask('${task.task_id}')">✅ Complete</button>
+                                ` : ''}
+                                ${task.status !== 'completed' && task.status !== 'cancelled' ? `
+                                    <button class="btn-warning" onclick="cancelTask('${task.task_id}')">❌ Cancel</button>
+                                ` : ''}
+                                <button class="btn-danger" onclick="deleteTask('${task.task_id}')">🗑️ Delete</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                addEvent('load_tasks_error', { message: e.message }, true);
+            }
+        }
+
+        // ===== Create Task =====
+        async function createTask() {
+            const title = document.getElementById('taskTitle').value;
+            const description = document.getElementById('taskDescription').value;
+            const type = document.getElementById('taskType').value;
+            const priority = document.getElementById('taskPriority').value;
+
+            if (!title) {
+                alert('Please enter a title');
+                return;
+            }
+
+            try {
+                const data = await apiCall('/api/tasks/', 'POST', {
+                    title,
+                    description,
+                    type,
+                    priority
+                });
+
+                if (data.success) {
+                    addEvent('task_created', data.data);
+                    document.getElementById('taskTitle').value = '';
+                    document.getElementById('taskDescription').value = '';
+                    loadTasks();
+                } else {
+                    addEvent('create_error', data, true);
+                }
+            } catch (e) {
+                addEvent('create_error', { message: e.message }, true);
+            }
+        }
+
+        function createTaskViaWS() {
+            if (!socket || !socket.connected) {
+                alert('WebSocket not connected');
+                return;
+            }
+
+            const title = document.getElementById('taskTitle').value;
+            const description = document.getElementById('taskDescription').value;
+            const type = document.getElementById('taskType').value;
+            const priority = document.getElementById('taskPriority').value;
+
+            if (!title) {
+                alert('Please enter a title');
+                return;
+            }
+
+            socket.emit('create_task', {
+                title,
+                description,
+                type,
+                priority
+            });
+
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskDescription').value = '';
+        }
+
+        // ===== Task Actions =====
+        async function startTask(taskId) {
+            if (socket && socket.connected) {
+                socket.emit('start_task', { task_id: taskId });
+            } else {
+                try {
+                    const data = await apiCall(`/api/tasks/${taskId}/start`, 'PUT');
+                    if (data.success) {
+                        addEvent('task_started', { task_id: taskId });
+                        loadTasks();
+                    }
+                } catch (e) {
+                    addEvent('error', { message: e.message }, true);
+                }
+            }
+        }
+
+        async function completeTask(taskId) {
+            if (socket && socket.connected) {
+                socket.emit('complete_task', { task_id: taskId });
+            } else {
+                try {
+                    const data = await apiCall(`/api/tasks/${taskId}/complete`, 'PUT');
+                    if (data.success) {
+                        addEvent('task_completed', { task_id: taskId });
+                        loadTasks();
+                    }
+                } catch (e) {
+                    addEvent('error', { message: e.message }, true);
+                }
+            }
+        }
+
+        async function cancelTask(taskId) {
+            if (socket && socket.connected) {
+                socket.emit('cancel_task', { task_id: taskId });
+            } else {
+                try {
+                    const data = await apiCall(`/api/tasks/${taskId}/cancel`, 'PUT');
+                    if (data.success) {
+                        addEvent('task_cancelled', { task_id: taskId });
+                        loadTasks();
+                    }
+                } catch (e) {
+                    addEvent('error', { message: e.message }, true);
+                }
+            }
+        }
+
+        async function deleteTask(taskId) {
+            if (!confirm('Delete this task?')) return;
+
+            try {
+                const data = await apiCall(`/api/tasks/${taskId}`, 'DELETE');
+                if (data.success) {
+                    addEvent('task_deleted', { task_id: taskId });
+                    loadTasks();
+                }
+            } catch (e) {
+                addEvent('error', { message: e.message }, true);
+            }
+        }
+
+        // ===== Events Log =====
+        function addEvent(type, data, isError = false) {
+            const events = document.getElementById('events');
+            const div = document.createElement('div');
+            div.className = 'event' + (isError ? ' error' : '');
+            div.innerHTML = `
+                <strong>${type}</strong><br>
+                <span style="font-size: 11px; color: #888;">${JSON.stringify(data).substring(0, 100)}</span>
+            `;
+            events.insertBefore(div, events.children[1] || null);
+
+            // Keep only last 20 events
+            while (events.children.length > 21) {
+                events.removeChild(events.lastChild);
+            }
+        }
+    </script>
+</body>
+</html>

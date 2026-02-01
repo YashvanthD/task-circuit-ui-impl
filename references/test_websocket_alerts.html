@@ -705,6 +705,32 @@
         }
     }
 
+    function deleteAlert() {
+        const alertId = document.getElementById('alertId').value;
+
+        if (!alertId) {
+            log('❌ Please enter an alert ID!', 'error');
+            return;
+        }
+
+        if (!confirm('Delete this alert permanently?')) {
+            return;
+        }
+
+        if (socket && socket.connected) {
+            log(`📤 Deleting alert: ${alertId}`, 'info');
+            socket.emit('alert:delete', { alert_id: alertId }, (response) => {
+                if (response && response.success) {
+                    log(`✅ Alert deleted: ${alertId}`, 'success');
+                } else {
+                    log(`❌ Error: ${response?.error || 'Unknown error'}`, 'error');
+                }
+            });
+        } else {
+            log('Not connected!', 'error');
+        }
+    }
+
     function acknowledgeAllAlerts() {
         if (!confirm('Acknowledge ALL alerts?')) {
             return;

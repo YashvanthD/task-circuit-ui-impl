@@ -2,6 +2,7 @@
  * Notifications Cache
  * Caches notification list data with lazy loading.
  * Integrates with WebSocket for real-time updates via centralized wsManager.
+ * Uses centralized dataStore for data normalization.
  *
  * @module utils/cache/notificationsCache
  */
@@ -25,6 +26,7 @@ import {
 import { WS_EVENTS, subscribeWS, isConnected, wsNotifications } from '../websocket';
 import { showErrorAlert } from '../alertManager';
 import { playNotificationSound } from '../notifications/sound';
+import { normalizeNotification } from '../store/dataStore';
 
 /**
  * Normalize notification ID from various formats
@@ -34,30 +36,6 @@ function getNotificationId(notif) {
   return notif.notification_id || notif.notificationId || notif.id || null;
 }
 
-/**
- * Normalize a notification object to ensure consistent field names
- */
-function normalizeNotification(notif) {
-  if (!notif) return null;
-
-  const id = getNotificationId(notif);
-
-
-  return {
-    notification_id: id,
-    title: notif.title || '',
-    message: notif.message || notif.body || '',
-    type: notif.type || 'info',
-    priority: notif.priority || 'normal',
-    read: !!notif.read,
-    data: notif.data || null,
-    link: notif.link || notif.action_url || null,
-    created_at: notif.created_at || notif.createdAt || new Date().toISOString(),
-    read_at: notif.read_at || notif.readAt || null,
-    user_key: notif.user_key || notif.userKey || null,
-    account_key: notif.account_key || notif.accountKey || null,
-  };
-}
 
 // ============================================================================
 // Cache Instance
@@ -96,8 +74,12 @@ export function subscribeToWebSocket() {
 
   console.log('[NotificationsCache] Subscribing to notification events via wsManager...');
 
-  // New notification received
-  unsubscribeFns.push(subscribeWS(WS_EVENTS.NOTIFICATION_NEW, (rawNotification) => {
+  // Subscribe to notifications channel
+  wsNotifications.subscribe();
+  console.log('[NotificationsCache] Subscribed to notifications channel');
+
+  // New notification received (use NOTIFICATION which is the actual event emitted)
+  unsubscribeFns.push(subscribeWS(WS_EVENTS.NOTIFICATION, (rawNotification) => {
     try {
       const notification = normalizeNotification(rawNotification);
       if (!notification || !notification.notification_id) {
@@ -118,7 +100,7 @@ export function subscribeToWebSocket() {
       cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
       cache.events.emit('updated', [...cache.data]);
       cache.events.emit('new', notification);
-      playNotificationSound();
+      playNotificationSound('medium');
       persistCache(cache, STORAGE_KEY);
     } catch (e) {
       console.error('[NotificationsCache] Error handling NOTIFICATION_NEW:', e);
@@ -230,11 +212,16 @@ export function unsubscribeFromWebSocket() {
  * @returns {Promise<Array>} Notifications array
  */
 export async function getNotifications(force = false, params = {}) {
-  if (!force && hasValidCache(cache) && !params.unread) {
+  // Always fetch if cache is empty (first load)
+  const shouldFetch = force || !cache.lastFetch || cache.data.length === 0 || !hasValidCache(cache) || params.unread;
+
+  if (!shouldFetch) {
+    console.log('[NotificationsCache] Using cached data:', cache.data.length, 'notifications');
     return cache.data;
   }
 
   if (cache.loading) {
+    console.log('[NotificationsCache] Already loading, returning current data');
     return cache.data;
   }
 
@@ -245,20 +232,53 @@ export async function getNotifications(force = false, params = {}) {
     cache.unreadCount = 0;
   }
 
+  console.log('[NotificationsCache] Fetching notifications from API...', params);
   setCacheLoading(cache, true);
 
   try {
     const response = await listNotifications(params);
-    const rawData = response?.data?.notifications || [];
+    console.log('[NotificationsCache] API Response:', response);
+
+    // Handle different response formats:
+    // 1. Direct array: [{...}, {...}]
+    // 2. {data: {notifications: [...]}} - standard wrapper
+    // 3. {data: [...]} - data is array
+    // 4. {success: true, data: [...]} - success wrapper
+    let rawData = [];
+    if (Array.isArray(response)) {
+      // Case 1: response is directly an array
+      rawData = response;
+    } else if (response?.data) {
+      if (Array.isArray(response.data)) {
+        // Case 3: data is directly an array
+        rawData = response.data;
+      } else if (response.data.notifications) {
+        // Case 2: data.notifications exists
+        rawData = response.data.notifications;
+      }
+    }
+    console.log('[NotificationsCache] Raw data:', rawData.length, 'notifications');
 
     // Normalize notifications - ensure consistent field names and read flag is boolean
     const data = rawData.map((n) => normalizeNotification(n)).filter(Boolean);
+    console.log('[NotificationsCache] Normalized data:', data.length, 'notifications');
+
+    // Debug: Log read status of first notification
+    if (data.length > 0) {
+      console.log('[NotificationsCache] First notification read status:', {
+        notification_id: data[0].notification_id,
+        read: data[0].read,
+        rawIsRead: rawData[0]?.is_read,
+        rawRead: rawData[0]?.read
+      });
+    };
 
     // Only update full cache if no filters
     if (!params.unread) {
       updateCache(cache, data, 'notification_id');
       // Compute unread count from server data (authoritative)
       cache.unreadCount = Math.max(0, data.filter((n) => !n.read).length);
+      console.log('[NotificationsCache] Cache updated:', data.length, 'notifications,', cache.unreadCount, 'unread');
       // Don't persist - server is source of truth
     }
 
@@ -343,6 +363,7 @@ export function getUnreadNotifications() {
   return cache.data.filter((n) => !n.read);
 }
 
+
 /**
  * Get notifications by type.
  * @param {string} type - Notification type (info, warning, error, success)
@@ -386,6 +407,7 @@ export function getRecentNotifications(limit = 5) {
  */
 export async function markNotificationAsRead(id) {
   const notificationId = String(id);
+  console.log('[NotificationsCache] Marking as read:', notificationId);
 
   try {
     // Find notification by checking multiple possible ID fields
@@ -394,9 +416,11 @@ export async function markNotificationAsRead(id) {
       return nid === notificationId;
     });
 
+    console.log('[NotificationsCache] Found notification at index:', index);
+
     if (index !== -1 && !cache.data[index].read) {
       // Optimistic update - create new array for React
-      const updatedNotification = { ...cache.data[index], read: true };
+      const updatedNotification = { ...cache.data[index], read: true, read_at: new Date().toISOString() };
       cache.data = [
         ...cache.data.slice(0, index),
         updatedNotification,
@@ -404,13 +428,19 @@ export async function markNotificationAsRead(id) {
       ];
       cache.byId.set(notificationId, updatedNotification);
       cache.unreadCount = Math.max(0, cache.data.filter((n) => !n.read).length);
+      console.log('[NotificationsCache] Optimistic update done, emitting event');
       cache.events.emit('updated', [...cache.data]);
+    } else if (index !== -1 && cache.data[index].read) {
+      console.log('[NotificationsCache] Notification already read');
+      return cache.data[index];
     }
 
     // Use WebSocket if connected, otherwise REST API
     if (isConnected()) {
+      console.log('[NotificationsCache] Using WebSocket to mark as read');
       wsNotifications.markAsRead(notificationId);
     } else {
+      console.log('[NotificationsCache] Using REST API to mark as read');
       await apiMarkAsRead(notificationId);
     }
 
@@ -429,7 +459,7 @@ export async function markNotificationAsRead(id) {
       return nid === notificationId;
     });
     if (revertIndex !== -1) {
-      const revertedNotification = { ...cache.data[revertIndex], read: false };
+      const revertedNotification = { ...cache.data[revertIndex], read: false, read_at: null };
       cache.data = [
         ...cache.data.slice(0, revertIndex),
         revertedNotification,

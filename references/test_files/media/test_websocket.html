@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GrowFin WebSocket Test Console</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f23;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .container { max-width: 1600px; margin: 0 auto; padding: 15px; }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #a55eea 0%, #667eea 100%);
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 20px; }
+        .header small { opacity: 0.8; }
+
+        /* Connection Bar */
+        .connection-bar {
+            background: #1a1a2e;
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .connection-bar input {
+            padding: 8px 12px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #0f0f23;
+            color: #eee;
+            font-size: 13px;
+        }
+        .connection-bar input:focus { outline: none; border-color: #a55eea; }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: #0f0f23;
+            border-radius: 6px;
+            margin-left: auto;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4757;
+            transition: background 0.3s;
+        }
+        .status-dot.connected { background: #2ed573; }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn:hover { transform: translateY(-1px); opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-primary { background: #a55eea; color: white; }
+        .btn-success { background: #2ed573; color: #0f0f23; }
+        .btn-danger { background: #ff4757; color: white; }
+        .btn-warning { background: #ffa502; color: #0f0f23; }
+        .btn-info { background: #1e90ff; color: white; }
+        .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+        /* Main Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        @media (max-width: 1200px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+        /* Panels */
+        .panel {
+            background: #1a1a2e;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .panel-header {
+            background: #16213e;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+        .panel-header h3 { font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .panel-body { padding: 15px; }
+
+        /* Sections */
+        .section {
+            background: #0f0f23;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .section:last-child { margin-bottom: 0; }
+        .section-title {
+            font-size: 12px;
+            color: #a55eea;
+            margin-bottom: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Form Elements */
+        .form-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .form-row:last-child { margin-bottom: 0; }
+        .form-group {
+            flex: 1;
+        }
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 13px;
+        }
+        .form-group textarea { min-height: 60px; resize: vertical; font-family: inherit; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #a55eea;
+        }
+
+        /* Action Row */
+        .action-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        /* Events Display */
+        .events-container {
+            height: 400px;
+            overflow-y: auto;
+            background: #0f0f23;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .event-item {
+            background: #1a1a2e;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid #a55eea;
+            font-size: 12px;
+        }
+        .event-item:last-child { margin-bottom: 0; }
+        .event-item.sent { border-color: #2ed573; }
+        .event-item.received { border-color: #1e90ff; }
+        .event-item.error { border-color: #ff4757; }
+        .event-item.alert { border-color: #ff4757; }
+        .event-item.task { border-color: #ffa502; }
+        .event-item.notification { border-color: #1e90ff; }
+        .event-item.chat { border-color: #2ed573; }
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .event-type {
+            font-weight: 600;
+            color: #a55eea;
+        }
+        .event-item.sent .event-type { color: #2ed573; }
+        .event-item.received .event-type { color: #1e90ff; }
+        .event-item.error .event-type { color: #ff4757; }
+        .event-time { color: #666; font-size: 11px; }
+        .event-data {
+            background: #0f0f23;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        /* Rooms List */
+        .rooms-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-height: 30px;
+        }
+        .room-tag {
+            background: #a55eea;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .room-tag .remove {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        .room-tag .remove:hover { opacity: 1; }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .quick-action {
+            background: #16213e;
+            padding: 12px 8px;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .quick-action:hover { border-color: #a55eea; background: #1a1a2e; }
+        .quick-action-icon { font-size: 20px; margin-bottom: 4px; }
+        .quick-action-label { font-size: 10px; color: #888; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 12px;
+            background: #0f0f23;
+            padding: 4px;
+            border-radius: 8px;
+        }
+        .tab {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #888;
+            transition: all 0.2s;
+        }
+        .tab:hover { color: #eee; }
+        .tab.active { background: #a55eea; color: white; }
+
+        /* Messages List */
+        .messages-container {
+            height: 200px;
+            overflow-y: auto;
+            background: #0f0f23;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .message-item {
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .message-item.sent {
+            background: #a55eea33;
+            margin-left: 20%;
+            border-bottom-right-radius: 2px;
+        }
+        .message-item.received {
+            background: #1e90ff33;
+            margin-right: 20%;
+            border-bottom-left-radius: 2px;
+        }
+        .message-meta {
+            font-size: 10px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* Stats */
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .stat-box {
+            flex: 1;
+            background: #0f0f23;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-value { font-size: 24px; font-weight: bold; color: #a55eea; }
+        .stat-label { font-size: 10px; color: #666; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f0f23; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #444; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>🔌 WebSocket Test Console</h1>
+                <small>Real-time testing for Chat, Alerts, Tasks & Notifications</small>
+            </div>
+            <a href="/test-console" style="color: white; text-decoration: none; font-size: 13px;">← Back to API Console</a>
+        </div>
+
+        <!-- Connection Bar -->
+        <div class="connection-bar">
+            <input type="text" id="serverUrl" value="http://localhost:8093" placeholder="Server URL" style="width: 180px;">
+            <input type="email" id="email" value="yash@example.com" placeholder="Email" style="width: 160px;">
+            <input type="password" id="password" value="12345678" placeholder="Password" style="width: 120px;">
+            <button class="btn btn-primary" onclick="login()">🔐 Login</button>
+            <button class="btn btn-success" onclick="connect()" id="btnConnect" disabled>Connect WS</button>
+            <button class="btn btn-danger" onclick="disconnect()" id="btnDisconnect" disabled>Disconnect</button>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Disconnected</span>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Left Column - Actions -->
+            <div>
+                <!-- Rooms Panel -->
+                <div class="panel" style="margin-bottom: 15px;">
+                    <div class="panel-header">
+                        <h3>🚪 Rooms & Subscriptions</h3>
+                        <button class="btn btn-sm btn-info" onclick="autoSubscribe()">Auto Subscribe All</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="section">
+                            <div class="section-title">Quick Subscribe</div>
+                            <div class="quick-actions">
+                                <div class="quick-action" onclick="subscribeAlerts()">
+                                    <div class="quick-action-icon">🔔</div>
+                                    <div class="quick-action-label">Alerts</div>
+                                </div>
+                                <div class="quick-action" onclick="subscribeTasks()">
+                                    <div class="quick-action-icon">✅</div>
+                                    <div class="quick-action-label">Tasks</div>
+                                </div>
+                                <div class="quick-action" onclick="subscribeNotifications()">
+                                    <div class="quick-action-icon">📬</div>
+                                    <div class="quick-action-label">Notifications</div>
+                                </div>
+                                <div class="quick-action" onclick="subscribeChat()">
+                                    <div class="quick-action-icon">💬</div>
+                                    <div class="quick-action-label">Chat</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">Active Rooms</div>
+                            <div class="rooms-list" id="roomsList">
+                                <span style="color: #666; font-size: 11px;">No rooms joined</span>
+                            </div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">Custom Room</div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <input type="text" id="customRoom" placeholder="Room name...">
+                                </div>
+                                <button class="btn btn-success btn-sm" onclick="joinRoom()">Join</button>
+                                <button class="btn btn-warning btn-sm" onclick="leaveRoom()">Leave</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📤 Send Events</h3>
+                    </div>
+                    <div class="panel-body">
+                        <!-- Tabs -->
+                        <div class="tabs">
+                            <button class="tab active" onclick="switchActionTab('chat')">💬 Chat</button>
+                            <button class="tab" onclick="switchActionTab('alerts')">🔔 Alerts</button>
+                            <button class="tab" onclick="switchActionTab('tasks')">✅ Tasks</button>
+                            <button class="tab" onclick="switchActionTab('notifications')">📬 Notify</button>
+                            <button class="tab" onclick="switchActionTab('custom')">⚙️ Custom</button>
+                        </div>
+
+                        <!-- Chat Actions -->
+                        <div id="action-chat" class="action-content">
+                            <div class="section">
+                                <div class="section-title">💬 Send Message</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Conversation ID</label>
+                                        <input type="text" id="chatConvId" placeholder="conversation_id">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Message</label>
+                                    <input type="text" id="chatMessage" placeholder="Type your message...">
+                                </div>
+                                <div class="action-row">
+                                    <button class="btn btn-success" onclick="sendChatMessage()">✉️ Send Message</button>
+                                    <button class="btn btn-warning" onclick="sendTyping()">⌨️ Typing</button>
+                                    <button class="btn btn-info" onclick="joinChatRoom()">🚪 Join Chat Room</button>
+                                </div>
+                            </div>
+                            <div class="section">
+                                <div class="section-title">📜 Chat Messages</div>
+                                <div class="messages-container" id="chatMessages">
+                                    <div style="color: #666; text-align: center; padding: 20px;">
+                                        Join a chat room to see messages
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Alerts Actions -->
+                        <div id="action-alerts" class="action-content" style="display: none;">
+                            <div class="section">
+                                <div class="section-title">🚨 Trigger Alert (via WS)</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Title</label>
+                                        <input type="text" id="alertTitle" value="High Oxygen Level">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Severity</label>
+                                        <select id="alertSeverity">
+                                            <option value="info">Info</option>
+                                            <option value="warning" selected>Warning</option>
+                                            <option value="critical">Critical</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Message</label>
+                                    <input type="text" id="alertMessage" value="Oxygen exceeded threshold in Pond A">
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Entity Type</label>
+                                        <input type="text" id="alertEntityType" value="pond">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Entity ID</label>
+                                        <input type="text" id="alertEntityId" value="pond_001">
+                                    </div>
+                                </div>
+                                <div class="action-row">
+                                    <button class="btn btn-danger" onclick="sendAlert()">🚨 Send Alert</button>
+                                    <button class="btn btn-warning" onclick="sendAlertAck()">✋ Acknowledge</button>
+                                    <button class="btn btn-success" onclick="sendAlertResolve()">✅ Resolve</button>
+                                </div>
+                                <div class="form-row" style="margin-top: 8px;">
+                                    <div class="form-group">
+                                        <label>Alert ID (for ack/resolve)</label>
+                                        <input type="text" id="alertId" placeholder="Alert ID">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tasks Actions -->
+                        <div id="action-tasks" class="action-content" style="display: none;">
+                            <div class="section">
+                                <div class="section-title">✅ Task Events (via WS)</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Title</label>
+                                        <input type="text" id="taskTitle" value="Morning Feeding">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Priority</label>
+                                        <select id="taskPriority">
+                                            <option value="low">Low</option>
+                                            <option value="normal" selected>Normal</option>
+                                            <option value="high">High</option>
+                                            <option value="urgent">Urgent</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Description</label>
+                                    <input type="text" id="taskDescription" value="Feed fish in Pond A">
+                                </div>
+                                <div class="action-row">
+                                    <button class="btn btn-success" onclick="sendTaskCreate()">➕ Create</button>
+                                    <button class="btn btn-info" onclick="sendTaskStart()">▶️ Start</button>
+                                    <button class="btn btn-success" onclick="sendTaskComplete()">✅ Complete</button>
+                                    <button class="btn btn-danger" onclick="sendTaskCancel()">❌ Cancel</button>
+                                </div>
+                                <div class="form-row" style="margin-top: 8px;">
+                                    <div class="form-group">
+                                        <label>Task ID (for actions)</label>
+                                        <input type="text" id="taskId" placeholder="Task ID">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notifications Actions -->
+                        <div id="action-notifications" class="action-content" style="display: none;">
+                            <div class="section">
+                                <div class="section-title">📬 Send Notification (via WS)</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Title</label>
+                                        <input type="text" id="notifTitle" value="New Assignment">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Type</label>
+                                        <select id="notifType">
+                                            <option value="system">System</option>
+                                            <option value="task">Task</option>
+                                            <option value="alert">Alert</option>
+                                            <option value="message">Message</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Message</label>
+                                    <input type="text" id="notifMessage" value="You have been assigned a new task">
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Target User Key (optional)</label>
+                                        <input type="text" id="notifTargetUser" placeholder="Leave empty for self">
+                                    </div>
+                                </div>
+                                <div class="action-row">
+                                    <button class="btn btn-primary" onclick="sendNotification()">📬 Send Notification</button>
+                                    <button class="btn btn-success" onclick="sendNotifRead()">✅ Mark Read</button>
+                                </div>
+                                <div class="form-row" style="margin-top: 8px;">
+                                    <div class="form-group">
+                                        <label>Notification ID (for mark read)</label>
+                                        <input type="text" id="notifId" placeholder="Notification ID">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Custom Event -->
+                        <div id="action-custom" class="action-content" style="display: none;">
+                            <div class="section">
+                                <div class="section-title">⚙️ Custom Event</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Event Name</label>
+                                        <input type="text" id="customEventName" value="ping">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Event Data (JSON)</label>
+                                    <textarea id="customEventData">{"timestamp": 123456789}</textarea>
+                                </div>
+                                <div class="action-row">
+                                    <button class="btn btn-primary" onclick="sendCustomEvent()">📤 Send Event</button>
+                                    <button class="btn btn-info" onclick="sendPing()">🏓 Ping</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Events -->
+            <div>
+                <!-- Stats -->
+                <div class="stats-row">
+                    <div class="stat-box">
+                        <div class="stat-value" id="statSent">0</div>
+                        <div class="stat-label">Events Sent</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="statReceived">0</div>
+                        <div class="stat-label">Events Received</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="statRooms">0</div>
+                        <div class="stat-label">Active Rooms</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="statLatency">-</div>
+                        <div class="stat-label">Latency (ms)</div>
+                    </div>
+                </div>
+
+                <!-- Events Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📨 Events Stream</h3>
+                        <div>
+                            <button class="btn btn-sm btn-warning" onclick="clearEvents()">Clear</button>
+                            <button class="btn btn-sm btn-info" onclick="toggleAutoScroll()">Auto-scroll: <span id="autoScrollStatus">ON</span></button>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <!-- Filter Tabs -->
+                        <div class="tabs" style="margin-bottom: 10px;">
+                            <button class="tab active" onclick="filterEvents('all')">All</button>
+                            <button class="tab" onclick="filterEvents('sent')">📤 Sent</button>
+                            <button class="tab" onclick="filterEvents('received')">📥 Received</button>
+                            <button class="tab" onclick="filterEvents('chat')">💬 Chat</button>
+                            <button class="tab" onclick="filterEvents('alert')">🔔 Alerts</button>
+                            <button class="tab" onclick="filterEvents('error')">❌ Errors</button>
+                        </div>
+                        <div class="events-container" id="eventsContainer">
+                            <div style="color: #666; text-align: center; padding: 40px;">
+                                Connect to WebSocket to see events
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let socket = null;
+        let token = null;
+        let baseUrl = 'http://localhost:8093';
+        let activeRooms = new Set();
+        let autoScroll = true;
+        let eventFilter = 'all';
+        let stats = { sent: 0, received: 0 };
+        let userKey = null;
+        let accountKey = null;
+
+        // ==========================================
+        // Connection
+        // ==========================================
+
+        async function login() {
+            baseUrl = document.getElementById('serverUrl').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            addEvent('sent', 'login_attempt', { email });
+
+            try {
+                const response = await fetch(`${baseUrl}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.data) {
+                    token = data.data.access_token;
+                    userKey = data.data.user?.user_key;
+                    accountKey = data.data.user?.account_key;
+                    document.getElementById('btnConnect').disabled = false;
+                    addEvent('received', 'login_success', { user_key: userKey, account_key: accountKey });
+                } else {
+                    addEvent('error', 'login_failed', data);
+                }
+            } catch (error) {
+                addEvent('error', 'login_error', { message: error.message });
+            }
+        }
+
+        function connect() {
+            if (!token) {
+                addEvent('error', 'no_token', { message: 'Please login first' });
+                return;
+            }
+
+            addEvent('sent', 'connecting', { url: baseUrl });
+
+            socket = io(baseUrl, {
+                query: { token },
+                transports: ['websocket', 'polling']
+            });
+
+            // Connection events
+            socket.on('connect', () => {
+                document.getElementById('statusDot').classList.add('connected');
+                document.getElementById('statusText').textContent = `Connected (${socket.id})`;
+                document.getElementById('btnConnect').disabled = true;
+                document.getElementById('btnDisconnect').disabled = false;
+                addEvent('received', 'connected', { sid: socket.id });
+            });
+
+            socket.on('disconnect', (reason) => {
+                document.getElementById('statusDot').classList.remove('connected');
+                document.getElementById('statusText').textContent = 'Disconnected';
+                document.getElementById('btnConnect').disabled = false;
+                document.getElementById('btnDisconnect').disabled = true;
+                activeRooms.clear();
+                updateRoomsList();
+                addEvent('received', 'disconnected', { reason });
+            });
+
+            socket.on('connect_error', (error) => {
+                addEvent('error', 'connect_error', { message: error.message });
+            });
+
+            socket.on('connected', (data) => {
+                addEvent('received', 'authenticated', data);
+            });
+
+            // Room events
+            socket.on('joined', (data) => {
+                if (data.room) {
+                    activeRooms.add(data.room);
+                    updateRoomsList();
+                }
+                addEvent('received', 'joined_room', data);
+            });
+
+            socket.on('left', (data) => {
+                if (data.room) {
+                    activeRooms.delete(data.room);
+                    updateRoomsList();
+                }
+                addEvent('received', 'left_room', data);
+            });
+
+            socket.on('subscribed', (data) => {
+                addEvent('received', 'subscribed', data);
+            });
+
+            // Chat events
+            socket.on('new_message', (data) => {
+                addEvent('chat', 'new_message', data);
+                addChatMessage(data, 'received');
+            });
+
+            socket.on('message', (data) => {
+                addEvent('chat', 'message', data);
+                addChatMessage(data, 'received');
+            });
+
+            socket.on('typing', (data) => {
+                addEvent('chat', 'typing', data);
+            });
+
+            socket.on('message_read', (data) => {
+                addEvent('chat', 'message_read', data);
+            });
+
+            // Alert events
+            socket.on('alert', (data) => {
+                addEvent('alert', 'alert', data);
+            });
+
+            socket.on('alert_created', (data) => {
+                addEvent('alert', 'alert_created', data);
+                if (data.alert_id) {
+                    document.getElementById('alertId').value = data.alert_id;
+                }
+            });
+
+            socket.on('alert_acknowledged', (data) => {
+                addEvent('alert', 'alert_acknowledged', data);
+            });
+
+            socket.on('alert_resolved', (data) => {
+                addEvent('alert', 'alert_resolved', data);
+            });
+
+            // Task events
+            socket.on('task_created', (data) => {
+                addEvent('task', 'task_created', data);
+                if (data.task_id) {
+                    document.getElementById('taskId').value = data.task_id;
+                }
+            });
+
+            socket.on('task_updated', (data) => {
+                addEvent('task', 'task_updated', data);
+            });
+
+            socket.on('task_started', (data) => {
+                addEvent('task', 'task_started', data);
+            });
+
+            socket.on('task_completed', (data) => {
+                addEvent('task', 'task_completed', data);
+            });
+
+            socket.on('task_cancelled', (data) => {
+                addEvent('task', 'task_cancelled', data);
+            });
+
+            // Notification events
+            socket.on('notification', (data) => {
+                addEvent('notification', 'notification', data);
+                if (data.notification_id) {
+                    document.getElementById('notifId').value = data.notification_id;
+                }
+            });
+
+            socket.on('notification_read', (data) => {
+                addEvent('notification', 'notification_read', data);
+            });
+
+            socket.on('unread_count', (data) => {
+                addEvent('notification', 'unread_count', data);
+            });
+
+            // Error
+            socket.on('error', (data) => {
+                addEvent('error', 'error', data);
+            });
+
+            // Pong for latency
+            socket.on('pong', (data) => {
+                const latency = Date.now() - data.timestamp;
+                document.getElementById('statLatency').textContent = latency;
+                addEvent('received', 'pong', { latency: `${latency}ms` });
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+        }
+
+        // ==========================================
+        // Room Management
+        // ==========================================
+
+        function updateRoomsList() {
+            const container = document.getElementById('roomsList');
+            document.getElementById('statRooms').textContent = activeRooms.size;
+
+            if (activeRooms.size === 0) {
+                container.innerHTML = '<span style="color: #666; font-size: 11px;">No rooms joined</span>';
+                return;
+            }
+
+            container.innerHTML = Array.from(activeRooms).map(room => `
+                <div class="room-tag">
+                    ${room}
+                    <span class="remove" onclick="leaveSpecificRoom('${room}')">✕</span>
+                </div>
+            `).join('');
+        }
+
+        function joinRoom() {
+            const room = document.getElementById('customRoom').value;
+            if (!room) return;
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+
+            socket.emit('join', { room });
+            addEvent('sent', 'join', { room });
+        }
+
+        function leaveRoom() {
+            const room = document.getElementById('customRoom').value;
+            if (!room) return;
+            if (!socket?.connected) return;
+
+            socket.emit('leave', { room });
+            addEvent('sent', 'leave', { room });
+        }
+
+        function leaveSpecificRoom(room) {
+            if (!socket?.connected) return;
+            socket.emit('leave', { room });
+            activeRooms.delete(room);
+            updateRoomsList();
+            addEvent('sent', 'leave', { room });
+        }
+
+        function subscribeAlerts() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+            socket.emit('join', { room: 'alerts' });
+            socket.emit('subscribe_alerts', {});
+            addEvent('sent', 'subscribe_alerts', {});
+        }
+
+        function subscribeTasks() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+            socket.emit('join', { room: 'tasks' });
+            socket.emit('subscribe_tasks', {});
+            addEvent('sent', 'subscribe_tasks', {});
+        }
+
+        function subscribeNotifications() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+            socket.emit('join', { room: 'notifications' });
+            socket.emit('subscribe_notifications', {});
+            addEvent('sent', 'subscribe_notifications', {});
+        }
+
+        function subscribeChat() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+            socket.emit('join', { room: 'chat' });
+            addEvent('sent', 'join_chat', {});
+        }
+
+        function autoSubscribe() {
+            subscribeAlerts();
+            subscribeTasks();
+            subscribeNotifications();
+            subscribeChat();
+        }
+
+        // ==========================================
+        // Chat Actions
+        // ==========================================
+
+        function sendChatMessage() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+
+            const convId = document.getElementById('chatConvId').value;
+            const message = document.getElementById('chatMessage').value;
+
+            if (!convId || !message) {
+                addEvent('error', 'missing_fields', { message: 'Enter conversation ID and message' });
+                return;
+            }
+
+            const data = {
+                conversation_id: convId,
+                content: message,
+                type: 'text'
+            };
+
+            socket.emit('send_message', data);
+            addEvent('sent', 'send_message', data);
+            addChatMessage({ content: message, sender_key: userKey }, 'sent');
+
+            document.getElementById('chatMessage').value = '';
+        }
+
+        function sendTyping() {
+            if (!socket?.connected) return;
+            const convId = document.getElementById('chatConvId').value;
+            if (!convId) return;
+
+            socket.emit('typing', { conversation_id: convId });
+            addEvent('sent', 'typing', { conversation_id: convId });
+        }
+
+        function joinChatRoom() {
+            if (!socket?.connected) return;
+            const convId = document.getElementById('chatConvId').value;
+            if (!convId) return;
+
+            const room = `chat_${convId}`;
+            socket.emit('join', { room });
+            addEvent('sent', 'join', { room });
+        }
+
+        function addChatMessage(data, type) {
+            const container = document.getElementById('chatMessages');
+            if (container.querySelector('div[style*="color: #666"]')) {
+                container.innerHTML = '';
+            }
+
+            const div = document.createElement('div');
+            div.className = `message-item ${type}`;
+            div.innerHTML = `
+                <div>${data.content || data.message || '[No content]'}</div>
+                <div class="message-meta">${data.sender_key || 'Unknown'} • ${new Date().toLocaleTimeString()}</div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // ==========================================
+        // Alert Actions
+        // ==========================================
+
+        function sendAlert() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+
+            const data = {
+                title: document.getElementById('alertTitle').value,
+                message: document.getElementById('alertMessage').value,
+                severity: document.getElementById('alertSeverity').value,
+                entity_type: document.getElementById('alertEntityType').value,
+                entity_id: document.getElementById('alertEntityId').value,
+                account_key: accountKey
+            };
+
+            socket.emit('create_alert', data);
+            addEvent('sent', 'create_alert', data);
+        }
+
+        function sendAlertAck() {
+            if (!socket?.connected) return;
+            const alertId = document.getElementById('alertId').value;
+            if (!alertId) { addEvent('error', 'missing_alert_id', {}); return; }
+
+            socket.emit('acknowledge_alert', { alert_id: alertId });
+            addEvent('sent', 'acknowledge_alert', { alert_id: alertId });
+        }
+
+        function sendAlertResolve() {
+            if (!socket?.connected) return;
+            const alertId = document.getElementById('alertId').value;
+            if (!alertId) { addEvent('error', 'missing_alert_id', {}); return; }
+
+            socket.emit('resolve_alert', { alert_id: alertId });
+            addEvent('sent', 'resolve_alert', { alert_id: alertId });
+        }
+
+        // ==========================================
+        // Task Actions
+        // ==========================================
+
+        function sendTaskCreate() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+
+            const data = {
+                title: document.getElementById('taskTitle').value,
+                description: document.getElementById('taskDescription').value,
+                priority: document.getElementById('taskPriority').value,
+                account_key: accountKey
+            };
+
+            socket.emit('create_task', data);
+            addEvent('sent', 'create_task', data);
+        }
+
+        function sendTaskStart() {
+            if (!socket?.connected) return;
+            const taskId = document.getElementById('taskId').value;
+            if (!taskId) { addEvent('error', 'missing_task_id', {}); return; }
+
+            socket.emit('start_task', { task_id: taskId });
+            addEvent('sent', 'start_task', { task_id: taskId });
+        }
+
+        function sendTaskComplete() {
+            if (!socket?.connected) return;
+            const taskId = document.getElementById('taskId').value;
+            if (!taskId) { addEvent('error', 'missing_task_id', {}); return; }
+
+            socket.emit('complete_task', { task_id: taskId });
+            addEvent('sent', 'complete_task', { task_id: taskId });
+        }
+
+        function sendTaskCancel() {
+            if (!socket?.connected) return;
+            const taskId = document.getElementById('taskId').value;
+            if (!taskId) { addEvent('error', 'missing_task_id', {}); return; }
+
+            socket.emit('cancel_task', { task_id: taskId });
+            addEvent('sent', 'cancel_task', { task_id: taskId });
+        }
+
+        // ==========================================
+        // Notification Actions
+        // ==========================================
+
+        function sendNotification() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+
+            const data = {
+                title: document.getElementById('notifTitle').value,
+                message: document.getElementById('notifMessage').value,
+                type: document.getElementById('notifType').value,
+                target_user: document.getElementById('notifTargetUser').value || userKey,
+                account_key: accountKey
+            };
+
+            socket.emit('send_notification', data);
+            addEvent('sent', 'send_notification', data);
+        }
+
+        function sendNotifRead() {
+            if (!socket?.connected) return;
+            const notifId = document.getElementById('notifId').value;
+            if (!notifId) { addEvent('error', 'missing_notif_id', {}); return; }
+
+            socket.emit('mark_notification_read', { notification_id: notifId });
+            addEvent('sent', 'mark_notification_read', { notification_id: notifId });
+        }
+
+        // ==========================================
+        // Custom Events
+        // ==========================================
+
+        function sendCustomEvent() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+
+            const eventName = document.getElementById('customEventName').value;
+            let eventData = {};
+
+            try {
+                eventData = JSON.parse(document.getElementById('customEventData').value);
+            } catch (e) {
+                addEvent('error', 'invalid_json', { message: e.message });
+                return;
+            }
+
+            socket.emit(eventName, eventData);
+            addEvent('sent', eventName, eventData);
+        }
+
+        function sendPing() {
+            if (!socket?.connected) { addEvent('error', 'not_connected', {}); return; }
+
+            const timestamp = Date.now();
+            socket.emit('ping', { timestamp });
+            addEvent('sent', 'ping', { timestamp });
+        }
+
+        // ==========================================
+        // Events Display
+        // ==========================================
+
+        function addEvent(type, eventName, data) {
+            // Update stats
+            if (type === 'sent') {
+                stats.sent++;
+                document.getElementById('statSent').textContent = stats.sent;
+            } else {
+                stats.received++;
+                document.getElementById('statReceived').textContent = stats.received;
+            }
+
+            const container = document.getElementById('eventsContainer');
+
+            // Remove placeholder
+            if (container.querySelector('div[style*="color: #666"]')) {
+                container.innerHTML = '';
+            }
+
+            const div = document.createElement('div');
+            div.className = `event-item ${type}`;
+            div.dataset.type = type;
+
+            const time = new Date().toLocaleTimeString();
+            const icon = type === 'sent' ? '📤' : type === 'error' ? '❌' : '📥';
+
+            div.innerHTML = `
+                <div class="event-header">
+                    <span class="event-type">${icon} ${eventName}</span>
+                    <span class="event-time">${time}</span>
+                </div>
+                <div class="event-data">${JSON.stringify(data, null, 2)}</div>
+            `;
+
+            container.appendChild(div);
+
+            // Apply filter
+            applyEventFilter();
+
+            // Auto scroll
+            if (autoScroll) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+
+        function clearEvents() {
+            document.getElementById('eventsContainer').innerHTML = `
+                <div style="color: #666; text-align: center; padding: 40px;">
+                    Events cleared
+                </div>
+            `;
+            stats = { sent: 0, received: 0 };
+            document.getElementById('statSent').textContent = '0';
+            document.getElementById('statReceived').textContent = '0';
+        }
+
+        function filterEvents(filter) {
+            eventFilter = filter;
+
+            // Update tab styling
+            document.querySelectorAll('.tabs .tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.textContent.toLowerCase().includes(filter) ||
+                    (filter === 'all' && tab.textContent === 'All')) {
+                    tab.classList.add('active');
+                }
+            });
+
+            applyEventFilter();
+        }
+
+        function applyEventFilter() {
+            document.querySelectorAll('#eventsContainer .event-item').forEach(item => {
+                const type = item.dataset.type;
+                if (eventFilter === 'all') {
+                    item.style.display = 'block';
+                } else if (eventFilter === type) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        function toggleAutoScroll() {
+            autoScroll = !autoScroll;
+            document.getElementById('autoScrollStatus').textContent = autoScroll ? 'ON' : 'OFF';
+        }
+
+        // ==========================================
+        // Tab Switching
+        // ==========================================
+
+        function switchActionTab(tab) {
+            document.querySelectorAll('.action-content').forEach(c => c.style.display = 'none');
+            document.getElementById(`action-${tab}`).style.display = 'block';
+
+            document.querySelectorAll('.panel-body > .tabs .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Initialize
+        addEvent('received', 'console_ready', { message: 'WebSocket Test Console loaded. Please login to start.' });
+    </script>
+</body>
+</html>

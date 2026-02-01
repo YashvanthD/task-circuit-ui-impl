@@ -1,0 +1,55 @@
+# Feeding Entity Schema
+# Represents a feeding record
+
+Feeding:
+  type: object
+  required:
+    - feeding_id
+    - stock_id
+    - pond_id
+    - feed_date
+  properties:
+    feeding_id:
+      type: string
+      description: Unique identifier for the feeding record
+      example: "feed_111"
+    stock_id:
+      type: string
+      description: Stock being fed
+      example: "stock_321"
+    pond_id:
+      type: string
+      description: Pond where feeding occurred
+      example: "pond_456"
+    feed_date:
+      type: string
+      format: date
+      description: Date of feeding
+      example: "2024-01-15"
+    feed_time:
+      type: string
+      description: Time of feeding (HH:MM)
+      example: "08:00"
+    feed_type:
+      type: string
+      description: Type of feed used
+      example: "Pellets"
+    quantity_kg:
+      type: number
+      format: double
+      description: Quantity of feed in kilograms
+      example: 50
+    cost_per_kg:
+      type: number
+      format: double
+      description: Cost per kilogram
+      example: 100
+    notes:
+      type: string
+      description: Additional notes
+      example: "Fish actively feeding"
+    created_at:
+      type: string
+      format: date-time
+      description: When the record was created
+      example: "2024-01-15T10:00:00Z"

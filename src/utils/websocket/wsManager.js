@@ -26,7 +26,9 @@ const eventHandlers = {
 
   // Alert events
   [WS_EVENTS.ALERT_NEW]: new Set(),
+  [WS_EVENTS.ALERT_CREATED]: new Set(),
   [WS_EVENTS.ALERT_ACKNOWLEDGED]: new Set(),
+  [WS_EVENTS.ALERT_RESOLVED]: new Set(),
   [WS_EVENTS.ALERT_ACKNOWLEDGED_ALL]: new Set(),
   [WS_EVENTS.ALERT_DELETED]: new Set(),
   [WS_EVENTS.ALERT_COUNT]: new Set(),
@@ -49,6 +51,8 @@ const eventHandlers = {
   [WS_EVENTS.PRESENCE_OFFLINE]: new Set(),
 
   // Connection events
+  connect: new Set(),
+  disconnect: new Set(),
   [WS_EVENTS.CONNECTED]: new Set(),
   [WS_EVENTS.ERROR]: new Set(),
 };
@@ -63,6 +67,7 @@ const eventHandlers = {
 function dispatchEvent(eventName, data) {
   const handlers = eventHandlers[eventName];
   if (handlers && handlers.size > 0) {
+    console.log(`[WSManager] Dispatching ${eventName} to ${handlers.size} handler(s)`);
     handlers.forEach((handler) => {
       try {
         handler(data);
@@ -70,6 +75,8 @@ function dispatchEvent(eventName, data) {
         console.error(`[WSManager] Error in handler for ${eventName}:`, e);
       }
     });
+  } else {
+    console.warn(`[WSManager] No handlers registered for ${eventName}`);
   }
 }
 
@@ -120,6 +127,8 @@ export async function initializeWebSocket() {
     if (connected) {
       registerSocketListeners();
       console.log('[WSManager] WebSocket connected and initialized');
+      // Dispatch connect event to notify subscribers
+      dispatchEvent('connect', { connected: true });
       return true;
     }
     return false;
@@ -151,11 +160,33 @@ export function subscribe(eventName, handler) {
   }
 
   eventHandlers[eventName].add(handler);
+  console.log(`[WSManager] Handler registered for ${eventName}, total handlers: ${eventHandlers[eventName].size}`);
 
   // Return unsubscribe function
   return () => {
     eventHandlers[eventName].delete(handler);
+    console.log(`[WSManager] Handler unregistered for ${eventName}, remaining: ${eventHandlers[eventName].size}`);
   };
+}
+
+/**
+ * Debug: Get count of registered handlers for an event
+ */
+export function getHandlerCount(eventName) {
+  return eventHandlers[eventName]?.size || 0;
+}
+
+/**
+ * Debug: Log all registered handlers
+ */
+export function debugHandlers() {
+  console.log('[WSManager] Registered handlers:');
+  Object.keys(eventHandlers).forEach((eventName) => {
+    const count = eventHandlers[eventName].size;
+    if (count > 0) {
+      console.log(`  ${eventName}: ${count} handler(s)`);
+    }
+  });
 }
 
 /**
@@ -211,26 +242,47 @@ export function reset() {
 // Notification actions
 export const notifications = {
   markAsRead: (notificationId) => {
+    console.log('[WSManager] Marking notification as read:', notificationId);
     return emit(WS_EVENTS.MARK_NOTIFICATION_READ, { notification_id: notificationId });
   },
   markAllAsRead: () => {
+    console.log('[WSManager] Marking all notifications as read');
     return emit(WS_EVENTS.MARK_ALL_NOTIFICATIONS_READ, {});
+  },
+  subscribe: () => {
+    console.log('[WSManager] Subscribing to notifications channel');
+    return emit(WS_EVENTS.SUBSCRIBE_NOTIFICATIONS, {});
   },
 };
 
 // Alert actions
 export const alerts = {
   acknowledge: (alertId) => {
+    console.log('[WSManager] Acknowledging alert:', alertId);
     return emit(WS_EVENTS.ACKNOWLEDGE_ALERT, { alert_id: alertId });
   },
   acknowledgeAll: () => {
+    console.log('[WSManager] Acknowledging all alerts');
     return emit(WS_EVENTS.ACKNOWLEDGE_ALL_ALERTS, {});
   },
+  resolve: (alertId) => {
+    console.log('[WSManager] Resolving alert:', alertId);
+    return emit(WS_EVENTS.RESOLVE_ALERT, { alert_id: alertId });
+  },
   dismiss: (alertId) => {
+    console.log('[WSManager] Dismissing alert:', alertId);
     return emit(WS_EVENTS.DISMISS_ALERT, { alert_id: alertId });
+  },
+  delete: (alertId) => {
+    console.log('[WSManager] Deleting alert:', alertId);
+    return emit(WS_EVENTS.DELETE_ALERT, { alert_id: alertId });
   },
   getCount: () => {
     return emit(WS_EVENTS.GET_ALERT_COUNT, {});
+  },
+  subscribe: () => {
+    console.log('[WSManager] Subscribing to alerts channel');
+    return emit(WS_EVENTS.SUBSCRIBE_ALERTS, {});
   },
 };
 

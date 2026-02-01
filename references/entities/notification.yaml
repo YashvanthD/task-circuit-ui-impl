@@ -1,0 +1,64 @@
+# Notification Entity Schema
+# Represents a notification in the media service
+
+Notification:
+  type: object
+  required:
+    - notification_id
+    - title
+  properties:
+    notification_id:
+      type: string
+      description: Unique identifier for the notification
+      example: "notif_333"
+    title:
+      type: string
+      description: Notification title
+      example: "Task Assigned"
+    message:
+      type: string
+      description: Notification message
+      example: "You have been assigned a new task"
+    type:
+      type: string
+      description: Notification type
+      example: "task"
+      enum: [task, alert, system, message, reminder, other]
+    status:
+      type: string
+      enum: [unread, read]
+      description: Notification status
+      example: "unread"
+      default: "unread"
+    priority:
+      type: string
+      enum: [low, medium, high]
+      description: Notification priority
+      example: "medium"
+    user_key:
+      type: string
+      description: User receiving the notification
+      example: "user_key_123"
+    entity_type:
+      type: string
+      description: Type of entity related to notification
+      example: "task"
+    entity_id:
+      type: string
+      description: ID of related entity
+      example: "task_222"
+    reminder_at:
+      type: string
+      format: date-time
+      description: When to send reminder
+      example: "2024-01-30T14:00:00Z"
+    read_at:
+      type: string
+      format: date-time
+      description: When notification was read
+      example: "2024-01-30T10:30:00Z"
+    created_at:
+      type: string
+      format: date-time
+      description: When the notification was created
+      example: "2024-01-30T10:00:00Z"

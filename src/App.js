@@ -22,6 +22,7 @@ import { AlertProvider } from './contexts';
 import { ThemeContextProvider } from './contexts';
 import { SignupForm } from './components/users/forms';
 import { RegisterCompanyForm } from './components/common/forms';
+import { ErrorBoundary, GlobalAlertProvider } from './components/common';
 import FishPage from './pages/user/FishPage';
 import SamplingPage from './pages/user/SamplingPage';
 import WaterTestPage from './pages/user/WaterTestPage';
@@ -42,6 +43,7 @@ import {
     BASE_APP_PATH_SIGNUP,
     BASE_APP_PATH_USER
 } from "./config";
+import SamplingAndStockPage from "./pages/user/SamplingAndStockPage";
 
 function AppRoutes() {
   const navigate = useNavigate();
@@ -120,33 +122,13 @@ function AppRoutes() {
         <Route path="expenses/my-account" element={<MyAccount />} />
         <Route path="expenses/payslips" element={<UserPaySlips />} />
         <Route path="tree-user/:id" element={<TreeUserView />} />
+        <Route path="stocks-sampling" element={<SamplingAndStockPage />} />
         {/* Add other user routes here */}
       </Route>
     </Routes>
   );
 }
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error("ErrorBoundary caught an error", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <h1>Something went wrong.</h1>;
-    }
-    return this.props.children;
-  }
-}
 
 export default function App() {
   // Ensure routes match when app is hosted under a subpath (GitHub Pages project site)
@@ -170,6 +152,7 @@ export default function App() {
           <DataProvider>
             <Router basename={basename}>
               <ErrorBoundary>
+                <GlobalAlertProvider />
                 <AppRoutes />
               </ErrorBoundary>
             </Router>

@@ -1,0 +1,95 @@
+# Chat Entity Schemas
+# Represents chat conversations and messages
+
+Conversation:
+  type: object
+  required:
+    - conversation_id
+    - participants
+  properties:
+    conversation_id:
+      type: string
+      description: Unique identifier for the conversation
+      example: "conv_444"
+    participants:
+      type: array
+      items:
+        type: string
+      description: List of user keys participating
+      example: ["user_key_123", "user_key_456"]
+    title:
+      type: string
+      description: Conversation title
+      example: "Farm Operations"
+    type:
+      type: string
+      enum: [direct, group]
+      description: Type of conversation
+      example: "direct"
+      default: "direct"
+    last_message:
+      type: string
+      description: Last message content
+      example: "Let's check Pond 3"
+    last_message_at:
+      type: string
+      format: date-time
+      description: Timestamp of last message
+      example: "2024-01-30T10:00:00Z"
+    unread_count:
+      type: integer
+      description: Number of unread messages
+      example: 2
+    created_at:
+      type: string
+      format: date-time
+      description: When the conversation was created
+      example: "2024-01-20T10:00:00Z"
+
+Message:
+  type: object
+  required:
+    - message_id
+    - conversation_id
+    - sender
+    - message
+  properties:
+    message_id:
+      type: string
+      description: Unique identifier for the message
+      example: "msg_555"
+    conversation_id:
+      type: string
+      description: Conversation this message belongs to
+      example: "conv_444"
+    sender:
+      type: string
+      description: User key of sender
+      example: "user_key_123"
+    message:
+      type: string
+      description: Message content
+      example: "Hello, how are you?"
+    message_type:
+      type: string
+      enum: [text, image, file, system]
+      description: Type of message
+      example: "text"
+      default: "text"
+    attachments:
+      type: array
+      items:
+        type: string
+      description: URLs of attachments
+      example: ["https://example.com/image.jpg"]
+    read_by:
+      type: array
+      items:
+        type: string
+      description: List of user keys who read the message
+      example: ["user_key_456"]
+    timestamp:
+      type: string
+      format: date-time
+      description: When the message was sent
+      example: "2024-01-15T10:00:00Z"

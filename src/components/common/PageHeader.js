@@ -1,23 +1,25 @@
 /**
  * PageHeader Component
- * Reusable page header with title, subtitle, and actions.
+ * Centralized, reusable page header with consistent styling
+ * Theme-aware, responsive, and follows MUI best practices
  *
  * @module components/common/PageHeader
  */
 
 import React from 'react';
-import { Box, Typography, Stack, Breadcrumbs, Link } from '@mui/material';
+import { Box, Typography, Stack, Breadcrumbs, Link, Divider } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 
 /**
- * PageHeader - Reusable page header
+ * PageHeader - Reusable page header with best practices
  *
  * @param {Object} props
  * @param {string} props.title - Page title
- * @param {string} props.subtitle - Page subtitle
+ * @param {string} props.subtitle - Page subtitle/description
  * @param {React.ReactNode} props.actions - Action buttons
  * @param {Array} props.breadcrumbs - Breadcrumb items [{ label, href }]
  * @param {React.ReactNode} props.icon - Title icon
+ * @param {boolean} props.divider - Show divider below header (default: true)
  * @param {Object} props.sx - Additional sx styles
  */
 export default function PageHeader({
@@ -26,20 +28,21 @@ export default function PageHeader({
   actions,
   breadcrumbs,
   icon,
+  divider = true,
   sx = {},
 }) {
   return (
-    <Box sx={{ mb: 3, ...sx }}>
+    <Box sx={{ mb: { xs: 2, sm: 3 }, ...sx }}>
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
         <Breadcrumbs
           separator={<NavigateNextIcon fontSize="small" />}
-          sx={{ mb: 1 }}
+          sx={{ mb: 1.5, color: 'text.secondary' }}
         >
           {breadcrumbs.map((crumb, index) => {
             const isLast = index === breadcrumbs.length - 1;
             return isLast ? (
-              <Typography key={index} color="text.primary" variant="body2">
+              <Typography key={index} color="text.primary" variant="body2" fontWeight={600}>
                 {crumb.label}
               </Typography>
             ) : (
@@ -49,6 +52,11 @@ export default function PageHeader({
                 underline="hover"
                 color="inherit"
                 variant="body2"
+                sx={{
+                  '&:hover': {
+                    color: 'primary.main',
+                  },
+                }}
               >
                 {crumb.label}
               </Link>
@@ -57,33 +65,64 @@ export default function PageHeader({
         </Breadcrumbs>
       )}
 
-      {/* Title Row */}
+      {/* Title and Actions */}
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         justifyContent="space-between"
         alignItems={{ xs: 'flex-start', sm: 'center' }}
-        spacing={2}
+        spacing={{ xs: 2, sm: 3 }}
       >
-        <Box>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            {icon}
-            <Typography variant="h4" fontWeight={700}>
-              {title}
-            </Typography>
+        {/* Title Section */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            {icon && (
+              <Box sx={{ color: 'primary.main', display: 'flex' }}>
+                {icon}
+              </Box>
+            )}
+            <Box>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 700,
+                  color: 'text.primary',
+                  fontSize: { xs: '1.5rem', sm: '2rem' },
+                }}
+              >
+                {title}
+              </Typography>
+              {subtitle && (
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: 'text.secondary',
+                    mt: 0.5,
+                  }}
+                >
+                  {subtitle}
+                </Typography>
+              )}
+            </Box>
           </Stack>
-          {subtitle && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {subtitle}
-            </Typography>
-          )}
         </Box>
 
+        {/* Actions */}
         {actions && (
-          <Stack direction="row" spacing={1} flexWrap="wrap">
+          <Stack
+            direction="row"
+            spacing={1.5}
+            sx={{
+              flexShrink: 0,
+              alignSelf: { xs: 'flex-end', sm: 'center' },
+            }}
+          >
             {actions}
           </Stack>
         )}
       </Stack>
+
+      {/* Divider */}
+      {divider && <Divider sx={{ mt: { xs: 2, sm: 3 } }} />}
     </Box>
   );
 }

@@ -28,30 +28,21 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const response = await login({ username, password });
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.message || 'Invalid credentials.');
-        setLoading(false);
-        return;
-      }
-      const data = await response.json();
-      if (data.data && data.data.refreshToken && data.data.accessToken) {
-        // Initialize user session singleton with full login response
-        userSession.initFromLoginResponse(data);
-        // Start token management
-        startAccessTokenManagement();
+      const data = await login({ username, password });
 
-        // Preload notifications and alerts in background (don't await)
-        getNotifications().catch(() => {});
-        getAlerts().catch(() => {});
+      // Initialize user session - throws error if tokens missing
+      userSession.initFromLoginResponse(data);
 
-        navigate(BASE_APP_PATH_USER_DASHBOARD, { replace: true });
-      } else {
-        setError('Login failed: No access or refresh token received.');
-      }
+      // Start token management
+      startAccessTokenManagement();
+
+      // Preload notifications and alerts in background
+      getNotifications().catch(() => {});
+      getAlerts().catch(() => {});
+
+      navigate(BASE_APP_PATH_USER_DASHBOARD, { replace: true });
     } catch (err) {
-      setError('Network error. Please try again later.');
+      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

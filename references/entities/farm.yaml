@@ -1,0 +1,158 @@
+# Farm Entity Schema
+# Represents a fish farm
+
+Farm:
+  type: object
+  required:
+    - farm_id
+    - name
+    - account_key
+  properties:
+    farm_id:
+      type: string
+      description: Unique identifier for the farm
+      example: "farm_123"
+    account_key:
+      type: string
+      description: Organization/account owning the farm
+      example: "987654321"
+    name:
+      type: string
+      description: Farm name
+      example: "Coastal Farm A"
+    location:
+      type: string
+      description: Geographic location (latitude, longitude)
+      example: "Lat: 12.34, Long: 56.78"
+    latitude:
+      type: number
+      format: double
+      description: Latitude coordinate
+      example: 12.34
+    longitude:
+      type: number
+      format: double
+      description: Longitude coordinate
+      example: 56.78
+    area_acres:
+      type: number
+      format: double
+      description: Farm area in acres
+      example: 25.5
+    water_source:
+      type: string
+      description: Source of water for the farm
+      example: "River"
+      enum: [river, lake, ocean, well, reservoir, other]
+    address:
+      type: string
+      description: Physical address of the farm
+      example: "123 Coastal Road, City, State"
+    description:
+      type: string
+      description: Farm description
+      example: "Coastal fish farm specializing in tilapia"
+    manager_user_key:
+      type: string
+      description: User key of the farm manager
+      example: "123456789"
+    status:
+      type: string
+      enum: [active, inactive, maintenance]
+      description: Farm operational status
+      example: "active"
+      default: "active"
+    total_ponds:
+      type: integer
+      description: Total number of ponds in the farm
+      example: 10
+    created_at:
+      type: string
+      format: date-time
+      description: When the farm was created
+      example: "2024-01-15T10:00:00Z"
+    updated_at:
+      type: string
+      format: date-time
+      description: When the farm was last updated
+      example: "2024-01-30T10:00:00Z"
+
+FarmCreateRequest:
+  type: object
+  required:
+    - name
+  properties:
+    name:
+      type: string
+      description: Farm name
+      example: "New Farm"
+    location:
+      type: string
+      description: Geographic location
+      example: "Lat: 12.34, Long: 56.78"
+    latitude:
+      type: number
+      format: double
+      example: 12.34
+    longitude:
+      type: number
+      format: double
+      example: 56.78
+    area_acres:
+      type: number
+      format: double
+      description: Farm area in acres
+      example: 30.0
+    water_source:
+      type: string
+      description: Source of water
+      example: "River"
+    address:
+      type: string
+      description: Physical address
+      example: "123 Farm Road"
+    description:
+      type: string
+      description: Farm description
+      example: "New coastal farm"
+
+FarmUpdateRequest:
+  type: object
+  properties:
+    name:
+      type: string
+      description: Farm name
+      example: "Updated Farm Name"
+    location:
+      type: string
+      description: Geographic location
+      example: "Lat: 12.34, Long: 56.78"
+    latitude:
+      type: number
+      format: double
+      example: 12.34
+    longitude:
+      type: number
+      format: double
+      example: 56.78
+    area_acres:
+      type: number
+      format: double
+      description: Farm area in acres
+      example: 35.0
+    water_source:
+      type: string
+      description: Source of water
+      example: "River"
+    address:
+      type: string
+      description: Physical address
+      example: "123 Farm Road"
+    description:
+      type: string
+      description: Farm description
+      example: "Updated description"
+    status:
+      type: string
+      enum: [active, inactive, maintenance]
+      example: "active"

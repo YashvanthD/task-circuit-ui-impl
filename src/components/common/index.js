@@ -12,6 +12,21 @@ import {
 } from '@mui/material';
 
 // ============================================================================
+// ErrorBoundary - Production Error Handling
+// ============================================================================
+export { ErrorBoundary } from './ErrorBoundary';
+
+// ============================================================================
+// DataTable - Reusable Table Component
+// ============================================================================
+export { default as DataTable } from './DataTable';
+
+// ============================================================================
+// GlobalAlertProvider - Global Alert/Error Popup System
+// ============================================================================
+export { default as GlobalAlertProvider } from './GlobalAlertProvider';
+
+// ============================================================================
 // ConfirmDialog - Core utility (keep inline as it's widely used)
 // ============================================================================
 

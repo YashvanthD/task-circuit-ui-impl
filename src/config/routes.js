@@ -28,6 +28,7 @@ export const USER_ROUTES = {
   POND: '/user/pond',
   FISH: '/user/fish',
   SAMPLING: '/user/sampling',
+  SAMPLING_AND_STOCKS: '/user/stocks-sampling',
   TRANSFORM: '/user/transform',
   WATER_TEST: '/user/water-test',
   REPORTS: '/user/reports',

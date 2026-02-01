@@ -1,0 +1,65 @@
+# Alert Entity Schema
+# Represents an alert in the media service
+
+Alert:
+  type: object
+  required:
+    - alert_id
+    - title
+  properties:
+    alert_id:
+      type: string
+      description: Unique identifier for the alert
+      example: "alert_111"
+    title:
+      type: string
+      description: Alert title
+      example: "Low Oxygen Level"
+    message:
+      type: string
+      description: Alert message
+      example: "Pond 1 oxygen level below threshold"
+    priority:
+      type: string
+      enum: [low, medium, high, critical]
+      description: Alert priority level
+      example: "high"
+    status:
+      type: string
+      enum: [unread, read, acknowledged, resolved]
+      description: Alert status
+      example: "unread"
+      default: "unread"
+    category:
+      type: string
+      description: Alert category
+      example: "water_quality"
+      enum: [water_quality, feeding, health, equipment, system, other]
+    entity_type:
+      type: string
+      description: Type of entity related to alert
+      example: "pond"
+    entity_id:
+      type: string
+      description: ID of related entity
+      example: "pond_456"
+    reminder_at:
+      type: string
+      format: date-time
+      description: When to send reminder
+      example: "2024-01-30T14:00:00Z"
+    acknowledged_at:
+      type: string
+      format: date-time
+      description: When alert was acknowledged
+      example: "2024-01-30T10:30:00Z"
+    resolved_at:
+      type: string
+      format: date-time
+      description: When alert was resolved
+      example: "2024-01-30T11:00:00Z"
+    created_at:
+      type: string
+      format: date-time
+      description: When the alert was created
+      example: "2024-01-30T10:00:00Z"
