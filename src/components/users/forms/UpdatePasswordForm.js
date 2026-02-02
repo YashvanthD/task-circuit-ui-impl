@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { TextField, Button, Typography, Box, CircularProgress } from '@mui/material';
+import { Alert, Grid } from '@mui/material';
 import { updateUserPassword } from '../../../utils/user';
+import { FormContainer, FormField, FormActions } from '../../common/forms';
 
 /**
  * UpdatePasswordForm - Form to update user password
- * Fields: old_password, new_password, confirm_password
  * @param {function} onSuccess - Callback when password is updated successfully
  * @param {function} onClose - Callback to close the form/dialog
  */
@@ -15,11 +15,12 @@ export default function UpdatePasswordForm({ onSuccess, onClose }) {
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm(f => ({ ...f, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
     setSuccess('');
 
@@ -37,7 +38,6 @@ export default function UpdatePasswordForm({ onSuccess, onClose }) {
     }
 
     setLoading(true);
-    setError('');
     try {
       await updateUserPassword({
         current_password: form.old_password,
@@ -45,71 +45,68 @@ export default function UpdatePasswordForm({ onSuccess, onClose }) {
       });
       setSuccess('Password updated successfully!');
       setForm({ old_password: '', new_password: '', confirm_password: '' });
-      setLoading(false);
 
-      // Close dialog after short delay
       setTimeout(() => {
         if (onClose) onClose();
         if (onSuccess) onSuccess();
       }, 800);
     } catch (err) {
-      console.error('[UpdatePasswordForm] Update failed:', err);
       setError(err.message || 'Failed to update password');
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box component="form" noValidate autoComplete="off" onSubmit={handleSubmit} sx={{ pt: 1 }}>
-      <TextField
-        label="Current Password"
-        name="old_password"
-        type="password"
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        value={form.old_password}
-        onChange={handleChange}
-        required
-        disabled={loading}
-      />
-      <TextField
-        label="New Password"
-        name="new_password"
-        type="password"
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        value={form.new_password}
-        onChange={handleChange}
-        required
-        disabled={loading}
-        helperText="At least 6 characters"
-      />
-      <TextField
-        label="Confirm New Password"
-        name="confirm_password"
-        type="password"
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        value={form.confirm_password}
-        onChange={handleChange}
-        required
-        disabled={loading}
-      />
-      {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
-      {success && <Typography color="success.main" sx={{ mt: 2 }}>{success}</Typography>}
-      <Button
-        variant="contained"
-        color="primary"
-        fullWidth
-        sx={{ mt: 2 }}
-        type="submit"
-        disabled={loading}
-      >
-        {loading ? <CircularProgress size={24} /> : 'Update Password'}
-      </Button>
-    </Box>
+    <FormContainer
+      onSubmit={handleSubmit}
+      onCancel={onClose}
+      isForm={false}
+    >
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+
+          <FormField
+            label="Current Password"
+            name="old_password"
+            type="password"
+            value={form.old_password}
+            onChange={handleChange}
+            required
+            disabled={loading}
+            xs={12}
+          />
+          <FormField
+            label="New Password"
+            name="new_password"
+            type="password"
+            value={form.new_password}
+            onChange={handleChange}
+            required
+            disabled={loading}
+            helperText="At least 6 characters"
+            xs={12}
+          />
+          <FormField
+            label="Confirm New Password"
+            name="confirm_password"
+            type="password"
+            value={form.confirm_password}
+            onChange={handleChange}
+            required
+            disabled={loading}
+            xs={12}
+          />
+        </Grid>
+
+        <FormActions
+          submitText="Update Password"
+          loading={loading}
+          onCancel={onClose}
+        />
+      </Grid>
+    </FormContainer>
   );
 }

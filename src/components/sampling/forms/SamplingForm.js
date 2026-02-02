@@ -1,413 +1,273 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Paper, Typography, TextField, Stack, Button, CircularProgress, Box, InputAdornment, IconButton, Grid, Tooltip, FormControlLabel } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import Autocomplete from '@mui/material/Autocomplete';
+import {
+  CircularProgress,
+  InputAdornment,
+  Grid,
+} from '@mui/material';
+import {
+  FormContainer,
+  FormSection,
+  FormField,
+  FormDropdown,
+  FormActions
+} from '../../common/forms';
 import { getPondOptions, getFishOptions } from '../../../utils/options';
 import userUtil from '../../../utils/user';
-import Switch from '@mui/material/Switch';
+import { useAlert } from '../../common';
 
+/**
+ * SamplingForm - Standardized sampling entry form
+ */
 export default function SamplingForm({ initialData = {}, onSubmit, onCancel, users = [] }) {
+  const { showAlert } = useAlert();
+
   const [form, setForm] = useState({
-    pond_id: initialData.pond_id || '',
-    species: initialData.species || null,
-    sampling_count: initialData.sampling_count ?? 5, // number of fish sampled (default 5)
-    total_count: initialData.total_count ?? 100, // total fish to buy (default 100)
-    avg_weight: initialData.avg_weight ?? 1000, // grams (default 1kg)
+    pond_id: initialData.pond_id || null, // Store as object/instance
+    species: initialData.species || null, // Store as object/instance
+    sampling_count: initialData.sampling_count ?? 5,
+    total_count: initialData.total_count ?? 100,
+    avg_weight: initialData.avg_weight ?? 1000,
     notes: initialData.notes || '',
-    sample_date: initialData.sample_date || initialData.sampling_date || initialData.samplingDate || new Date().toISOString().slice(0,10), // YYYY-MM-DD for date picker
-    // New fields
-    fish_cost: initialData.fish_cost ?? 50, // INR per kg default 50
-    total_amount: initialData.total_amount || 0, // editable lumpsum (manual override)
-    // cost calculation toggle: default enabled
-    cost_enabled: (initialData.cost_enabled === undefined || initialData.cost_enabled === null) ? true : Boolean(initialData.cost_enabled),
-    recorded_by_userKey: initialData.recorded_by_userKey || initialData.recordedBy || initialData.recorded_by || '',
+    sample_date: initialData.sample_date || initialData.sampling_date || new Date().toISOString().slice(0, 10),
+    fish_cost: initialData.fish_cost ?? 50,
+    total_amount: initialData.total_amount || 0,
+    cost_enabled: (initialData.cost_enabled === undefined) ? true : Boolean(initialData.cost_enabled),
+    recorded_by_userKey: initialData.recorded_by_userKey || '',
   });
 
-  // manualTotal indicates whether user has overridden the computed total.
-  const [manualTotal, setManualTotal] = useState(initialData.manual_total ?? initialData.manualTotal ?? false);
+  const [manualTotal, setManualTotal] = useState(initialData.manual_total ?? false);
   const [pondOptions, setPondOptions] = useState([]);
   const [fishOptions, setFishOptions] = useState([]);
   const [loadingPonds, setLoadingPonds] = useState(false);
   const [loadingFish, setLoadingFish] = useState(false);
-  const [, setLoadingUsers] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [localUsers, setLocalUsers] = useState(Array.isArray(users) ? users : []);
-  const [inputValue, setInputValue] = useState('');
   const mountedRef = useRef(true);
 
-  useEffect(() => { setLocalUsers(Array.isArray(users) ? users : []); }, [users]);
-
+  // Load options on mount
   useEffect(() => {
-    // if no users provided via props, try to fetch them once
-    let mounted = true;
-    (async () => {
-      // prefill with current user immediately if available
-      try {
-        const cur = await userUtil.getCurrentUser();
-        if (mounted && cur && (cur.user_key || cur.userKey || cur.id || cur._id)) {
-          setForm(prev => ({ ...prev, recorded_by_userKey: prev.recorded_by_userKey || (cur.user_key || cur.userKey || cur.id || cur._id) }));
-          // also include current user in localUsers so selector shows label
-          setLocalUsers(prev => { if (prev && prev.length > 0) return prev; return cur ? [cur] : prev; });
-        }
-      } catch (e) { /* ignore */ }
-      if ((!Array.isArray(users) || users.length === 0) && localUsers.length === 0 && mounted) {
-        await reloadUsers();
-      }
-    })();
-    return () => { mounted = false; };
+    mountedRef.current = true;
+    loadOptions();
+    loadUsers();
+    return () => { mountedRef.current = false; };
   }, []);
-
-  const reloadUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const u = await userUtil.fetchUsers();
-      console.debug('[SamplingForm] reloadUsers fetched:', u);
-      if (!mountedRef.current) return;
-      if (Array.isArray(u) && u.length > 0) setLocalUsers(u);
-      else {
-        // fallback: try current user
-        try {
-          const cur = await userUtil.getCurrentUser();
-          console.debug('[SamplingForm] fallback current user:', cur);
-          if (cur && (cur.user_key || cur.userKey || cur.id || cur._id)) {
-            setLocalUsers([cur]);
-            // if form has no recorded_by_userKey preselect current user
-            setForm(prev => ({ ...prev, recorded_by_userKey: prev.recorded_by_userKey || (cur.user_key || cur.userKey || cur.id || cur._id) }));
-          }
-        } catch (e) { /* ignore */ }
-      }
-    } catch (e) {
-      console.error('Failed to load users', e);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
-  // compute weight-per-fish in kg with minimum 1kg as per instruction
-  const weightPerFishKg = () => {
-    const avgGrams = Number(form.avg_weight) || 0;
-    const avgKg = avgGrams / 1000;
-    return Math.max(avgKg, 1);
-  };
-
-  // computed total: total_count * weightPerFishKg * fish_cost
-  const computeTotal = () => {
-    if (!form.cost_enabled) return 0;
-    const totalCount = Number(form.total_count) || 0;
-    const unit = Number(form.fish_cost) || 0; // cost per kg
-    return Number((totalCount * weightPerFishKg() * unit).toFixed(2));
-  };
 
   const loadOptions = async () => {
     setLoadingPonds(true);
     setLoadingFish(true);
     try {
-      let [p, f] = await Promise.all([getPondOptions({ force: false }), getFishOptions({ force: false })]);
-      if (!Array.isArray(p) || p.length === 0) {
-        try { p = await getPondOptions({ force: true }); } catch (e) { /* ignore */ }
-      }
-      if (!Array.isArray(f) || f.length === 0) {
-        try { f = await getFishOptions({ force: true }); } catch (e) { /* ignore */ }
-      }
+      const [p, f] = await Promise.all([
+        getPondOptions({ force: false }),
+        getFishOptions({ force: false })
+      ]);
+
       if (!mountedRef.current) return;
+
       setPondOptions(p || []);
       setFishOptions(f || []);
-      // default selection to first element if none selected (species and pond)
+
+      // Defaults
       setForm(prev => {
-        let next = prev;
-        if ((!prev.species) && Array.isArray(f) && f.length > 0) {
-          next = { ...next, species: f[0] };
-        }
-        if ((!prev.pond_id || prev.pond_id === '') && Array.isArray(p) && p.length > 0) {
-          next = { ...next, pond_id: p[0] };
-        }
-        // if total_amount not set (0) and not manual, set to computed
-        if (!manualTotal && (!prev.total_amount || Number(prev.total_amount) === 0) && prev.cost_enabled) {
-          next = { ...next, total_amount: computeTotal() };
-        }
+        let next = { ...prev };
+        if (!prev.species && f?.length > 0) next.species = f[0];
+        if (!prev.pond_id && p?.length > 0) next.pond_id = p[0];
         return next;
       });
     } catch (e) {
       console.warn('Failed to load options', e);
     } finally {
-      setLoadingPonds(false);
-      setLoadingFish(false);
-    }
-  };
-
-  useEffect(() => {
-    mountedRef.current = true;
-    loadOptions();
-    return () => { mountedRef.current = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    // Recompute total when inputs change, unless user manually overrode.
-    // If cost calculation is enabled and user hasn't manually edited total, update it.
-    if (form.cost_enabled) {
-      if (!manualTotal) {
-        const total = computeTotal();
-        setForm(prev => ({ ...prev, total_amount: total }));
-      }
-    }
-    // When cost calculation is disabled, do not reset manualTotal or the total_amount value - keep it editable by the user.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.total_count, form.avg_weight, form.fish_cost, form.cost_enabled]);
-
-  const handleReloadFish = async () => {
-    setLoadingFish(true);
-    try {
-      const f = await getFishOptions({ force: true });
-      if (!mountedRef.current) return;
-      setFishOptions(f || []);
-      setForm(prev => (!prev.species && Array.isArray(f) && f.length > 0) ? ({ ...prev, species: f[0] }) : prev);
-    } catch (e) {
-      console.error('Failed to reload fish options', e);
-    } finally {
-      setLoadingFish(false);
-    }
-  };
-
-  const handleReloadPonds = async () => {
-    setLoadingPonds(true);
-    try {
-      const p = await getPondOptions({ force: true });
-      if (!mountedRef.current) return;
-      setPondOptions(p || []);
-      setForm(prev => ((!prev.pond_id || prev.pond_id === '') && Array.isArray(p) && p.length > 0) ? ({ ...prev, pond_id: p[0] }) : prev);
-    } catch (e) {
-      console.error('Failed to reload pond options', e);
-    } finally {
-      setLoadingPonds(false);
-    }
-  };
-
-  const handleSpeciesInputChange = async (event, value) => {
-    setInputValue(value);
-    if (!value || value.trim() === '') return;
-    const q = value.toLowerCase();
-    const found = (fishOptions || []).some(o => (o.common_name || '').toLowerCase().includes(q) || (o.scientific_name || '').toLowerCase().includes(q) || (o.id || '').toString().toLowerCase().includes(q));
-    if (!found) {
-      // Try a force reload (public API fallback)
-      try {
-        setLoadingFish(true);
-        const f = await getFishOptions({ force: true });
-        if (!mountedRef.current) return;
-        setFishOptions(f || []);
-      } catch (e) {
-        console.warn('Search fetch failed', e);
-      } finally {
+      if (mountedRef.current) {
+        setLoadingPonds(false);
         setLoadingFish(false);
       }
     }
   };
 
-  const handleChange = (patch) => setForm(f => ({ ...f, ...patch }));
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const u = await userUtil.fetchUsers();
+      if (!mountedRef.current) return;
+      setLocalUsers(u || []);
 
-  const handleTotalManualChange = (value) => {
-    // Accept manual changes regardless of cost calculation being enabled.
-    setManualTotal(true);
-    setForm(prev => ({ ...prev, total_amount: value }));
+      // Auto-select current user if none
+      if (!form.recorded_by_userKey) {
+        const cur = await userUtil.getCurrentUser();
+        if (cur && mountedRef.current) {
+          const key = cur.user_key || cur.userKey || cur.id;
+          setForm(prev => ({ ...prev, recorded_by_userKey: key }));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load users', e);
+    } finally {
+      if (mountedRef.current) setLoadingUsers(false);
+    }
+  };
+
+  // Calculations
+  useEffect(() => {
+    if (form.cost_enabled && !manualTotal) {
+      const weightKg = Math.max(Number(form.avg_weight) / 1000, 1);
+      const total = (Number(form.total_count) * weightKg * Number(form.fish_cost)).toFixed(2);
+      setForm(prev => ({ ...prev, total_amount: Number(total) }));
+    }
+  }, [form.total_count, form.avg_weight, form.fish_cost, form.cost_enabled, manualTotal]);
+
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (field === 'total_amount') setManualTotal(true);
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
-    // species can be object (selected option) or string (free text)
-    let speciesObj;
-    if (!form.species) speciesObj = null;
-    else if (typeof form.species === 'string') {
-      const txt = form.species.trim();
-      speciesObj = { species_id: txt, common_name: txt, scientific_name: '' };
-    } else {
-      speciesObj = {
-        species_id: form.species.id || form.species.raw?.id || form.species.raw?.fish_id || '',
-        common_name: form.species.common_name || form.species.raw?.common_name || '',
-        scientific_name: form.species.scientific_name || form.species.raw?.scientific_name || '',
-      };
-    }
+    if (e) e.preventDefault();
 
-    const out = {
-      pond_id: form.pond_id && typeof form.pond_id === 'object' ? (form.pond_id.id || form.pond_id.raw?.pond_id || form.pond_id.raw?.id) : form.pond_id,
-      species: speciesObj,
-      sampling_count: Number(form.sampling_count) || 0,
-      total_count: Number(form.total_count) || 0,
-      avg_weight: Number(form.avg_weight) || 0,
-      sample_date: form.sample_date || form.sampling_date || form.samplingDate || null,
-      notes: form.notes || '',
-      fish_cost: Number(form.fish_cost) || 0,
-      total_amount: Number(form.total_amount) || 0,
+    // Mapping to API format
+    const payload = {
+      pond_id: form.pond_id?.id || form.pond_id?.pond_id || form.pond_id,
+      species_id: form.species?.id || form.species?.species_id || form.species?.fish_id || (typeof form.species === 'string' ? form.species : null),
+      sampling_count: Number(form.sampling_count),
+      total_count: Number(form.total_count),
+      avg_weight_g: Number(form.avg_weight),
+      sample_date: form.sample_date,
+      notes: form.notes,
+      fish_cost: Number(form.fish_cost),
+      total_amount: Number(form.total_amount),
       cost_enabled: Boolean(form.cost_enabled),
-      manual_total: manualTotal,
-      recorded_by_userKey: form.recorded_by_userKey || '',
+      recorded_by: form.recorded_by_userKey,
     };
 
-    if (onSubmit) onSubmit(out);
-    // debug: log outgoing normalized form payload (client side)
-    console.debug('[SamplingForm] submit payload:', out);
+    if (onSubmit) onSubmit(payload);
   };
 
   return (
-    <Paper sx={{ p: 3, maxHeight: '80vh', overflow: 'auto' }}>
-      <Typography variant="h6">New Sampling</Typography>
-      <form onSubmit={handleSubmit}>
-        <Stack spacing={2} sx={{ mt: 2 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={11}>
-              <Autocomplete
-                options={pondOptions}
-                getOptionLabel={(opt) => opt.label || opt.id || ''}
-                loading={loadingPonds}
-                onChange={(e, val) => handleChange({ pond_id: val })}
-                value={typeof form.pond_id === 'object' ? form.pond_id : (pondOptions.find(p => (p.id === form.pond_id || p.id === (form.pond_id && form.pond_id.id))) || null)}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label={<><span>Pond</span> <Tooltip title="Select the pond where fish will be stocked"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
-                    placeholder="Select pond"
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (loadingPonds ? (<InputAdornment position="end"><CircularProgress color="inherit" size={20} /></InputAdornment>) : null),
-                    }}
-                    fullWidth
-                    sx={{ minWidth: 320 }}
-                  />
-                )}
-              />
-            </Grid>
-            <Grid item xs={1}>
-              <IconButton onClick={handleReloadPonds} aria-label="Reload ponds" title="Reload ponds" size="small">
-                <RefreshIcon />
-              </IconButton>
-            </Grid>
-          </Grid>
+    <FormContainer
+      title="New Pond Sampling"
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+    >
+      <Grid container spacing={3}>
+        <FormSection title="Source & Location" subtitle="Select the pond and species">
+          <FormDropdown
+            label="Pond"
+            value={form.pond_id}
+            onChange={(e, val) => handleChange('pond_id', val)}
+            options={pondOptions}
+            getOptionLabel={(opt) => opt.label || opt.name || 'Unnamed Pond'}
+            loading={loadingPonds}
+            onRefresh={loadOptions}
+            required
+            xs={12} sm={6}
+          />
 
-          <Box>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Box sx={{ flex: 1 }}>
-                <Autocomplete
-                  options={fishOptions}
-                  getOptionLabel={(opt) => typeof opt === 'string' ? opt : (opt.label || opt.id || '')}
-                  loading={loadingFish}
-                  onChange={(e, val) => handleChange({ species: val })}
-                  value={form.species}
-                  freeSolo
-                  onInputChange={handleSpeciesInputChange}
-                  inputValue={inputValue}
-                  filterOptions={(options, state) => {
-                    const q = (state.inputValue || '').toLowerCase();
-                    if (!q) return options;
-                    return options.filter(o => (
-                      (o.common_name || '').toLowerCase().includes(q) ||
-                      (o.scientific_name || '').toLowerCase().includes(q) ||
-                      (o.id || '').toString().toLowerCase().includes(q)
-                    ));
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label={<><span>Species (common | scientific | id)</span> <Tooltip title="Search public species list or your account species"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
-                      placeholder="Search species by name or id"
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (loadingFish ? (<InputAdornment position="end"><CircularProgress color="inherit" size={20} /></InputAdornment>) : null),
-                      }}
-                      fullWidth
-                      sx={{ minWidth: 320 }}
-                    />
-                  )}
-                  fullWidth
-                />
-              </Box>
-              <IconButton onClick={handleReloadFish} aria-label="Reload species" title="Reload species" size="small">
-                <RefreshIcon />
-              </IconButton>
-            </Stack>
+          <FormDropdown
+            label="Species"
+            value={form.species}
+            onChange={(e, val) => handleChange('species', val)}
+            options={fishOptions}
+            getOptionLabel={(opt) => opt.label || opt.common_name || (typeof opt === 'string' ? opt : 'Unnamed Species')}
+            loading={loadingFish}
+            onRefresh={loadOptions}
+            freeSolo
+            required
+            xs={12} sm={6}
+          />
 
-          </Box>
+          <FormDropdown
+            label="Recorded By"
+            value={localUsers.find(u => (u.user_key === form.recorded_by_userKey || u.id === form.recorded_by_userKey)) || form.recorded_by_userKey}
+            onChange={(e, val) => handleChange('recorded_by_userKey', val?.user_key || val?.id || val)}
+            options={localUsers}
+            getOptionLabel={(u) => u.display_name || u.username || u.name || (typeof u === 'string' ? u : '')}
+            loading={loadingUsers}
+            required
+            xs={12} sm={6}
+          />
 
-          {/* Recorded By selector - shows username/display name but stores userKey */}
-          <Box>
-            <Autocomplete
-              options={localUsers || []}
-              getOptionLabel={(opt) => (typeof opt === 'string' ? opt : (opt.display_name || opt.username || opt.name || opt.email || opt.user_key || ''))}
-              onChange={(e, val) => handleChange({ recorded_by_userKey: val ? (val.user_key || val.userKey || val.id || val._id) : '' })}
-              value={localUsers.find(u => (u.user_key === form.recorded_by_userKey || u.userKey === form.recorded_by_userKey || u.id === form.recorded_by_userKey || u._id === form.recorded_by_userKey)) || null}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label={<><span>Recorded By (user)</span> <Tooltip title="Who recorded this sampling (user key). Selecting shows username/display name"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
-                  placeholder="Select user"
-                  fullWidth
-                  sx={{ minWidth: 320, mt: 2 }}
-                />
-              )}
-              isOptionEqualToValue={(option, value) => (option.user_key === value.user_key || option.userKey === value.userKey || option.id === value.id || option._id === value._id)}
-            />
-          </Box>
+          <FormField
+            label="Sample Date"
+            type="date"
+            value={form.sample_date}
+            onChange={(e) => handleChange('sample_date', e.target.value)}
+            required
+            InputLabelProps={{ shrink: true }}
+            xs={12} sm={6}
+          />
+        </FormSection>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={4}>
-              <TextField label={<>Sampling count <Tooltip title="Number of fish sampled to estimate average weight"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="sampling_count" value={form.sampling_count} onChange={e => handleChange({ sampling_count: e.target.value })} fullWidth />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField label={<>Total count <Tooltip title="Total number of fish to purchase/stock"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="total_count" value={form.total_count} onChange={e => handleChange({ total_count: e.target.value })} fullWidth />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField label={<>Sample date <Tooltip title="Date when the sampling was performed"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="sample_date" type="date" value={form.sample_date?.slice(0,10) || ''} onChange={e => handleChange({ sample_date: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth />
-            </Grid>
-            <Grid item xs={12} sm={4}>
-              <TextField label={<>Avg weight (g) <Tooltip title="Average weight per sampled fish in grams (min 1000g used for cost calc)"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>} name="avg_weight" value={form.avg_weight} onChange={e => handleChange({ avg_weight: e.target.value })} fullWidth />
-            </Grid>
-          </Grid>
+        <FormSection title="Measurements" subtitle="Fish count and weights">
+          <FormField
+            label="Sampling Count"
+            type="number"
+            value={form.sampling_count}
+            onChange={(e) => handleChange('sampling_count', e.target.value)}
+            helperText="Number of fish actually caught for weighing"
+            xs={12} sm={4}
+          />
+          <FormField
+            label="Avg. Weight"
+            type="number"
+            value={form.avg_weight}
+            onChange={(e) => handleChange('avg_weight', e.target.value)}
+            unit="g"
+            xs={12} sm={4}
+          />
+          <FormField
+            label="Total Count"
+            type="number"
+            value={form.total_count}
+            onChange={(e) => handleChange('total_count', e.target.value)}
+            helperText="Estimate of total fish in pond"
+            xs={12} sm={4}
+          />
+        </FormSection>
 
-          {/* Purchase / cost section */}
-          <Box>
-            <Typography variant="subtitle2">Cost calculation</Typography>
-            <Grid container spacing={2} alignItems="center" sx={{ mt: 1 }}>
-               <Grid item xs={12} sm={12}>
-                 <Tooltip title={form.cost_enabled ? 'Cost calculation enabled' : 'Cost calculation disabled'}>
-                   <FormControlLabel
-                     control={<Switch size="small" checked={Boolean(form.cost_enabled)} onChange={(e) => handleChange({ cost_enabled: Boolean(e.target.checked) })} inputProps={{ 'aria-label': 'Toggle cost calculation' }} />}
-                     label="Buy"
-                   />
-                 </Tooltip>
-               </Grid>
-               <Grid item xs={12} sm={4}>
-                 <TextField
-                   label={<>Fish cost (INR per kg) <Tooltip title="Price per kilogram used to compute total cost"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
-                   name="fish_cost"
-                   type="number"
-                   value={form.fish_cost}
-                   onChange={e => handleChange({ fish_cost: e.target.value })}
-                   disabled={!form.cost_enabled}
-                   inputProps={{ min: 0 }}
-                   fullWidth
-                 />
-               </Grid>
+        <FormSection title="Financials" subtitle="Cost calculation for stocking">
+          <FormField
+            label="Cost Calculation"
+            type="checkbox"
+            checked={form.cost_enabled}
+            onChange={(e) => handleChange('cost_enabled', e.target.checked)}
+            labelPlacement="end"
+            checkboxLabel="Enable Cost Auto-Calculation"
+            xs={12}
+          />
+          <FormField
+            label="Fish Cost"
+            type="number"
+            value={form.fish_cost}
+            onChange={(e) => handleChange('fish_cost', e.target.value)}
+            disabled={!form.cost_enabled}
+            unit="₹/kg"
+            xs={12} sm={6}
+          />
+          <FormField
+            label="Total Amount"
+            type="number"
+            value={form.total_amount}
+            onChange={(e) => handleChange('total_amount', e.target.value)}
+            unit="₹"
+            xs={12} sm={6}
+          />
+        </FormSection>
 
-               <Grid item xs={12} sm={3}>
-                 <TextField
-                   label={<>Total amount (INR) <Tooltip title="Total payable amount; editable by the user"><InfoOutlinedIcon fontSize="small" sx={{ ml: 0.5, verticalAlign: 'middle' }} /></Tooltip></>}
-                   name="total_amount"
-                   type="number"
-                   value={form.total_amount}
-                   onChange={e => handleTotalManualChange(Number(e.target.value))}
-                   // Always editable; user edits set manualTotal and prevent subsequent auto-updates
-                   inputProps={{ min: 0 }}
-                   fullWidth
-                 />
-               </Grid>
-             </Grid>
-           </Box>
+        <FormSection title="Additional Notes">
+          <FormField
+            label="Notes"
+            value={form.notes}
+            onChange={(e) => handleChange('notes', e.target.value)}
+            multiline
+            rows={3}
+            xs={12}
+          />
+        </FormSection>
 
-           <TextField label="Notes" name="notes" value={form.notes} onChange={e => handleChange({ notes: e.target.value })} fullWidth multiline rows={3} />
-           <Stack direction="row" spacing={2} sx={{ justifyContent: 'flex-end' }}>
-             <Button variant="outlined" onClick={onCancel}>Cancel</Button>
-             <Button variant="contained" type="submit">Save</Button>
-           </Stack>
-         </Stack>
-       </form>
-     </Paper>
-   );
+        <FormActions
+          onCancel={onCancel}
+          submitText="Save Sampling"
+          loading={false}
+        />
+      </Grid>
+    </FormContainer>
+  );
 }

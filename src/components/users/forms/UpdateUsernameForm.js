@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { TextField, Button, Typography, Box, CircularProgress } from '@mui/material';
+import { Alert, Grid } from '@mui/material';
 import { updateUsername } from '../../../utils/user';
+import { FormContainer, FormField, FormActions } from '../../common/forms';
 
 /**
  * UpdateUsernameForm - Form to update user username
@@ -14,7 +15,7 @@ export default function UpdateUsernameForm({ onSuccess, onClose }) {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
     setSuccess('');
 
@@ -28,7 +29,6 @@ export default function UpdateUsernameForm({ onSuccess, onClose }) {
       return;
     }
 
-    // Basic username validation (alphanumeric and underscore)
     const usernameRegex = /^[a-zA-Z0-9_]+$/;
     if (!usernameRegex.test(username)) {
       setError('Username can only contain letters, numbers, and underscores');
@@ -36,50 +36,50 @@ export default function UpdateUsernameForm({ onSuccess, onClose }) {
     }
 
     setLoading(true);
-    setError('');
     try {
-      const result = await updateUsername(username);
-      console.log('[UpdateUsernameForm] Update result:', result);
+      await updateUsername(username);
       setSuccess('Username updated successfully!');
-      setLoading(false);
 
-      // Close dialog and trigger refresh
       setTimeout(() => {
         if (onClose) onClose();
         if (onSuccess) onSuccess();
       }, 800);
     } catch (err) {
-      console.error('[UpdateUsernameForm] Update failed:', err);
       setError(err.message || 'Failed to update username');
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box component="form" noValidate autoComplete="off" onSubmit={handleSubmit} sx={{ pt: 1 }}>
-      <TextField
-        label="New Username"
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        required
-        disabled={loading}
-        helperText="At least 3 characters, letters, numbers, and underscores only"
-      />
-      {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
-      {success && <Typography color="success.main" sx={{ mt: 2 }}>{success}</Typography>}
-      <Button
-        variant="contained"
-        color="primary"
-        fullWidth
-        sx={{ mt: 2 }}
-        type="submit"
-        disabled={loading}
-      >
-        {loading ? <CircularProgress size={24} /> : 'Update Username'}
-      </Button>
-    </Box>
+    <FormContainer
+      onSubmit={handleSubmit}
+      onCancel={onClose}
+      isForm={false}
+    >
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+
+          <FormField
+            label="New Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            required
+            disabled={loading}
+            helperText="At least 3 characters, letters, numbers, and underscores only"
+            autoFocus
+            xs={12}
+          />
+        </Grid>
+
+        <FormActions
+          submitText="Update Username"
+          loading={loading}
+          onCancel={onClose}
+        />
+      </Grid>
+    </FormContainer>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { TextField, Button, Typography, Box, CircularProgress } from '@mui/material';
+import { Alert, Grid } from '@mui/material';
 import { updateUserEmail } from '../../../utils/user';
+import { FormContainer, FormField, FormActions } from '../../common/forms';
 
 /**
  * UpdateMailForm - Form to update user email
@@ -14,7 +15,7 @@ export default function UpdateMailForm({ onSuccess, onClose }) {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
     setSuccess('');
 
@@ -31,51 +32,51 @@ export default function UpdateMailForm({ onSuccess, onClose }) {
     }
 
     setLoading(true);
-    setError('');
     try {
-      const result = await updateUserEmail(email);
-      console.log('[UpdateMailForm] Update result:', result);
+      await updateUserEmail(email);
       setSuccess('Email updated successfully!');
-      setLoading(false);
 
-      // Close dialog and trigger refresh
       setTimeout(() => {
         if (onClose) onClose();
         if (onSuccess) onSuccess();
       }, 800);
     } catch (err) {
-      console.error('[UpdateMailForm] Update failed:', err);
       setError(err.message || 'Failed to update email');
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box component="form" noValidate autoComplete="off" onSubmit={handleSubmit} sx={{ pt: 1 }}>
-      <TextField
-        label="New Email Address"
-        type="email"
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        disabled={loading}
-        placeholder="user@example.com"
-      />
-      {error && <Typography color="error" sx={{ mt: 2 }}>{error}</Typography>}
-      {success && <Typography color="success.main" sx={{ mt: 2 }}>{success}</Typography>}
-      <Button
-        variant="contained"
-        color="primary"
-        fullWidth
-        sx={{ mt: 2 }}
-        type="submit"
-        disabled={loading}
-      >
-        {loading ? <CircularProgress size={24} /> : 'Update Email'}
-      </Button>
-    </Box>
+    <FormContainer
+      onSubmit={handleSubmit}
+      onCancel={onClose}
+      isForm={false} // Container provides Paper, we manually wrap form internals
+    >
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+
+          <FormField
+            label="New Email Address"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={loading}
+            placeholder="user@example.com"
+            autoFocus
+            xs={12}
+          />
+        </Grid>
+
+        <FormActions
+          submitText="Update Email"
+          loading={loading}
+          onCancel={onClose}
+        />
+      </Grid>
+    </FormContainer>
   );
 }

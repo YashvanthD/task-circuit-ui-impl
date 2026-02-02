@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { TextField, Button, Paper, Typography, Box } from '@mui/material';
 import { signup } from '../../../api';
+import { FormContainer, FormSection, FormField, FormActions } from '../../common/forms';
+import { Alert, Grid } from '@mui/material';
 
 /**
  * SignupForm - User registration form for TaskCircuit
  * Includes username, email, password, company name, and master password fields.
  * Handles API call and error/success display.
  */
-export default function SignupForm() {
+export default function SignupForm({ onSuccess, onCancel }) {
   const [form, setForm] = useState({
     username: '',
     email: '',
@@ -17,50 +18,107 @@ export default function SignupForm() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm(f => ({ ...f, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
     setSuccess('');
+
     if (!form.company_name) {
       setError('Company name is required');
       return;
     }
-    // if (!form.master_password) {
-    //   setError('Master password is required');
-    //   return;
-    // }
+
+    setLoading(true);
     try {
-      const submitBody = { ...form };
-      const res = await signup(submitBody);
+      const res = await signup(form);
       const data = await res.json();
+
       if (res.ok && data.success) {
         setSuccess('Registration successful!');
+        if (onSuccess) onSuccess(data);
       } else {
         setError(data.error || (data.errors && Object.values(data.errors).join(', ')) || 'Registration failed');
       }
     } catch (err) {
       setError('Network/server error');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Paper elevation={3} sx={{padding:4, maxWidth:400, margin:'120px auto'}}>
-      <Typography variant="h5" gutterBottom>Sign Up</Typography>
-      <Box component="form" noValidate autoComplete="off" onSubmit={handleSubmit}>
-        <TextField label="Username" name="username" variant="outlined" fullWidth margin="normal" value={form.username} onChange={handleChange} />
-        <TextField label="Email" name="email" type="email" variant="outlined" fullWidth margin="normal" value={form.email} onChange={handleChange} />
-        <TextField label="Password" name="password" type="password" variant="outlined" fullWidth margin="normal" value={form.password} onChange={handleChange} />
-        <TextField label="Company Name" name="company_name" variant="outlined" fullWidth margin="normal" value={form.company_name} onChange={handleChange} required />
-        <TextField label="Master Password" name="master_password" type="password" variant="outlined" fullWidth margin="normal" value={form.master_password} onChange={handleChange}  />
-        {error && <Typography color="error" mt={2}>{error}</Typography>}
-        {success && <Typography color="success.main" mt={2}>{success}</Typography>}
-        <Button variant="contained" color="primary" fullWidth sx={{mt:2}} type="submit">Sign Up</Button>
-      </Box>
-    </Paper>
+    <FormContainer
+      title="Create Account"
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      maxWidth={500}
+    >
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+
+      <Grid container spacing={2}>
+        <FormSection title="User Credentials" subtitle="Enter your login details">
+          <FormField
+            label="Username"
+            name="username"
+            value={form.username}
+            onChange={handleChange}
+            required
+            xs={12}
+          />
+          <FormField
+            label="Email Address"
+            name="email"
+            type="email"
+            value={form.email}
+            onChange={handleChange}
+            required
+            xs={12}
+          />
+          <FormField
+            label="Password"
+            name="password"
+            type="password"
+            value={form.password}
+            onChange={handleChange}
+            required
+            xs={12}
+          />
+        </FormSection>
+
+        <FormSection title="Organization Details" subtitle="Register your farm or company">
+          <FormField
+            label="Company Name"
+            name="company_name"
+            value={form.company_name}
+            onChange={handleChange}
+            required
+            xs={12}
+          />
+          <FormField
+            label="Master Password"
+            name="master_password"
+            type="password"
+            value={form.master_password}
+            onChange={handleChange}
+            helperText="Used for sensitive administrative actions"
+            xs={12}
+          />
+        </FormSection>
+
+        <FormActions
+          submitText="Create Account"
+          loading={loading}
+          onCancel={onCancel}
+        />
+      </Grid>
+    </FormContainer>
   );
 }
