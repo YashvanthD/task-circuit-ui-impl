@@ -19,6 +19,7 @@ import { Paper, Box, Typography, Divider } from '@mui/material';
  * @param {number} props.maxWidth - Maximum width (default: 1000)
  * @param {number} props.elevation - Paper elevation (default: 2)
  * @param {Function} props.onSubmit - Form submit handler
+ * @param {boolean} props.isForm - Whether to render as a form element (default: true)
  */
 export default function FormContainer({
   title,
@@ -26,6 +27,11 @@ export default function FormContainer({
   maxWidth = 1000,
   elevation = 2,
   onSubmit,
+  isForm = true,
+  // Destructure common non-DOM props to avoid passing them to Paper
+  onCancel,
+  submitText,
+  loading,
   ...rest
 }) {
   const handleSubmit = (e) => {
@@ -35,18 +41,21 @@ export default function FormContainer({
     }
   };
 
+  const sx = {
+    p: { xs: 2, sm: 4, md: 5 }, // Reduced padding on mobile from 3 to 2
+    m: { xs: 0, sm: 2 }, // Removed margin on mobile from 1 to 0
+    maxWidth,
+    mx: 'auto',
+    borderRadius: { xs: 0, sm: 2 }, // Square corners on mobile for flush look
+    bgcolor: 'background.paper', // Theme-aware background
+    boxShadow: { xs: 'none', sm: rest.elevation || 2 }, // Remove shadow on mobile if flush
+    ...rest.sx,
+  };
+
   return (
     <Paper
       elevation={elevation}
-      sx={{
-        p: { xs: 3, sm: 4, md: 5 },
-        m: { xs: 1, sm: 2 },
-        maxWidth,
-        mx: 'auto',
-        borderRadius: 2,
-        bgcolor: 'background.paper', // Theme-aware background
-        ...rest.sx,
-      }}
+      sx={sx}
       {...rest}
     >
       {/* Form Title */}
@@ -68,9 +77,15 @@ export default function FormContainer({
       )}
 
       {/* Form Content */}
-      <Box component="form" onSubmit={handleSubmit} noValidate>
-        {children}
-      </Box>
+      {isForm ? (
+        <Box component="form" onSubmit={handleSubmit} noValidate>
+          {children}
+        </Box>
+      ) : (
+        <Box noValidate>
+          {children}
+        </Box>
+      )}
     </Paper>
   );
 }

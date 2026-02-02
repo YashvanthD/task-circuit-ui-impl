@@ -11,6 +11,7 @@ import PondPage from './pages/user/PondPage';
 import ReportsPage from './pages/user/ReportsPage';
 import ManageUsersPage from './pages/user/ManageUsersPage';
 import DatasetPage from './pages/user/DatasetPage';
+import PondMonitoringPage from './pages/user/PondMonitoringPage';
 import ChatPage from './pages/user/ChatPage';
 import ExpensesPage from './pages/user/ExpensesPage';
 import InvoicePage from './pages/user/InvoicePage';
@@ -103,6 +104,7 @@ function AppRoutes() {
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="pond" element={<PondPage />} />
+        <Route path="ponds" element={<PondMonitoringPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="ai" element={<AiPage />} />
         <Route path="invoice" element={<InvoicePage />} />

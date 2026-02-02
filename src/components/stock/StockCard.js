@@ -66,7 +66,7 @@ export default function StockCard({
     {
       id: 'date',
       label: 'Date',
-      align: 'left',
+      align: 'left', // Explicitly left-aligned
       sortable: true,
       sortKey: 'sample_date',
       render: (sampling) => formatDate(sampling.sample_date || sampling.sampling_date),
@@ -74,7 +74,7 @@ export default function StockCard({
     {
       id: 'samples',
       label: 'Samples',
-      align: 'right',
+      align: 'right', // Numbers right-aligned
       sortable: true,
       sortKey: 'sample_count',
       render: (sampling) => formatCount(sampling.sample_count || sampling.sample_size),
@@ -82,7 +82,7 @@ export default function StockCard({
     {
       id: 'avgWeight',
       label: 'Avg Weight',
-      align: 'right',
+      align: 'right', // Numbers right-aligned
       sortable: true,
       sortKey: 'avg_weight_g',
       render: (sampling) => formatWeight(sampling.avg_weight_g || sampling.avg_weight || 0),
@@ -90,7 +90,7 @@ export default function StockCard({
     {
       id: 'growth',
       label: 'Growth',
-      align: 'right',
+      align: 'right', // Numbers right-aligned
       render: (sampling) => {
         const samplingIndex = sortedSamplings.findIndex(s => s.sampling_id === sampling.sampling_id);
         const previousSampling = samplingIndex >= 0 && samplingIndex < sortedSamplings.length - 1
@@ -115,7 +115,7 @@ export default function StockCard({
           '-'
         );
       },
-    },
+    }
   ];
 
   // Define row actions
@@ -286,6 +286,10 @@ export default function StockCard({
           initialRowCount={3}
           loadMoreCount={10}
           showPagination={!showAllSamplings}
+          exportable={true}
+          exportFormats={['pdf', 'csv']}
+          exportFilename={`${stock.species_name || 'stock'}-${stock.stock_id}-samplings`}
+          exportPosition="right"
         />
       </Box>
 

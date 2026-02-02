@@ -17,7 +17,7 @@ import {
 export { ErrorBoundary } from './ErrorBoundary';
 
 // ============================================================================
-// DataTable - Reusable Table Component
+// DataTable - Reusable Table Component (Directory Structure)
 // ============================================================================
 export { default as DataTable } from './DataTable';
 
@@ -80,11 +80,21 @@ export function FormDialog({
   loading = false,
   maxWidth = 'sm',
   fullWidth = true,
+  hideActions = false, // Added prop
 }) {
+  // If actions are hidden, we assume the child manages its own form/buttons
+  if (hideActions) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth={maxWidth} fullWidth={fullWidth}>
+        {children}
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth={maxWidth} fullWidth={fullWidth}>
       <form onSubmit={onSubmit}>
-        <DialogTitle>{title}</DialogTitle>
+        {title && <DialogTitle>{title}</DialogTitle>}
         <DialogContent dividers>{children}</DialogContent>
         <DialogActions>
           <Button onClick={onClose} disabled={loading}>
@@ -124,6 +134,7 @@ export { default as ErrorState } from './ErrorState';
 
 // Layout Components
 export { default as PageHeader } from './PageHeader';
+export { default as ViewHeader } from './ViewHeader';
 export { default as FilterBar } from './FilterBar';
 export { default as StatsGrid } from './StatsGrid';
 export { default as DataGrid } from './DataGrid';
@@ -134,3 +145,19 @@ export { default as AlertPopup, useAlert, getApiErrorMessage, getApiErrorTitle }
 // Forms
 export * from './forms';
 
+// ============================================================================
+// Charts & Analytics
+// ============================================================================
+export * from './charts';
+
+// ============================================================================
+// Enhanced Components
+// ============================================================================
+export * from './enhanced';
+
+// ============================================================================
+// Timeline & Calendar & Gallery
+// ============================================================================
+export * from './timeline';
+export * from './calendar';
+export * from './gallery';

@@ -8,13 +8,32 @@ A reusable table component with built-in pagination, row actions, and customizab
 
 ## Features
 
-- ✅ **Pagination** - Show limited rows, load more progressively
+### **Currently Implemented** ✅
+- ✅ **Column Sorting** - Click headers to sort ascending/descending
+- ✅ **Pagination** - Show limited rows, load more progressively  
+- ✅ **Smooth Scrolling** - Custom scrollbar with smooth scroll behavior
+- ✅ **Clickable Rows** - Row click handlers for edit forms
+- ✅ **Smooth Hover Effects** - Professional animations and transitions
 - ✅ **Row Actions** - Edit, delete, or custom actions per row
 - ✅ **Custom Columns** - Flexible column definitions with custom renderers
 - ✅ **Empty State** - Customizable empty message
 - ✅ **Responsive** - Works on mobile and desktop
-- ✅ **Sorting** - Sort data before passing to table
 - ✅ **Theme Compatible** - Works with light and dark themes
+
+### **Recommended Future Enhancements** 🔮
+- 🔲 **Row Selection** - Checkbox selection for bulk actions
+- 🔲 **Search/Filter** - Built-in search bar and column filters
+- 🔲 **Column Visibility** - Show/hide columns toggle
+- 🔲 **Column Resizing** - Drag column borders to resize
+- 🔲 **Export Data** - Export to CSV, Excel, PDF
+- 🔲 **Virtualization** - Virtual scrolling for 1000+ rows
+- 🔲 **Grouping** - Group rows by column values
+- 🔲 **Inline Editing** - Edit cells directly in table
+- 🔲 **Loading State** - Skeleton loader while fetching data
+- 🔲 **Row Expansion** - Expandable rows with nested content
+- 🔲 **Dense Mode** - Compact row spacing toggle
+- 🔲 **Frozen Columns** - Pin left/right columns
+- 🔲 **Custom Footer** - Summary rows, totals, aggregations
 
 ---
 
@@ -72,6 +91,9 @@ function MyComponent() {
 | `initialRowCount` | `number` | `3` | Initial number of rows to show |
 | `loadMoreCount` | `number` | `10` | Number of rows to load per "Load More" |
 | `showPagination` | `boolean` | `true` | Show pagination controls |
+| `clickableRows` | `boolean` | `false` | **NEW:** Make rows clickable |
+| `onRowClick` | `function` | - | **NEW:** Row click handler: `(row) => {}` |
+| `enableSmoothScroll` | `boolean` | `true` | **NEW:** Enable smooth scrolling |
 | `rowActions` | `Array<Object>` | `[]` | Row action buttons (see Row Actions below) |
 | `getRowKey` | `function` | Uses index | Function to get unique key from row |
 | `emptyMessage` | `string` | `'No data available'` | Message when no data |
@@ -92,6 +114,8 @@ Each column object in the `columns` array has:
   id: 'columnId',           // Required: Unique column identifier
   label: 'Column Label',    // Required: Display label
   align: 'left',            // Optional: 'left' | 'center' | 'right'
+  sortable: true,           // Optional: Enable sorting for this column
+  sortKey: 'field_name',    // Optional: Field to sort by (defaults to id)
   render: (row, index) => {}, // Optional: Custom render function
   headerSx: {},             // Optional: Header cell styles
   cellSx: {},               // Optional: Body cell styles

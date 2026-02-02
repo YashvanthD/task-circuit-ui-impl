@@ -28,6 +28,7 @@ export default function FormActions({
   loading = false,
   disabled = false,
   showDivider = true,
+  children, // Added children prop
 }) {
   return (
     <Grid item xs={12}>
@@ -36,29 +37,34 @@ export default function FormActions({
         sx={{
           display: 'flex',
           gap: { xs: 1, sm: 2 },
+          alignItems: 'center',
           justifyContent: { xs: 'stretch', sm: 'flex-end' },
           flexDirection: { xs: 'column-reverse', sm: 'row' },
         }}
       >
-        {onCancel && (
+        {children} {/* Render additional actions (like Delete) first or as specified */}
+
+        <Box sx={{ display: 'flex', gap: 2, flex: { xs: 1, sm: 'none' }, justifyContent: 'flex-end' }}>
+          {onCancel && (
+            <Button
+              variant="outlined"
+              onClick={onCancel}
+              disabled={loading}
+              sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 120 } }}
+            >
+              {cancelText}
+            </Button>
+          )}
           <Button
-            variant="outlined"
-            onClick={onCancel}
-            disabled={loading}
+            variant="contained"
+            type="submit"
+            onClick={onSubmit}
+            disabled={disabled || loading}
             sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 120 } }}
           >
-            {cancelText}
+            {loading ? 'Loading...' : submitText}
           </Button>
-        )}
-        <Button
-          variant="contained"
-          type="submit"
-          onClick={onSubmit}
-          disabled={disabled || loading}
-          sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 120 } }}
-        >
-          {loading ? 'Loading...' : submitText}
-        </Button>
+        </Box>
       </Box>
     </Grid>
   );

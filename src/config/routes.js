@@ -26,6 +26,7 @@ export const USER_ROUTES = {
   NOTIFICATIONS: '/user/notifications',
   TASKS: '/user/tasks',
   POND: '/user/pond',
+  PONDS: '/user/ponds', // New redesigned page
   FISH: '/user/fish',
   SAMPLING: '/user/sampling',
   SAMPLING_AND_STOCKS: '/user/stocks-sampling',
@@ -67,4 +68,3 @@ export function buildRoute(route, params = {}) {
   });
   return result;
 }
-

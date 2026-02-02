@@ -15,3 +15,5 @@ export { default as PondForm } from './PondForm';
 export { default as PondDailyUpdateForm } from './PondDailyUpdateForm';
 export { default as TransformForm } from './TransformForm';
 
+// New Quick Forms
+export * from './quick';

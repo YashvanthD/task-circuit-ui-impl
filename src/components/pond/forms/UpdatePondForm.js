@@ -7,11 +7,23 @@ import {
   MenuItem,
   Stack,
   Alert,
-  CircularProgress
+  CircularProgress,
+  FormControlLabel,
+  Switch,
+  Grid,
+  InputAdornment
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import WavesIcon from '@mui/icons-material/Waves';
+import LayersIcon from '@mui/icons-material/Layers';
+import HeightIcon from '@mui/icons-material/Height';
+import SettingsInputComponentIcon from '@mui/icons-material/SettingsInputComponent';
+import DescriptionIcon from '@mui/icons-material/Description';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { apiFetch } from '../../../api';
 import { API_FISH } from '../../../api/constants';
 import { POND_TYPES, FISH_WATER_SOURCES, POND_STATUS } from '../../../constants/pondConstants';
+import { FormContainer, FormSection, FormActions } from '../../common/forms';
 
 /**
  * UpdatePondForm - Update existing pond details
@@ -30,7 +42,7 @@ import { POND_TYPES, FISH_WATER_SOURCES, POND_STATUS } from '../../../constants/
  */
 
 
-export default function UpdatePondForm({ pondId, initialData, onSuccess, onCancel }) {
+export default function UpdatePondForm({ pondId, initialData, onSuccess, onCancel, onDelete }) {
   const [loading, setLoading] = useState(false);
   const [fetchingData, setFetchingData] = useState(!initialData);
   const [form, setForm] = useState({
@@ -112,52 +124,26 @@ export default function UpdatePondForm({ pondId, initialData, onSuccess, onCance
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
     setSuccess('');
-
-    // Validation
-    if (!pondId) {
-      setError('Pond ID is required');
-      return;
-    }
-    if (!form.name) {
-      setError('Pond name is required');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      // Prepare payload
-      const payload = {
-        name: form.name,
-        pond_type: form.pond_type,
-        area_sqm: form.area_sqm ? parseFloat(form.area_sqm) : undefined,
-        depth_m: form.depth_m ? parseFloat(form.depth_m) : undefined,
-        water_source: form.water_source || undefined,
-        aeration_system: form.aeration_system,
-        filtration_system: form.filtration_system,
-        description: form.description || undefined,
-        status: form.status
-      };
-
       const res = await apiFetch(API_FISH.POND_UPDATE(pondId), {
         method: 'PUT',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(form),
         headers: { 'Content-Type': 'application/json' }
       });
 
       const data = await res.json();
-
       if (res.ok && data.success) {
         setSuccess('Pond updated successfully!');
-
         if (onSuccess) {
-          setTimeout(() => onSuccess(data.data), 1500);
+          setTimeout(() => onSuccess(data.data), 1000);
         }
       } else {
-        setError(data.error || data.message || 'Failed to update pond');
+        setError(data.error || 'Failed to update pond');
       }
     } catch (err) {
       setError('Network error: ' + err.message);
@@ -168,167 +154,212 @@ export default function UpdatePondForm({ pondId, initialData, onSuccess, onCance
 
   if (fetchingData) {
     return (
-      <Box sx={{ textAlign: 'center', py: 3 }}>
-        <CircularProgress size={30} />
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-          Loading...
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+        <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Box component="form" noValidate autoComplete="off" onSubmit={handleSubmit} sx={{ maxWidth: 600, mx: 'auto' }}>
-      {/* Pond Name */}
-      <TextField
-        label="Pond Name *"
-        name="name"
-        fullWidth
-        size="small"
-        margin="dense"
-        value={form.name}
-        onChange={handleChange}
-        required
-        placeholder="e.g., Pond A1"
-      />
+    <FormContainer
+      title={`Edit Pond: ${form.name}`}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+      isForm={false} // Container provides the UI, but we use internal form elements
+    >
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-      {/* Pond Type & Status */}
-      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-        <TextField
-          select
-          label="Type *"
-          name="pond_type"
-          size="small"
-          value={form.pond_type}
-          onChange={handleChange}
-          required
-          sx={{ flex: 1 }}
-        >
-          {POND_TYPES.map((type) => (
-            <MenuItem key={type.value} value={type.value}>{type.label}</MenuItem>
-          ))}
-        </TextField>
-        <TextField
-          select
-          label="Status *"
-          name="status"
-          size="small"
-          value={form.status}
-          onChange={handleChange}
-          required
-          sx={{ flex: 1 }}
-        >
-          {POND_STATUS.map((status) => (
-            <MenuItem key={status.value} value={status.value}>{status.label}</MenuItem>
-          ))}
-        </TextField>
-      </Stack>
+      <FormSection title="Basic Information" subtitle="Update name and status">
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={8}>
+            <TextField
+              label="Pond Name"
+              name="name"
+              fullWidth
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <EditIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <TextField
+              select
+              label="Status"
+              name="status"
+              fullWidth
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CheckCircleOutlineIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            >
+              {POND_STATUS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              select
+              label="Pond Type"
+              name="pond_type"
+              fullWidth
+              value={form.pond_type}
+              onChange={(e) => setForm({ ...form, pond_type: e.target.value })}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LayersIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            >
+              {POND_TYPES.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              select
+              label="Water Source"
+              name="water_source"
+              fullWidth
+              value={form.water_source}
+              onChange={(e) => setForm({ ...form, water_source: e.target.value })}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <WavesIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            >
+              {FISH_WATER_SOURCES.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+        </Grid>
+      </FormSection>
 
-      {/* Dimensions */}
-      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+      <FormSection title="Dimensions & Equipment" subtitle="Pond size and installed systems">
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Area (sqm)"
+              name="area_sqm"
+              type="number"
+              fullWidth
+              value={form.area_sqm}
+              onChange={(e) => setForm({ ...form, area_sqm: e.target.value })}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <LayersIcon color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: <InputAdornment position="end">m²</InputAdornment>,
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Depth (m)"
+              name="depth_m"
+              type="number"
+              fullWidth
+              value={form.depth_m}
+              onChange={(e) => setForm({ ...form, depth_m: e.target.value })}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <HeightIcon color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: <InputAdornment position="end">m</InputAdornment>,
+              }}
+            />
+          </Grid>
+          <Grid item xs={6}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.aeration_system}
+                  onChange={(e) => setForm({ ...form, aeration_system: e.target.checked })}
+                />
+              }
+              label="Aeration System"
+            />
+          </Grid>
+          <Grid item xs={6}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.filtration_system}
+                  onChange={(e) => setForm({ ...form, filtration_system: e.target.checked })}
+                />
+              }
+              label="Filtration System"
+            />
+          </Grid>
+        </Grid>
+      </FormSection>
+
+      <FormSection title="Additional Notes">
         <TextField
-          label="Area (m²)"
-          name="area_sqm"
-          type="number"
-          size="small"
-          value={form.area_sqm}
-          onChange={handleChange}
-          sx={{ flex: 1 }}
-          inputProps={{ min: 0, step: 0.1 }}
+          label="Description"
+          name="description"
+          multiline
+          rows={3}
+          fullWidth
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                <DescriptionIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
         />
-        <TextField
-          label="Depth (m)"
-          name="depth_m"
-          type="number"
-          size="small"
-          value={form.depth_m}
-          onChange={handleChange}
-          sx={{ flex: 1 }}
-          inputProps={{ min: 0, step: 0.1 }}
-        />
-      </Stack>
+      </FormSection>
 
-      {/* Calculated Capacity */}
-      {calculatedCapacity > 0 && (
-        <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5, ml: 1 }}>
-          Capacity: {calculatedCapacity.toLocaleString()} liters
-        </Typography>
-      )}
-
-      {/* Water Source */}
-      <TextField
-        select
-        label="Water Source"
-        name="water_source"
-        fullWidth
-        size="small"
-        margin="dense"
-        value={form.water_source}
-        onChange={handleChange}
+      <FormActions
+        onCancel={onCancel}
+        onSubmit={handleSubmit}
+        loading={loading}
+        submitText="Update Pond"
       >
-        <MenuItem value=""><em>Not specified</em></MenuItem>
-        {FISH_WATER_SOURCES.map((source) => (
-          <MenuItem key={source.value} value={source.value}>{source.label}</MenuItem>
-        ))}
-      </TextField>
-
-      {/* Systems */}
-      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-        <TextField
-          select
-          label="Aeration"
-          name="aeration_system"
-          size="small"
-          value={form.aeration_system}
-          onChange={(e) => handleChange({ target: { name: 'aeration_system', value: e.target.value === 'true', type: 'checkbox', checked: e.target.value === 'true' } })}
-          sx={{ flex: 1 }}
-        >
-          <MenuItem value={false}>No</MenuItem>
-          <MenuItem value={true}>Yes</MenuItem>
-        </TextField>
-        <TextField
-          select
-          label="Filtration"
-          name="filtration_system"
-          size="small"
-          value={form.filtration_system}
-          onChange={(e) => handleChange({ target: { name: 'filtration_system', value: e.target.value === 'true', type: 'checkbox', checked: e.target.value === 'true' } })}
-          sx={{ flex: 1 }}
-        >
-          <MenuItem value={false}>No</MenuItem>
-          <MenuItem value={true}>Yes</MenuItem>
-        </TextField>
-      </Stack>
-
-      {/* Description */}
-      <TextField
-        label="Description"
-        name="description"
-        fullWidth
-        size="small"
-        margin="dense"
-        value={form.description}
-        onChange={handleChange}
-        multiline
-        rows={2}
-        placeholder="Notes..."
-      />
-
-      {/* Error/Success Messages */}
-      {error && <Alert severity="error" sx={{ mt: 1, py: 0.5 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mt: 1, py: 0.5 }}>{success}</Alert>}
-
-      {/* Action Buttons */}
-      <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-        <Button variant="contained" fullWidth type="submit" disabled={loading}>
-          {loading ? 'Updating...' : 'Update Pond'}
-        </Button>
-        {onCancel && (
-          <Button variant="outlined" fullWidth onClick={onCancel} disabled={loading}>
-            Cancel
+        {onDelete && (
+          <Button
+            variant="text"
+            color="error"
+            onClick={() => onDelete(pondId)}
+            sx={{ mr: 'auto' }}
+          >
+            Delete Pond
           </Button>
         )}
-      </Stack>
-    </Box>
+      </FormActions>
+    </FormContainer>
   );
 }

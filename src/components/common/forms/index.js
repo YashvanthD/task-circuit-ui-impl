@@ -17,16 +17,13 @@ export { default as FormFileUpload } from './FormFileUpload';
 export { default as FormKeyValue } from './FormKeyValue';
 export { default as FormRepeater } from './FormRepeater';
 export { default as FormActions } from './FormActions';
+export { default as FormPhotoUpload } from './FormPhotoUpload';
 
 // ============================================================================
 // Legacy/Specific Forms
 // ============================================================================
 export { default as RegisterCompanyForm } from './RegisterCompanyForm';
 
-// Re-export TransformForm from pond/forms for backward compatibility
-// TransformForm has been moved to components/pond/forms as it's part of pond activities
-export { TransformForm } from '../../pond/forms';
-
+// Note: TransformForm has been moved to components/pond/forms
 // Note: FishForm has been moved to components/fish/forms
-// Import it from there: import { FishForm } from '../fish/forms' or from '../fish'
 
