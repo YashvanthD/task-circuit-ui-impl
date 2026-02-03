@@ -1,7 +1,7 @@
 /**
  * PondDetailView - Detailed monitoring view for a specific pond
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Typography, Grid, Paper, Stack, Button, CircularProgress } from '@mui/material';
 import {
   MetricCard,
@@ -13,7 +13,7 @@ import { fetchPondHistory } from '../../../services/monitoringService';
 
 export default function PondDetailView({
   pond,
-  onBack,
+  onBack, // Kept for consistency but unused
   onAction
 }) {
   const [loading, setLoading] = useState(false);
@@ -23,13 +23,8 @@ export default function PondDetailView({
     waterQuality: []
   });
 
-  useEffect(() => {
-    if (pond?.pond_id) {
-      loadHistory();
-    }
-  }, [pond?.pond_id]);
-
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
+    if (!pond?.pond_id) return;
     setLoading(true);
     try {
       const data = await fetchPondHistory(pond.pond_id);
@@ -39,7 +34,13 @@ export default function PondDetailView({
     } finally {
       setLoading(false);
     }
-  };
+  }, [pond]);
+
+  useEffect(() => {
+    if (pond?.pond_id) {
+      loadHistory();
+    }
+  }, [loadHistory, pond?.pond_id]);
 
   if (!pond) return null;
 
@@ -152,15 +153,13 @@ export default function PondDetailView({
           <Stack spacing={3}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700 }}>Current Stock</Typography>
-              <StockSummary stock={pond.stock} />
-              <Button
-                fullWidth
-                variant="outlined"
-                sx={{ mt: 2 }}
-                onClick={() => onAction('sampling', pond)}
-              >
-                Perform Sampling
-              </Button>
+              <StockSummary
+                stock={pond.stock}
+                stocks={pond.all_stocks}
+                analytics={pond.analytics}
+                onNavigateToStock={(stock) => onAction('view_stock', { pond, stock })}
+                onPerformSampling={(stock) => onAction('perform_sampling', { pond, stock })}
+              />
             </Paper>
 
             <Paper sx={{ p: 2 }}>

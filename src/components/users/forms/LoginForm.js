@@ -1,25 +1,47 @@
 /**
- * Login form component using Material UI.
- * @returns {JSX.Element}
+ * Login form component using unified layout.
  */
 import React, { useState } from 'react';
-import { TextField, Button, Box } from '@mui/material';
+import { FormContainer, FormField, FormActions } from '../../common/forms';
+import { Grid } from '@mui/material';
 
 export default function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     // Add login logic here
+    console.log('Login attempt:', username);
   };
 
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      <TextField label="Username" value={username} onChange={e => setUsername(e.target.value)} required />
-      <TextField label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-      <Button type="submit" variant="contained">Login</Button>
-    </Box>
+    <FormContainer
+      title="Login"
+      onSubmit={handleSubmit}
+      maxWidth={400}
+    >
+      <Grid container spacing={2}>
+        <FormField
+          label="Username"
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          required
+          xs={12}
+        />
+        <FormField
+          label="Password"
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          xs={12}
+        />
+
+        <FormActions
+          submitText="Login"
+        />
+      </Grid>
+    </FormContainer>
   );
 }
-

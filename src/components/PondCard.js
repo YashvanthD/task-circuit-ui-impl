@@ -25,6 +25,8 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import CloseIcon from '@mui/icons-material/Close';
 import WaterIcon from '@mui/icons-material/Water';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import { useNavigate } from 'react-router-dom';
+import { USER_ROUTES } from '../config';
 
 // ============================================================================
 // Constants
@@ -127,7 +129,7 @@ function getPondTypeConfig(type) {
 // Stock Table Component
 // ============================================================================
 
-function StockTable({ stock = [] }) {
+function StockTable({ stock = [], onViewStock }) {
   if (!stock || stock.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary" sx={{ py: 1, textAlign: 'center' }}>
@@ -152,9 +154,24 @@ function StockTable({ stock = [] }) {
         const avgWeight = item.average_weight || item.avg_weight || item.avgWeight;
         const price = Number(item.unit_price || item.price || 0);
         const value = count * price;
+        const stockId = item.stock_id || item.id;
 
         return (
-          <Box key={idx} sx={{ display: 'flex', py: 0.75, alignItems: 'center', '&:hover': { bgcolor: 'action.hover' } }}>
+          <Box
+            key={idx}
+            onClick={() => {
+               if (onViewStock && stockId) {
+                 onViewStock(stockId);
+               }
+            }}
+            sx={{
+              display: 'flex',
+              py: 0.75,
+              alignItems: 'center',
+              cursor: (onViewStock && stockId) ? 'pointer' : 'default',
+              '&:hover': { bgcolor: 'action.hover' }
+            }}
+          >
             <Box sx={{ flex: 2 }}>
               <Typography variant="body2" noWrap>{species}</Typography>
             </Box>
@@ -185,6 +202,7 @@ function PondDetailDialog({
   onEdit,
   onDelete,
   onDailyUpdate,
+  onViewStock,
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -357,7 +375,12 @@ function PondDetailDialog({
                 <Chip label={formatWeight(totalWeight)} size="small" color="success" sx={{ height: 20 }} />
               </Stack>
               <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'action.hover' }}>
-                <StockTable stock={stock} />
+                <StockTable stock={stock} onViewStock={(id) => {
+                  if (onViewStock) {
+                    onViewStock(id);
+                    onClose();
+                  }
+                }} />
               </Paper>
             </Box>
 
@@ -487,6 +510,7 @@ export default function PondCard({
   compact = false,
   expanded: initialExpanded = false,
 }) {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(initialExpanded);
   const [detailOpen, setDetailOpen] = useState(false);
   const theme = useTheme();
@@ -540,6 +564,12 @@ export default function PondCard({
   const handleToggleExpand = (e) => {
     e.stopPropagation();
     setExpanded(!expanded);
+  };
+
+  const handleViewStock = (stockId) => {
+    if (stockId) {
+      navigate(`${USER_ROUTES.SAMPLING_AND_STOCKS}?stock=${stockId}`);
+    }
   };
 
   // Compact view for mobile/list - Enhanced with more info
@@ -649,6 +679,7 @@ export default function PondCard({
           onEdit={onEdit}
           onDelete={onDelete}
           onDailyUpdate={onDailyUpdate}
+          onViewStock={handleViewStock}
         />
       </>
     );
@@ -825,7 +856,7 @@ export default function PondCard({
           <Collapse in={expanded}>
             {/* Stock Table */}
             <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'action.hover', mb: 1.5 }}>
-              <StockTable stock={stock} />
+              <StockTable stock={stock} onViewStock={handleViewStock} />
             </Paper>
 
             {/* Cost Breakdown */}

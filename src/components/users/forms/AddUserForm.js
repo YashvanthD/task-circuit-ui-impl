@@ -7,24 +7,18 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  TextField,
   Button,
-  Paper,
-  Typography,
   Box,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
   Collapse,
-  OutlinedInput,
-  Chip,
+  Grid,
+  Alert,
 } from '@mui/material';
 
 // Utils
 import { addUser, updateUser } from '../../../utils/user';
 import userUtil from '../../../utils/user';
 import { showSuccessAlert, showErrorAlert } from '../../../utils/alertManager';
+import { FormContainer, FormSection, FormField, FormDropdown, FormActions } from '../../common/forms';
 
 // Constants
 const roleOptions = ['user', 'admin', 'manager'];
@@ -36,12 +30,7 @@ const advancedSubforms = [
 ];
 
 /**
- * AddUserForm - Form to add or edit a user
- *
- * @param {Object} props
- * @param {Object} props.initialData - Optional object to prefill fields (edit case)
- * @param {Function} props.onSubmit - Optional callback(formData) - if provided, form will call this instead of internal API
- * @param {Function} props.onCancel - Optional callback() - called when cancel button clicked
+ * AddUserForm - Form to add or edit a user using common components
  */
 export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit, onCancel }) {
   const [form, setForm] = useState({
@@ -60,6 +49,7 @@ export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit
   const [userDetails, setUserDetails] = useState(null);
   const [accountDetails, setAccountDetails] = useState({ account_key: '', company_name: '' });
   const [savingAccount, setSavingAccount] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -70,10 +60,9 @@ export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit
         mobile: initialData.mobile || initialData.phone || initialData.mobile_no || '',
         email: initialData.email || initialData.email_address || '',
         permissions: initialData.permissions || initialData.role || initialData.user_role || '',
-        actions: initialData.actions || initialData.perms || [],
+        actions: Array.isArray(initialData.actions) ? initialData.actions : (initialData.perms || []),
       }));
 
-      // Populate payslip if present
       if (initialData.payslip || initialData.pay_slip || initialData.payslips) {
         const ps = initialData.payslip || initialData.pay_slip || initialData.payslips;
         setPayslip({
@@ -84,7 +73,6 @@ export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit
         });
       }
 
-      // Populate account details
       if (initialData.account_key || initialData.accountKey || initialData.company_name) {
         setAccountDetails({
           account_key: initialData.account_key || initialData.accountKey || '',
@@ -94,19 +82,16 @@ export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit
     }
   }, [initialData]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
+  const handleChange = (field, value) => {
+    setForm((f) => ({ ...f, [field]: value }));
   };
 
-  const handleActionsChange = (event) => {
-    const { target: { value } } = event;
-    setForm((f) => ({ ...f, actions: typeof value === 'string' ? value.split(',') : value }));
+  const handlePayslipChange = (field, value) => {
+    setPayslip((p) => ({ ...p, [field]: value }));
   };
 
-  const handlePayslipChange = (e) => {
-    const { name, value } = e.target;
-    setPayslip((p) => ({ ...p, [name]: value }));
+  const handleAccountChange = (field, value) => {
+    setAccountDetails((a) => ({ ...a, [field]: value }));
   };
 
   const internalSubmit = async (data) => {
@@ -118,7 +103,7 @@ export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit
   };
 
   const handleSubmit = async (e) => {
-    e && e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
 
     if (!form.username || !form.mobile || !form.email || !form.permissions) {
@@ -127,12 +112,12 @@ export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit
       return;
     }
 
+    setLoading(true);
     try {
       const payload = { ...form };
 
-      // Attach payslip and account for new user creation
       if (!initialData || !(initialData.user_key || initialData.id || initialData._id)) {
-        if (payslip && (payslip.amount || payslip.date || payslip.notes || payslip.document)) {
+        if (payslip && (payslip.amount || payslip.date)) {
           payload.payslip = { ...payslip };
         }
         if (accountDetails && (accountDetails.account_key || accountDetails.company_name)) {
@@ -140,7 +125,6 @@ export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit
         }
       }
 
-      // Remove empty password during edit
       if (!payload.password) delete payload.password;
 
       if (externalSubmit) {
@@ -149,13 +133,6 @@ export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit
         await internalSubmit(payload);
         const isEdit = initialData && (initialData.user_key || initialData.userKey || initialData.id || initialData._id);
         showSuccessAlert(isEdit ? 'User updated successfully' : 'User created successfully');
-
-        // Clear form only for create
-        if (!isEdit) {
-          setForm({ username: '', password: '', mobile: '', email: '', permissions: '', actions: [] });
-          setPayslip({ amount: '', date: '', notes: '', document: '' });
-          setAccountDetails({ account_key: '', company_name: '' });
-        }
       }
 
       if (onCancel) onCancel();
@@ -163,352 +140,179 @@ export default function AddUserForm({ initialData = {}, onSubmit: externalSubmit
       console.error('AddUserForm save failed', err);
       setError(err.message || 'Failed to save user');
       showErrorAlert(err.message || 'Failed to save user');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const getUserID = () => initialData && (initialData.user_key || initialData.userKey || initialData.id || initialData._id);
+
   const handleSavePayslip = async () => {
-    setError('');
-
-    if (!payslip.amount || !payslip.date) {
-      setError('Payslip amount and date are required');
-      showErrorAlert('Payslip amount and date are required', 'Validation Error');
-      return;
-    }
-
-    const id = initialData && (initialData.user_key || initialData.userKey || initialData.id || initialData._id);
+    const id = getUserID();
     if (!id) {
-      showSuccessAlert('Payslip attached to the create payload. Save the user to persist.');
+      showSuccessAlert('Will be saved with new user.');
       return;
     }
-
+    setSavingPayslip(true);
     try {
-      setSavingPayslip(true);
-      const payload = { payslip: { amount: payslip.amount, date: payslip.date, notes: payslip.notes, document: payslip.document } };
-      await updateUser(id, payload);
-      showSuccessAlert('Payslip updated successfully');
+      await updateUser(id, { payslip });
+      showSuccessAlert('Payslip updated');
     } catch (e) {
-      console.error('Failed to update payslip', e);
-      setError(e.message || 'Failed to update payslip');
-      showErrorAlert(e.message || 'Failed to update payslip');
+      showErrorAlert('Failed to update payslip');
     } finally {
       setSavingPayslip(false);
     }
   };
 
-  const handleFetchDetails = async () => {
-    setError('');
-
-    const id = initialData && (initialData.user_key || initialData.userKey || initialData.id || initialData._id);
-    if (!id) {
-      setError('No user id present to fetch details');
-      showErrorAlert('No user id present to fetch details');
-      return;
-    }
-
-    try {
-      const info = await userUtil.getUserInfo(id, true);
-      setUserDetails(info || null);
-      showSuccessAlert('Fetched latest user details');
-    } catch (e) {
-      console.error('Failed to fetch user details', e);
-      setError(e.message || 'Failed to fetch user details');
-      showErrorAlert(e.message || 'Failed to fetch user details');
-    }
-  };
-
-  const handleAccountChange = (e) => {
-    const { name, value } = e.target;
-    setAccountDetails((a) => ({ ...a, [name]: value }));
-  };
-
   const handleSaveAccount = async () => {
-    setError('');
-
-    if (!accountDetails.account_key && !accountDetails.company_name) {
-      setError('Enter account details to save');
-      showErrorAlert('Enter account details to save', 'Validation Error');
-      return;
-    }
-
-    const id = initialData && (initialData.user_key || initialData.userKey || initialData.id || initialData._id);
+    const id = getUserID();
     if (!id) {
-      showSuccessAlert('Account details attached to create payload. Save the user to persist.');
+      showSuccessAlert('Will be saved with new user.');
       return;
     }
-
+    setSavingAccount(true);
     try {
-      setSavingAccount(true);
-      const payload = { account: { ...accountDetails } };
-      await updateUser(id, payload);
-      showSuccessAlert('Account details updated');
+      await updateUser(id, { account: accountDetails });
+      showSuccessAlert('Account updated');
     } catch (e) {
-      console.error('Failed to update account', e);
-      setError(e.message || 'Failed to update account details');
-      showErrorAlert(e.message || 'Failed to update account details');
+      showErrorAlert('Failed to update account');
     } finally {
       setSavingAccount(false);
     }
   };
 
-  const isEditing = initialData && (initialData.user_key || initialData.id);
+  const handleFetchDetails = async () => {
+    const id = getUserID();
+    if (!id) return;
+    try {
+      const info = await userUtil.getUserInfo(id, true);
+      setUserDetails(info);
+    } catch (e) {
+      showErrorAlert('Failed to fetch user details');
+    }
+  };
+
+  const isEditing = Boolean(getUserID());
 
   return (
-    <Paper elevation={3} sx={{ padding: 4, maxWidth: 600, margin: '24px auto' }}>
-      <Typography variant="h6" gutterBottom>
-        {isEditing ? 'Edit User' : 'Add User'}
-      </Typography>
+    <FormContainer
+      title={isEditing ? 'Edit User' : 'Add User'}
+      onSubmit={handleSubmit}
+      onCancel={onCancel}
+    >
+      <Grid container spacing={3}>
+        {error && <Grid item xs={12}><Alert severity="error">{error}</Alert></Grid>}
 
-      <Box component="form" noValidate autoComplete="off" onSubmit={handleSubmit}>
-        <TextField
-          label="Username"
-          name="username"
-          variant="outlined"
-          fullWidth
-          margin="normal"
-          value={form.username}
-          onChange={handleChange}
-          required
-        />
+        <FormSection title="Credentials">
+          <FormField
+            label="Username"
+            value={form.username}
+            onChange={(e) => handleChange('username', e.target.value)}
+            required
+            xs={12} sm={6}
+          />
+          <FormField
+            label="Password"
+            type="password"
+            value={form.password}
+            onChange={(e) => handleChange('password', e.target.value)}
+            helperText={isEditing ? 'Leave empty to keep current password' : ''}
+            xs={12} sm={6}
+          />
+        </FormSection>
 
-        <TextField
-          label="Password"
-          name="password"
-          type="password"
-          variant="outlined"
-          fullWidth
-          margin="normal"
-          value={form.password}
-          onChange={handleChange}
-          helperText={isEditing ? 'Leave empty to keep existing password' : ''}
-        />
+        <FormSection title="Contact">
+          <FormField
+            label="Mobile"
+            value={form.mobile}
+            onChange={(e) => handleChange('mobile', e.target.value)}
+            required
+            xs={12} sm={6}
+          />
+          <FormField
+            label="Email"
+            type="email"
+            value={form.email}
+            onChange={(e) => handleChange('email', e.target.value)}
+            required
+            xs={12} sm={6}
+          />
+        </FormSection>
 
-        <TextField
-          label="Mobile"
-          name="mobile"
-          type="tel"
-          variant="outlined"
-          fullWidth
-          margin="normal"
-          value={form.mobile}
-          onChange={handleChange}
-          required
-        />
-
-        <TextField
-          label="Email"
-          name="email"
-          type="email"
-          variant="outlined"
-          fullWidth
-          margin="normal"
-          value={form.email}
-          onChange={handleChange}
-          required
-        />
-
-        <TextField
-          select
-          label="Permissions (Role)"
-          name="permissions"
-          variant="outlined"
-          fullWidth
-          margin="normal"
-          value={form.permissions}
-          onChange={handleChange}
-          required
-        >
-          {roleOptions.map((role) => (
-            <MenuItem key={role} value={role}>
-              {role}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <FormControl fullWidth margin="normal">
-          <InputLabel id="actions-label">Actions</InputLabel>
-          <Select
-            labelId="actions-label"
-            id="actions-select"
-            multiple
+        <FormSection title="Permissions">
+          <FormDropdown
+            label="Role"
+            value={form.permissions}
+            onChange={(e, val) => handleChange('permissions', val)}
+            options={roleOptions}
+            required
+            xs={12} sm={6}
+          />
+          <FormDropdown
+            label="Actions"
             value={form.actions}
-            onChange={handleActionsChange}
-            input={<OutlinedInput label="Actions" />}
-            renderValue={(selected) => (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {selected.map((val) => (
-                  <Chip key={val} label={val} size="small" />
-                ))}
-              </Box>
-            )}
-            variant="outlined"
-          >
-            {actionOptions.map((action) => (
-              <MenuItem key={action} value={action}>
-                {action}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            onChange={(e, val) => handleChange('actions', val)}
+            options={actionOptions}
+            multiple
+            xs={12} sm={6}
+          />
+        </FormSection>
 
-        {/* Advanced options toggle */}
-        <Box sx={{ mt: 2, mb: 1 }}>
-          <Button size="small" variant="outlined" onClick={() => setAdvancedOpen((a) => !a)}>
-            {advancedOpen ? 'Hide Advanced Options' : 'Show Advanced Options'}
+        <Grid item xs={12}>
+          <Button onClick={() => setAdvancedOpen(!advancedOpen)}>
+            {advancedOpen ? 'Hide Advanced' : 'Show Advanced'}
           </Button>
-        </Box>
-
-        <Collapse in={advancedOpen}>
-          <Box sx={{ mt: 2, p: 2, border: '1px solid rgba(0,0,0,0.06)', borderRadius: 1 }}>
-            <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-              <InputLabel id="subform-select-label">Advanced Subform</InputLabel>
-              <Select
-                labelId="subform-select-label"
-                label="Advanced Subform"
+          <Collapse in={advancedOpen}>
+            <Box sx={{ mt: 2, p: 2, border: '1px solid #eee', borderRadius: 1 }}>
+              <FormDropdown
+                label="Subform"
                 value={activeSubform}
-                onChange={(e) => setActiveSubform(e.target.value)}
-                variant="outlined"
-              >
-                {advancedSubforms.map((s) => (
-                  <MenuItem key={s.key} value={s.key}>
-                    {s.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                onChange={(e, val) => setActiveSubform(val)}
+                options={advancedSubforms}
+                getOptionLabel={o => o.label || o}
+                valueKey="key"
+                xs={12}
+              />
 
-            {/* Pay Slip subform */}
-            {activeSubform === 'pay_slip' && (
-              <Box>
-                <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                  Update Pay Slips
-                </Typography>
-                <TextField
-                  label="Amount (INR)"
-                  name="amount"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  value={payslip.amount}
-                  onChange={handlePayslipChange}
-                />
-                <TextField
-                  label="Payslip Date"
-                  name="date"
-                  type="date"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  InputLabelProps={{ shrink: true }}
-                  value={payslip.date}
-                  onChange={handlePayslipChange}
-                />
-                <TextField
-                  label="Notes"
-                  name="notes"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  value={payslip.notes}
-                  onChange={handlePayslipChange}
-                />
-                <TextField
-                  label="Document URL"
-                  name="document"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  value={payslip.document}
-                  onChange={handlePayslipChange}
-                />
-                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                  <Button variant="contained" onClick={handleSavePayslip} disabled={savingPayslip}>
-                    {savingPayslip ? 'Saving...' : 'Save PaySlip'}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => setPayslip({ amount: '', date: '', notes: '', document: '' })}
-                  >
-                    Clear
-                  </Button>
-                </Box>
-              </Box>
-            )}
+              <Box sx={{ mt: 2 }}>
+                {activeSubform === 'pay_slip' && (
+                  <Grid container spacing={2}>
+                    <FormField label="Amount" value={payslip.amount} onChange={e => handlePayslipChange('amount', e.target.value)} xs={6} />
+                    <FormField label="Date" type="date" value={payslip.date} onChange={e => handlePayslipChange('date', e.target.value)} xs={6} InputLabelProps={{ shrink: true }} />
+                    <FormField label="Notes" value={payslip.notes} onChange={e => handlePayslipChange('notes', e.target.value)} xs={12} />
+                    <Grid item xs={12}>
+                      <Button variant="contained" onClick={handleSavePayslip} disabled={savingPayslip}>Save Payslip</Button>
+                    </Grid>
+                  </Grid>
+                )}
 
-            {/* Get User Details subform */}
-            {activeSubform === 'details' && (
-              <Box>
-                <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                  User Details
-                </Typography>
-                <Button variant="outlined" onClick={handleFetchDetails}>
-                  Refresh Details
-                </Button>
-                {userDetails && (
-                  <Box sx={{ mt: 2, fontSize: 12, whiteSpace: 'pre-wrap' }}>
-                    {JSON.stringify(userDetails, null, 2)}
+                {activeSubform === 'account' && (
+                  <Grid container spacing={2}>
+                    <FormField label="Account Key" value={accountDetails.account_key} onChange={e => handleAccountChange('account_key', e.target.value)} xs={6} />
+                    <FormField label="Company Name" value={accountDetails.company_name} onChange={e => handleAccountChange('company_name', e.target.value)} xs={6} />
+                    <Grid item xs={12}>
+                      <Button variant="contained" onClick={handleSaveAccount} disabled={savingAccount}>Save Account</Button>
+                    </Grid>
+                  </Grid>
+                )}
+
+                {activeSubform === 'details' && (
+                  <Box>
+                    <Button onClick={handleFetchDetails}>Refresh Details</Button>
+                    {userDetails && <pre>{JSON.stringify(userDetails, null, 2)}</pre>}
                   </Box>
                 )}
               </Box>
-            )}
+            </Box>
+          </Collapse>
+        </Grid>
 
-            {/* Update Account Details subform */}
-            {activeSubform === 'account' && (
-              <Box>
-                <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                  Account Details
-                </Typography>
-                <TextField
-                  label="Account Key"
-                  name="account_key"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  value={accountDetails.account_key}
-                  onChange={handleAccountChange}
-                />
-                <TextField
-                  label="Company Name"
-                  name="company_name"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  value={accountDetails.company_name}
-                  onChange={handleAccountChange}
-                />
-                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
-                  <Button variant="contained" onClick={handleSaveAccount} disabled={savingAccount}>
-                    {savingAccount ? 'Saving...' : 'Save Account'}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => setAccountDetails({ account_key: '', company_name: '' })}
-                  >
-                    Clear
-                  </Button>
-                </Box>
-              </Box>
-            )}
-          </Box>
-        </Collapse>
-
-        {error && (
-          <Typography color="error" mt={2}>
-            {error}
-          </Typography>
-        )}
-
-        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-          <Button variant="contained" color="primary" type="submit">
-            Save
-          </Button>
-          {onCancel && (
-            <Button variant="outlined" onClick={onCancel}>
-              Cancel
-            </Button>
-          )}
-        </Box>
-      </Box>
-    </Paper>
+        <FormActions
+          submitText={isEditing ? "Update User" : "Create User"}
+          loading={loading}
+          onCancel={onCancel}
+        />
+      </Grid>
+    </FormContainer>
   );
 }
-

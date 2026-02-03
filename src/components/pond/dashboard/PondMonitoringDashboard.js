@@ -60,12 +60,16 @@ export default function PondMonitoringDashboard({
                 pond={pond}
                 health={pond.health} // Assumes enriched pond object
                 currentStock={pond.stock}
+                allStocks={pond.all_stocks} // Pass all stocks if enriched
+                analytics={pond.analytics} // Pass analytics
                 lastWaterQuality={pond.waterQuality}
                 todaysTasks={pond.tasks}
                 onLogWQ={() => onPondAction('log_wq', pond)}
                 onFeed={() => onPondAction('feed', pond)}
                 onViewDetails={() => onPondAction('view', pond)}
                 onEdit={() => onPondAction('edit_pond', pond)} // Passed onEdit
+                onNavigateToStock={(stock) => onPondAction('view_stock', { pond, stock })} // Added navigate to stock
+                onPerformSampling={(stock) => onPondAction('perform_sampling', { pond, stock })} // Added perform sampling
               />
             </Grid>
           ))}

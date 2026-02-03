@@ -13,8 +13,11 @@ import {
   Snackbar,
   Alert,
   Dialog,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import { useLocation } from 'react-router-dom';
 
 // Components
 import {
@@ -24,9 +27,12 @@ import {
   EmptyState,
   ErrorState,
 } from '../../components/common';
-import { StockCard, StockOverviewStats, StockDetailsModal, TerminateStockDialog } from '../../components/stock';
-import { AddSamplingDialog, EditSamplingDialog } from '../../components/sampling';
 import { StockForm } from '../../components/stock/forms';
+import StockDetailView from '../../components/stock/detail/StockDetailView';
+import { StockCard } from '../../components/stock'; // Assuming updated StockCard uses ItemCard
+import { AddSamplingDialog, EditSamplingDialog } from '../../components/sampling';
+import { TerminateStockDialog } from '../../components/stock';
+import { LAYOUT } from '../../components/common/styles';
 
 // Services & Utils
 import { fetchStocks, createStock, terminateStock } from '../../services/stockService';
@@ -36,6 +42,10 @@ import fishUtil from '../../utils/fish';
 import { Stock, Sampling } from '../../models';
 
 export default function SamplingAndStockPage() {
+  const theme = useTheme();
+  const location = useLocation();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   // State - Stocks
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -51,7 +61,10 @@ export default function SamplingAndStockPage() {
   // State - Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [pondFilter, setPondFilter] = useState('all');
+  const [pondFilter, setPondFilter] = useState(() => {
+    const searchParams = new URLSearchParams(location.search);
+    return searchParams.get('pond') || 'all';
+  });
   const [speciesFilter, setSpeciesFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -60,9 +73,10 @@ export default function SamplingAndStockPage() {
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [samplingDialogOpen, setSamplingDialogOpen] = useState(false);
   const [editSamplingDialogOpen, setEditSamplingDialogOpen] = useState(false);
-  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  // Removed detailsModalOpen, using container view instead
   const [terminateDialogOpen, setTerminateDialogOpen] = useState(false);
   const [selectedStock, setSelectedStock] = useState(null);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'detail'
   const [selectedSampling, setSelectedSampling] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -157,6 +171,20 @@ export default function SamplingAndStockPage() {
     loadPonds();
     loadSpecies();
   }, [loadStocks, loadPonds, loadSpecies]);
+
+  // Effect to handle deep linking to a specific stock via URL param
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const stockIdFromUrl = searchParams.get('stock');
+
+    if (stockIdFromUrl && stocks.length > 0) {
+      const targetStock = stocks.find(s => s.stock_id === stockIdFromUrl || s.id === stockIdFromUrl);
+      if (targetStock) {
+        setSelectedStock(targetStock);
+        setViewMode('detail');
+      }
+    }
+  }, [stocks, location.search]);
 
   // Filter stocks by search term, pond, species, and date
   const filteredStocks = stocks.filter((stock) => {
@@ -359,93 +387,100 @@ export default function SamplingAndStockPage() {
     }
   }, [selectedSampling, loadStocks]);
 
-  const handleViewDetails = useCallback((stock) => {
+  // Handlers - View
+  const handleViewDetails = (stock) => {
     setSelectedStock(stock);
-    setDetailsModalOpen(true);
-  }, []);
+    setViewMode('detail');
+  };
+
+  const handleBackToList = () => {
+    setViewMode('list');
+    setSelectedStock(null);
+  };
 
   const handleSnackClose = useCallback(() => {
     setSnack((s) => ({ ...s, open: false }));
   }, []);
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: 1400, margin: '0 auto' }}>
+    <Box sx={LAYOUT.containerStyles}>
       {/* Header */}
-      <PageHeader
-        title="Stocks & Sampling Management"
-        subtitle="Manage fish stocks and track growth through regular sampling"
-      />
-
-      {/* Overview Stats */}
-      <StockOverviewStats stocks={stocks} loading={loading} />
+      {viewMode === 'list' && (
+        <PageHeader
+          title="Stocks & Sampling Management"
+          subtitle="Manage fish stocks and track growth through regular sampling"
+        />
+      )}
 
       {/* Actions & Filters */}
-      <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleAddStock}
-          sx={{ minWidth: 150 }}
-        >
-          Add New Stock
-        </Button>
+      {viewMode === 'list' && (
+        <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleAddStock}
+            sx={{ minWidth: 150 }}
+          >
+            Add New Stock
+          </Button>
 
-        <Box sx={{ flex: 1 }}>
-          <FilterBar
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Search by species, stock ID, or pond..."
-            filters={[
-              {
-                name: 'status',
-                label: 'Status',
-                value: statusFilter,
-                options: [
-                  { value: 'active', label: 'Active' },
-                  { value: 'terminated', label: 'Terminated' },
-                ],
-                onChange: setStatusFilter,
-                showAll: true,
-                allLabel: 'All',
-              },
-              {
-                name: 'pond',
-                label: 'Pond',
-                value: pondFilter,
-                options: ponds.map(p => ({
-                  value: p.pond_id || p.id,
-                  label: p.name || p.pond_id || 'Unnamed'
-                })),
-                onChange: setPondFilter,
-                showAll: true,
-                allLabel: 'All',
-              },
-              {
-                name: 'species',
-                label: 'Species',
-                value: speciesFilter,
-                options: species.map(s => ({
-                  value: s.species_id || s.id,
-                  label: s.common_name || s.name || 'Unnamed'
-                })),
-                onChange: setSpeciesFilter,
-                showAll: true,
-                allLabel: 'All',
-              },
-            ]}
-            dateRange={{
-              startDate,
-              endDate,
-              onStartDateChange: setStartDate,
-              onEndDateChange: setEndDate,
-              label: 'Stocking Date Range',
-            }}
-            onRefresh={() => loadStocks({ force: true })}
-            loading={loading}
-          />
+          <Box sx={{ flex: 1 }}>
+            <FilterBar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Search by species, stock ID, or pond..."
+              filters={[
+                {
+                  name: 'status',
+                  label: 'Status',
+                  value: statusFilter,
+                  options: [
+                    { value: 'active', label: 'Active' },
+                    { value: 'terminated', label: 'Terminated' },
+                  ],
+                  onChange: setStatusFilter,
+                  showAll: true,
+                  allLabel: 'All',
+                },
+                {
+                  name: 'pond',
+                  label: 'Pond',
+                  value: pondFilter,
+                  options: ponds.map(p => ({
+                    value: p.pond_id || p.id,
+                    label: p.name || p.pond_id || 'Unnamed'
+                  })),
+                  onChange: setPondFilter,
+                  showAll: true,
+                  allLabel: 'All',
+                },
+                {
+                  name: 'species',
+                  label: 'Species',
+                  value: speciesFilter,
+                  options: species.map(s => ({
+                    value: s.species_id || s.id,
+                    label: s.common_name || s.name || 'Unnamed'
+                  })),
+                  onChange: setSpeciesFilter,
+                  showAll: true,
+                  allLabel: 'All',
+                },
+              ]}
+              dateRange={{
+                startDate,
+                endDate,
+                onStartDateChange: setStartDate,
+                onEndDateChange: setEndDate,
+                label: 'Stocking Date Range',
+              }}
+              onRefresh={() => loadStocks({ force: true })}
+              loading={loading}
+            />
+          </Box>
         </Box>
-      </Box>
+      )}
 
       {/* Error State */}
       {error && (
@@ -459,6 +494,19 @@ export default function SamplingAndStockPage() {
       {/* Loading State */}
       {loading ? (
         <LoadingState message="Loading stocks and samplings..." />
+      ) : viewMode === 'detail' && selectedStock ? (
+        /* Stock Detail View */
+        <StockDetailView
+          stock={selectedStock}
+          samplings={samplingsByStock[selectedStock?.stock_id] || []}
+          onAddSampling={handleAddSampling}
+          onEditSampling={handleEditSampling}
+          onTerminateStock={handleTerminateStock}
+          onBack={handleBackToList}
+          // Fix: Ensure we pass pond info correctly if available in stock or find it
+          pond={ponds.find(p => p.pond_id === selectedStock.pond_id) || { name: selectedStock.pond_name || selectedStock.pond_id }}
+          isMobile={isMobile}
+        />
       ) : filteredStocks.length === 0 ? (
         /* Empty State */
         <EmptyState
@@ -539,17 +587,6 @@ export default function SamplingAndStockPage() {
         loading={submitting}
       />
 
-      {/* Stock Details Modal */}
-      <StockDetailsModal
-        open={detailsModalOpen}
-        onClose={() => {
-          setDetailsModalOpen(false);
-          setSelectedStock(null);
-        }}
-        stock={selectedStock}
-        samplings={selectedStock ? (samplingsByStock[selectedStock.stock_id] || []) : []}
-        onEditSampling={handleEditSampling}
-      />
 
       {/* Terminate Stock Dialog */}
       <TerminateStockDialog

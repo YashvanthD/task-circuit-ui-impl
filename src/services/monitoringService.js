@@ -35,7 +35,8 @@ export async function fetchMonitoringDashboardData() {
     }
 
     // 3. Enrich ponds with stock and task data
-    const enrichedPonds = ponds.map(pond => {
+    // Remove redundant variable declaration and just return the mapped result naturally
+    return ponds.map(pond => {
       // Find current stock for this pond
       const currentStock = allStocks.find(s =>
         (pond.current_stock_id && s.stock_id === pond.current_stock_id) ||
@@ -71,8 +72,6 @@ export async function fetchMonitoringDashboardData() {
         }
       };
     });
-
-    return enrichedPonds;
   } catch (error) {
     console.error('[monitoringService] Failed to fetch dashboard data:', error);
     throw error;
@@ -160,7 +159,7 @@ export async function fetchPondHistory(pondId) {
  * Internal helper to determine pond health status based on WQ and Stock
  * @private
  */
-function _calculatePondHealth(pond, stock) {
+function _calculatePondHealth(pond, _stock) {
   if (pond.status === 'empty') return 'unknown';
 
   // Example logic: if DO is low or pH is out of range

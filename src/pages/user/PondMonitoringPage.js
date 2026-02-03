@@ -2,21 +2,24 @@
  * PondMonitoringPage - Redesigned Pond Monitoring Dashboard
  */
 import React, { useState, useEffect } from 'react';
-import { Container, Box, Typography, Button, Paper, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
+import { Container, Box, Typography, Button, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { PondMonitoringDashboard, PondDetailView } from '../../components/pond';
 import { QuickDailyLogForm } from '../../components/pond/forms/quick';
 import { AddPondForm, UpdatePondForm } from '../../components/pond/forms';
-import { useAlert, ViewHeader, StatusChip } from '../../components/common';
+import { useAlert, ViewHeader } from '../../components/common';
 import { HealthStatusChip } from '../../components/common/enhanced';
-import { fetchPonds, deletePond } from '../../services/pondService';
+import { deletePond } from '../../services/pondService';
 import { fetchFarms } from '../../services/farmService';
 import { fetchMonitoringDashboardData, saveDailyLog } from '../../services/monitoringService';
 import { useViewNavigation } from '../../hooks/useViewNavigation';
+import { useNavigate } from 'react-router-dom';
+import { USER_ROUTES } from '../../config';
 
 export default function PondMonitoringPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const navigate = useNavigate();
 
   const [ponds, setPonds] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,7 +42,7 @@ export default function PondMonitoringPage() {
 
   const { showAlert } = useAlert();
 
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     setLoading(true);
     try {
       // 1. Fetch aggregated dashboard data (Ponds enriched with Stock and Tasks)
@@ -66,23 +69,35 @@ export default function PondMonitoringPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showAlert]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
-  const handlePondAction = (type, pond) => {
-    console.log(`Action: ${type}`, pond);
+  const handlePondAction = (type, payload) => {
+    console.log(`Action: ${type}`, payload);
 
     if (type === 'log_wq' || type === 'add_log' || type === 'feed') {
-      navigateTo('log', pond);
+      navigateTo('log', payload);
     } else if (type === 'add_pond') {
       navigateTo('add');
     } else if (type === 'edit_pond') {
-      navigateTo('edit', pond);
+      navigateTo('edit', payload);
     } else if (type === 'view') {
-      navigateTo('details', pond);
+      navigateTo('details', payload);
+    } else if (type === 'view_stock') {
+      // Redirect to unified stock page
+      // payload is { pond, stock } or just stock object
+      const stock = payload.stock || payload;
+      const stockId = stock.stock_id || stock.id;
+      if (stockId) {
+        navigate(`${USER_ROUTES.SAMPLING_AND_STOCKS}?stock=${stockId}`);
+      }
+    } else if (type === 'perform_sampling') {
+      // Navigate to sampling form?
+      // For now, let's keep it simple or implement if needed
+      console.log("Sampling not fully wired yet");
     }
   };
 
@@ -140,23 +155,25 @@ export default function PondMonitoringPage() {
     if (viewMode !== 'dashboard') {
       return (
         <Box>
-          <ViewHeader
-            onBack={handleBack}
-            title={
-              viewMode === 'add' ? 'New Pond' :
-              viewMode === 'edit' ? `Edit ${selectedPond?.name}` :
-              viewMode === 'log' ? `Daily Log: ${selectedPond?.name}` :
-              selectedPond?.name || 'Pond Details'
-            }
-            subtitle={
-              viewMode === 'details' ? `${selectedPond?.pond_type} • ID: ${selectedPond?.pond_id}` : ''
-            }
-            action={
-              viewMode === 'details' ? (
-                <HealthStatusChip status={selectedPond?.health?.status} />
-              ) : null
-            }
-          />
+          {viewMode !== 'stock_details' && (
+            <ViewHeader
+              onBack={handleBack}
+              title={
+                viewMode === 'add' ? 'New Pond' :
+                viewMode === 'edit' ? `Edit ${selectedPond?.name}` :
+                viewMode === 'log' ? `Daily Log: ${selectedPond?.name}` :
+                selectedPond?.name || 'Pond Details'
+              }
+              subtitle={
+                viewMode === 'details' ? `${selectedPond?.pond_type} • ID: ${selectedPond?.pond_id}` : ''
+              }
+              action={
+                viewMode === 'details' ? (
+                  <HealthStatusChip status={selectedPond?.health?.status} />
+                ) : null
+              }
+            />
+          )}
 
           {viewMode === 'add' && (
             <Box sx={{ maxWidth: 800, mx: 'auto' }}>

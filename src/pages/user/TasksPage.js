@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  Paper, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions,
+  Paper, Typography, Button,
   TextField, MenuItem, Select, InputLabel, FormControl, Stack, Chip, Grid, Box,
-  CircularProgress, InputAdornment, useMediaQuery, useTheme,
+  CircularProgress, InputAdornment, useMediaQuery, useTheme, Dialog,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 
@@ -11,6 +11,7 @@ import { useDialog, useConfirmDialog } from '../../hooks';
 
 // Common components
 import { ConfirmDialog } from '../../components';
+import { TaskForm } from '../../components/tasks';
 import TaskCard from '../../components/TaskCard';
 
 // Utils
@@ -40,8 +41,6 @@ const STATUS_OPTIONS = [
   { value: 'completed', label: 'Completed' },
 ];
 
-const PRIORITY_OPTIONS = [1, 2, 3, 4, 5];
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -50,15 +49,6 @@ function resolveTaskId(task) {
   if (!task) return undefined;
   const rawId = task.taskId || task.task_id || task.id || task._id;
   return rawId != null ? String(rawId) : undefined;
-}
-
-function getNextAction(status) {
-  switch (status) {
-    case 'pending': return 'Start';
-    case 'inprogress': return 'Resolve';
-    case 'completed': return 'Resolved';
-    default: return 'Next';
-  }
 }
 
 function getNextStatus(currentStatus) {
@@ -81,109 +71,6 @@ function computeTaskStats(tasks) {
 
 
 // ============================================================================
-// TaskFormDialog Component
-// ============================================================================
-
-function TaskFormDialog({ open, onClose, form, onChange, onSubmit, userOptions, selfUser, error, onDelete }) {
-  const isEdit = !!form.task_id;
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{isEdit ? 'Edit Task' : 'Create Task'}</DialogTitle>
-      <form onSubmit={onSubmit}>
-        <DialogContent>
-          <Stack spacing={2}>
-            <TextField
-              label={<span>Title <span style={{color:'red'}}>*</span></span>}
-              name="title"
-              value={form.title}
-              onChange={onChange}
-              required
-              fullWidth
-            />
-            <TextField
-              label="Description"
-              name="description"
-              value={form.description}
-              onChange={onChange}
-              multiline
-              rows={2}
-              fullWidth
-            />
-            <FormControl fullWidth>
-              <InputLabel>Status</InputLabel>
-              <Select name="status" value={form.status} label="Status" onChange={onChange}>
-                {STATUS_OPTIONS.map(opt => (
-                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel>Priority</InputLabel>
-              <Select name="priority" value={form.priority} label="Priority" onChange={onChange}>
-                {PRIORITY_OPTIONS.map(p => (
-                  <MenuItem key={p} value={String(p)}>{p}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth>
-              <InputLabel>Assigned To</InputLabel>
-              <Select name="assigned_to" value={form.assigned_to} label="Assigned To" onChange={onChange}>
-                <MenuItem value="">
-                  <em>Unassigned</em>
-                </MenuItem>
-                {userOptions.map(u => (
-                  <MenuItem key={u.user_key} value={u.user_key}>
-                    {u.display_name || u.name || u.username || u.user_key}
-                    {selfUser?.user_key === u.user_key ? ' (You)' : ''}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField
-              label={<span>End Date (YYYY-MM-DD) <span style={{color:'red'}}>*</span></span>}
-              name="end_date"
-              value={form.end_date}
-              onChange={onChange}
-              required
-              fullWidth
-            />
-            <TextField
-              label="Task Date (YYYY-MM-DD)"
-              name="task_date"
-              value={form.task_date}
-              onChange={onChange}
-              fullWidth
-            />
-            <TextField
-              label="Notes"
-              name="notes"
-              value={form.notes}
-              onChange={onChange}
-              multiline
-              rows={2}
-              fullWidth
-            />
-            {error && <Typography color="error">{error}</Typography>}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          {isEdit && (
-            <Button onClick={onDelete} variant="contained" color="error" sx={{ mr: 'auto' }}>
-              Delete
-            </Button>
-          )}
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" color="primary">
-            {isEdit ? 'Update' : 'Create'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
-  );
-}
-
-// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -195,7 +82,12 @@ export default function TasksPage() {
   const rawUserInfo = getUserInfo();
   const selfUserKey = rawUserInfo?.userKey || rawUserInfo?.user_key || '';
   const selfUserName = rawUserInfo?.user?.username || rawUserInfo?.username || 'Self (You)';
-  const selfUser = selfUserKey ? { user_key: String(selfUserKey), username: selfUserName } : null;
+
+  // Stabilize user object reference
+  const selfUser = useMemo(() =>
+    selfUserKey ? { user_key: String(selfUserKey), username: selfUserName } : null,
+    [selfUserKey, selfUserName]
+  );
 
   // State
   const [tasks, setTasks] = useState([]);
@@ -210,8 +102,8 @@ export default function TasksPage() {
   const deleteConfirm = useConfirmDialog();
 
   // Form state
-  const [form, setForm] = useState({ ...INITIAL_FORM }); // Start with Unassigned
-  const [formError, setFormError] = useState('');
+  // Only maintain initial data for the form, no error tracking needed here as TaskForm handles it
+  const [form, setForm] = useState({ ...INITIAL_FORM });
 
   // Computed values
   const stats = useMemo(() => computeTaskStats(tasks), [tasks]);
@@ -297,11 +189,7 @@ export default function TasksPage() {
     loadTasks();
   }, [loadTasks]);
 
-  // Handlers
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
+  // Handlers - Simplified for new TaskForm
 
   const handleEdit = (task) => {
     // Normalize task fields from different BE formats
@@ -312,45 +200,20 @@ export default function TasksPage() {
     setForm({
       ...task,
       assigned_to: assignedTo,
-      priority: String(task.priority || 3),
-      end_date: endDate ? endDate.split('T')[0] : getDefaultEndDate(), // Extract date part
-      task_date: taskDate ? taskDate.split('T')[0] : '', // Extract date part
+      priority: String(task.priority || 'normal'), // Ensure string
+      end_date: endDate ? endDate.split('T')[0] : getDefaultEndDate(),
+      task_date: taskDate ? taskDate.split('T')[0] : '',
       notes: task.notes || '',
       task_id: resolveTaskId(task),
     });
-    setFormError('');
     formDialog.openDialog(task);
   };
 
   const handleCreate = () => {
-    setForm({ ...INITIAL_FORM }); // Use initial form with empty assigned_to (Unassigned)
-    setFormError('');
+    setForm({ ...INITIAL_FORM }); // Use initial form
     formDialog.openDialog();
   };
 
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    setFormError('');
-
-    const submitData = { ...form };
-    // assigned_to is optional now - don't auto-assign
-    if (!submitData.title || !submitData.end_date) {
-      setFormError('Title and End Date are required');
-      return;
-    }
-
-    submitData.priority = parseInt(submitData.priority, 10) || 3;
-    delete submitData._id;
-
-    try {
-      await saveTask(submitData, !!submitData.task_id);
-      formDialog.closeDialog();
-      setForm(INITIAL_FORM);
-      await loadTasks(true); // Force refresh after save
-    } catch (err) {
-      setFormError(err.message);
-    }
-  };
 
   const handleNextAction = async (task) => {
     if (task.status === 'completed') return;
@@ -495,11 +358,12 @@ export default function TasksPage() {
         />
 
         {/* Status Filter */}
-        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 140 } }}>
+        <FormControl size="small" variant="outlined" sx={{ minWidth: { xs: '100%', sm: 140 } }}>
           <InputLabel>Filter Status</InputLabel>
           <Select
             value={filterStatus}
             label="Filter Status"
+            variant="outlined"
             onChange={(e) => setFilterStatus(e.target.value)}
           >
             <MenuItem value="all">All Tasks</MenuItem>
@@ -556,18 +420,33 @@ export default function TasksPage() {
         </Grid>
       )}
 
-      {/* Task Form Dialog */}
-      <TaskFormDialog
-        open={formDialog.open}
-        onClose={formDialog.closeDialog}
-        form={form}
-        onChange={handleFormChange}
-        onSubmit={handleFormSubmit}
-        userOptions={userOptions}
-        selfUser={selfUser}
-        error={formError}
-        onDelete={() => deleteConfirm.openConfirm(form)}
-      />
+      {/* Task Form Dialog - Replaces manual form rendering */}
+      {formDialog.open && (
+        <Dialog
+          open={formDialog.open}
+          onClose={formDialog.closeDialog}
+          maxWidth="md"
+          fullWidth
+        >
+          <TaskForm
+            initialData={form}
+            onSubmit={async (formData) => {
+              // Wrap submit to handle close and reload
+              try {
+                if (form.task_id) formData.task_id = form.task_id; // ensure ID is passed
+                await saveTask(formData, !!form.task_id);
+                formDialog.closeDialog();
+                loadTasks(true);
+              } catch (e) {
+                console.error("Save failed", e);
+                throw e; // TaskForm might handle error display internally
+              }
+            }}
+            onCancel={formDialog.closeDialog}
+            users={userOptions}
+          />
+        </Dialog>
+      )}
 
       {/* Delete Confirmation */}
       <ConfirmDialog

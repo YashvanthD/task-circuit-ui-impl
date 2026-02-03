@@ -226,3 +226,22 @@ export const animations = {
   },
 };
 
+// Layout
+export const LAYOUT = {
+  headerHeight: 64,
+  sidebarWidth: 240,
+  contentMaxWidth: 1400, // Standard max width
+  pagePadding: {
+    mobile: 2,
+    desktop: 4,
+  },
+  // New responsive full width style
+  containerStyles: {
+    width: '100%',
+    marginLeft: 'auto',
+    marginRight: 'auto',
+    // On larger screens, center with max width. On smaller, full width with padding.
+    maxWidth: { xs: '100%', xl: 1600 },
+    px: { xs: 2, sm: 3, md: 4 },
+  },
+};

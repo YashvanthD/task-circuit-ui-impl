@@ -125,6 +125,7 @@ export { default as DateRangeFilter } from './DateRangeFilter';
 export { default as StatusChip } from './StatusChip';
 export { default as BaseCard } from './BaseCard';
 export { default as StatCard } from './StatCard';
+export { default as ItemCard } from './ItemCard';
 export { default as ActionButton } from './ActionButton';
 
 // State Components

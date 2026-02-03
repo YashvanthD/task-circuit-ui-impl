@@ -20,6 +20,7 @@ export default function PondMonitorCard({
   pond,
   health,
   currentStock,
+  allStocks = [], // Added allStocks prop
   analytics, // Added analytics prop
   lastWaterQuality,
   todaysTasks = [],
@@ -27,7 +28,8 @@ export default function PondMonitorCard({
   onFeed,
   onViewDetails,
   onEdit, // Added onEdit prop
-  onQuickLog,
+  onNavigateToStock, // Added nav prop
+  onPerformSampling, // Added sampling prop
   priority = 'normal', // urgent|attention|normal
 }) {
   if (!pond) return null;
@@ -113,11 +115,14 @@ export default function PondMonitorCard({
       {/* Stock Summary */}
       <StockSummary
         stock={currentStock}
+        stocks={allStocks} // Pass all stocks
         analytics={analytics} // Pass analytics
         onClick={(e) => {
           e.stopPropagation();
           onViewDetails && onViewDetails(pond);
         }}
+        onNavigateToStock={onNavigateToStock} // Pass nav handler
+        onPerformSampling={onPerformSampling} // Pass sampling handler
         clickable
       />
 

@@ -108,8 +108,7 @@ export default function BaseLayout({ children, loggedIn, user, onLogout, showSid
   const navItems = [
     { label: 'Dashboard', to: BASE_APP_PATH_USER_DASHBOARD, icon: <DashboardIcon /> },
     { label: 'Tasks', to: BASE_APP_PATH_USER_TASKS, icon: <AssignmentIcon /> },
-    { label: 'Pond', to: BASE_APP_PATH_USER_POND, icon: <PoolIcon /> },
-    { label: 'Ponds (New)', to: BASE_APP_PATH_USER_PONDS, icon: <PoolIcon /> },
+    { label: 'Ponds', to: BASE_APP_PATH_USER_PONDS, icon: <PoolIcon /> },
     { label: 'Sampling', to: BASE_APP_PATH_USER_SAMPLING, icon: <ScienceIcon /> },
     { label: 'Reports', to: BASE_APP_PATH_USER_REPORTS, icon: <AnalyticsIcon /> },
     { label: 'Ask AI', to: BASE_APP_PATH_USER_AI, icon: <SmartToyIcon /> },

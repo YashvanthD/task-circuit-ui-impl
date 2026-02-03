@@ -25,6 +25,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import DescriptionIcon from '@mui/icons-material/Description';
 import FlagIcon from '@mui/icons-material/Flag';
 
+// Common Components
+import { ItemCard } from './common';
+
 // Import users cache for name resolution
 import { getUsersSync } from '../utils/cache/usersCache';
 
@@ -441,16 +444,7 @@ function TaskDetailDialog({
 // ============================================================================
 
 /**
- * TaskCard - A reusable task card component
- *
- * @param {object} props
- * @param {object} props.task - Task object with title, description, status, priority, end_date, assigned_to, task_id
- * @param {function} props.onEdit - Callback when edit button is clicked
- * @param {function} props.onAction - Callback when action button (Start/Complete) is clicked
- * @param {function} props.onDelete - Callback when delete button is clicked
- * @param {function} props.getAssigneeName - Function to get assignee name from user key
- * @param {boolean} props.compact - Whether to show compact version (for mobile/list views)
- * @param {boolean} props.showDelete - Whether to show delete button (default: only when completed)
+ * TaskCard - A reusable task card component using ItemCard
  */
 export default function TaskCard({
   task,
@@ -465,16 +459,23 @@ export default function TaskCard({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+  // Ensure config consistency
   const status = STATUS_CONFIG[task.status] || STATUS_CONFIG.pending;
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG[3];
+
+  // Resolve theme colors
+  const borderColorKey = status.borderColor.split('.');
+  const themeColor = theme.palette[borderColorKey[0]]?.[borderColorKey[1]] || theme.palette.primary.main;
+
   const isCompleted = task.status === 'completed';
   const overdue = isTaskOverdue(task);
+  const effectiveColor = overdue && !isCompleted ? theme.palette.error.main : themeColor;
 
-  // Handle different date field names from BE
+  // Handle different date field names
   const endDate = task.end_date || task.endDate || task.endTime;
   const timeInfo = getTimeLeft(endDate);
 
-  // Resolve assignee name - use provided function or resolve from cache
+  // Resolve assignee name
   const assigneeKey = getAssigneeKey(task);
   const assigneeName = getAssigneeName
     ? getAssigneeName(assigneeKey)
@@ -486,386 +487,178 @@ export default function TaskCard({
     }
   };
 
-  // Compact view for mobile/list - Enhanced with more info
-  if (compact || isMobile) {
-    return (
-      <>
-        <Paper
-          elevation={1}
-          onClick={handleCardClick}
-          sx={{
-            p: 2,
-            borderRadius: 2,
-            borderLeft: (theme) => `4px solid ${overdue ? theme.palette.error.main : theme.palette[status.borderColor.split('.')[0]][status.borderColor.split('.')[1]]}`,
-            bgcolor: isCompleted ? 'action.disabledBackground' : 'background.paper',
-            opacity: isCompleted ? 0.8 : 1,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1.5,
-            transition: 'all 0.2s',
-            cursor: 'pointer',
-            '&:hover': { boxShadow: 3 },
-            '&:active': { transform: 'scale(0.98)' },
-          }}
-        >
-          {/* Top Row: Priority + Title + Status */}
-          <Stack direction="row" spacing={1.5} alignItems="flex-start">
-            {/* Priority indicator */}
-            <Avatar
-              sx={{
-                width: 40,
-                height: 40,
-                bgcolor: priority.bg,
-                color: priority.color === 'default' ? 'text.secondary' : `${priority.color}.main`,
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              {priority.icon}
-            </Avatar>
+  // --------------------------------------------------------------------------
+  // Render ContentHelpers
+  // --------------------------------------------------------------------------
 
-            {/* Content */}
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography
-                variant="body1"
-                sx={{
-                  fontWeight: 600,
-                  textDecoration: isCompleted ? 'line-through' : 'none',
-                  color: isCompleted ? 'text.secondary' : 'text.primary',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  lineHeight: 1.3,
-                }}
-              >
-                {task.title}
-              </Typography>
-
-              {/* Status + Priority chips */}
-              <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }} flexWrap="wrap">
-                <Chip
-                  label={status.label}
-                  size="small"
-                  sx={{ bgcolor: status.bg, color: status.color, height: 20, fontSize: '0.65rem' }}
-                />
-                <Chip
-                  label={priority.label}
-                  size="small"
-                  color={priority.color}
-                  sx={{ height: 20, fontSize: '0.65rem' }}
-                />
-                {overdue && <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.65rem' }} />}
-              </Stack>
-            </Box>
-          </Stack>
-
-          {/* Middle Row: Due Date + Time Left + Assignee */}
-          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" sx={{ pl: 0.5 }}>
-            {/* Due Date */}
-            <Tooltip title="Due Date">
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                <CalendarTodayIcon sx={{ fontSize: 14, color: overdue ? 'error.main' : 'text.secondary' }} />
-                <Typography variant="caption" sx={{ fontWeight: 500, color: overdue ? 'error.main' : 'text.secondary' }}>
-                  {formatDate(task.end_date)}
-                </Typography>
-              </Stack>
-            </Tooltip>
-
-            {/* Time Left */}
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              {timeInfo.overdue ? (
-                <WarningIcon sx={{ fontSize: 14, color: 'error.main' }} />
-              ) : (
-                <AccessTimeIcon sx={{ fontSize: 14, color: timeInfo.urgent ? 'warning.main' : 'text.secondary' }} />
-              )}
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: timeInfo.urgent ? 600 : 500,
-                  color: timeInfo.overdue ? 'error.main' : timeInfo.urgent ? 'warning.main' : 'text.secondary',
-                }}
-              >
-                {timeInfo.text}
-              </Typography>
-            </Stack>
-
-            {/* Assignee */}
-            <Tooltip title={`Assigned to: ${assigneeName}`}>
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                <PersonIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                <Typography
-                  variant="caption"
-                  sx={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                >
-                  {assigneeName}
-                </Typography>
-              </Stack>
-            </Tooltip>
-          </Stack>
-
-          {/* Bottom Row: Actions */}
-          <Stack direction="row" spacing={1} justifyContent="flex-end" alignItems="center">
-            {!isCompleted && (
-              <Button
-                variant="contained"
-                size="small"
-                color={task.status === 'pending' ? 'primary' : 'success'}
-                startIcon={task.status === 'pending' ? <PlayArrowIcon /> : <CheckCircleIcon />}
-                onClick={(e) => { e.stopPropagation(); onAction?.(task); }}
-                sx={{ textTransform: 'none', borderRadius: 2, fontSize: '0.75rem', py: 0.5 }}
-              >
-                {getNextActionLabel(task.status)}
-              </Button>
-            )}
-            <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit?.(task); }}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Stack>
-        </Paper>
-
-        {/* Detail Dialog for mobile */}
-        <TaskDetailDialog
-          open={detailOpen}
-          onClose={() => setDetailOpen(false)}
-          task={task}
-          onEdit={onEdit}
-          onAction={onAction}
-          onDelete={onDelete}
-          getAssigneeName={getAssigneeName}
-        />
-      </>
-    );
-  }
-
-  // Full card view for desktop - existing implementation with slight improvements
-  return (
-    <Paper
-      elevation={2}
-      sx={{
-        borderRadius: 3,
-        overflow: 'hidden',
-        bgcolor: isCompleted ? 'action.disabledBackground' : 'background.paper',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: 6,
-        },
-        opacity: isCompleted ? 0.85 : 1,
-      }}
-    >
-      {/* Status Header Bar */}
-      <Box
+  // Icon: Priority Avatar or Status Icon
+  const CardIcon = (
+    <Tooltip title={`Priority: ${priority.label}`}>
+      <Avatar
         sx={{
-          px: 2,
-          py: 1,
-          bgcolor: overdue ? 'error.light' : status.bg,
-          borderBottom: (theme) => `2px solid ${overdue ? theme.palette.error.main : theme.palette[status.borderColor.split('.')[0]][status.borderColor.split('.')[1]]}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          width: 32,
+          height: 32,
+          bgcolor: priority.bg,
+          color: priority.color === 'default' ? 'text.secondary' : `${priority.color}.main`,
+          fontSize: '0.8rem',
+          fontWeight: 700,
         }}
       >
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Typography sx={{ fontSize: '1rem' }}>{status.icon}</Typography>
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 700,
-              color: overdue ? 'error.dark' : status.color,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-            }}
-          >
-            {overdue ? '⚠️ OVERDUE' : status.label}
-          </Typography>
-        </Stack>
-        <Chip
-          label={`${priority.icon} ${priority.label}`}
-          size="small"
-          color={priority.color}
-          sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-        />
-      </Box>
+        {priority.icon}
+      </Avatar>
+    </Tooltip>
+  );
 
-      {/* Card Content */}
-      <Box sx={{ p: 2.5, flex: 1, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        {/* Title */}
+  // Status Chip
+  const StatusChipElement = (
+    <Chip
+      label={overdue && !isCompleted ? 'OVERDUE' : status.label}
+      size="small"
+      icon={<span>{status.icon}</span>}
+      sx={{
+        bgcolor: overdue && !isCompleted ? 'error.light' : status.bg,
+        color: overdue && !isCompleted ? 'error.dark' : status.color,
+        fontWeight: 600,
+        borderColor: 'transparent'
+      }}
+    />
+  );
+
+  // Compact Actions
+  const CompactActions = (
+    <>
+      {!isCompleted && (
+        <IconButton
+          size="small"
+          color={task.status === 'pending' ? 'primary' : 'success'}
+          onClick={(e) => { e.stopPropagation(); onAction?.(task); }}
+        >
+          {task.status === 'pending' ? <PlayArrowIcon fontSize="small" /> : <CheckCircleIcon fontSize="small" />}
+        </IconButton>
+      )}
+      <IconButton size="small" onClick={(e) => { e.stopPropagation(); onEdit?.(task); }}>
+        <EditIcon fontSize="small" />
+      </IconButton>
+    </>
+  );
+
+  // Full Actions
+  const FullActions = (
+    <>
+      {!isCompleted && (
+        <Button
+          variant="contained"
+          size="small"
+          color={task.status === 'pending' ? 'primary' : 'success'}
+          startIcon={task.status === 'pending' ? <PlayArrowIcon /> : <CheckCircleIcon />}
+          onClick={() => onAction?.(task)}
+          sx={{ borderRadius: 2, textTransform: 'none' }}
+        >
+          {getNextActionLabel(task.status)}
+        </Button>
+      )}
+      <Tooltip title="Edit">
+        <IconButton size="small" onClick={() => onEdit?.(task)}>
+          <EditIcon />
+        </IconButton>
+      </Tooltip>
+      {(isCompleted || showDelete) && (
+        <Tooltip title="Delete">
+          <IconButton size="small" color="error" onClick={() => onDelete?.(task)}>
+            <DeleteIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+    </>
+  );
+
+  // Full Content Body
+  const FullContent = (
+    <Stack spacing={1.5} sx={{ mt: 1 }}>
+      {task.description && (
         <Typography
-          variant="h6"
+          variant="body2"
+          color="text.secondary"
           sx={{
-            fontWeight: 700,
-            fontSize: { xs: '0.95rem', sm: '1.05rem' },
-            lineHeight: 1.3,
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
-            textDecoration: isCompleted ? 'line-through' : 'none',
-            color: isCompleted ? 'text.secondary' : 'text.primary',
           }}
-          title={task.title}
         >
-          {task.title}
+          {task.description}
         </Typography>
+      )}
 
-        {/* Description */}
-        {task.description && (
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'text.secondary',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              lineHeight: 1.5,
-              fontSize: { xs: '0.8rem', sm: '0.875rem' },
-            }}
-            title={task.description}
-          >
-            {task.description}
-          </Typography>
-        )}
-
-        {/* Meta Info */}
-        <Stack spacing={1} sx={{ mt: 'auto', pt: 1 }}>
-          {/* Due Date & Time Left */}
-          <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
-            <Tooltip title="Due Date">
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                <CalendarTodayIcon sx={{ fontSize: 16, color: overdue ? 'error.main' : 'text.secondary' }} />
-                <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                  {formatDate(task.end_date)}
-                </Typography>
-              </Stack>
-            </Tooltip>
-            <Tooltip title="Time Remaining">
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                {timeInfo.overdue ? (
-                  <WarningIcon sx={{ fontSize: 16, color: 'error.main' }} />
-                ) : (
-                  <AccessTimeIcon sx={{ fontSize: 16, color: timeInfo.urgent ? 'warning.main' : 'text.secondary' }} />
-                )}
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontWeight: timeInfo.urgent ? 700 : 500,
-                    color: timeInfo.overdue ? 'error.main' : timeInfo.urgent ? 'warning.main' : 'text.secondary',
-                  }}
-                >
-                  {timeInfo.text}
-                </Typography>
-              </Stack>
-            </Tooltip>
+      <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+        {/* Due Date */}
+        <Tooltip title="Due Date">
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <CalendarTodayIcon sx={{ fontSize: 16, color: overdue ? 'error.main' : 'text.secondary' }} />
+            <Typography variant="caption" sx={{ fontWeight: 500, color: overdue ? 'error.main' : 'text.secondary' }}>
+              {formatDate(task.end_date)}
+            </Typography>
           </Stack>
+        </Tooltip>
 
-          {/* Assignee */}
-          <Tooltip title="Assigned To">
-            <Stack direction="row" spacing={0.5} alignItems="center">
-              <Avatar sx={{ width: 20, height: 20, fontSize: '0.65rem', bgcolor: 'primary.main' }}>
-                {assigneeName?.[0]?.toUpperCase() || '?'}
-              </Avatar>
-              <Typography
-                variant="caption"
-                sx={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  fontWeight: 500,
-                }}
-              >
-                {assigneeName}
-              </Typography>
-            </Stack>
-          </Tooltip>
-        </Stack>
-      </Box>
-
-      {/* Action Footer */}
-      <Box
-        sx={{
-          px: 2,
-          py: 1.5,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'action.hover',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1,
-        }}
-      >
-        {/* Action Buttons */}
-        <Stack direction="row" spacing={1}>
-          {!isCompleted && (
-            <Button
-              variant="contained"
-              size="small"
-              color={task.status === 'pending' ? 'primary' : 'success'}
-              startIcon={task.status === 'pending' ? <PlayArrowIcon /> : <CheckCircleIcon />}
-              onClick={() => onAction?.(task)}
-              sx={{
-                textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: 2,
-                px: { xs: 1.5, sm: 2 },
-                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-              }}
-            >
-              {getNextActionLabel(task.status)}
-            </Button>
-          )}
-          {(isCompleted || showDelete) && (
-            <Button
-              variant="outlined"
-              size="small"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={() => onDelete?.(task)}
-              sx={{
-                textTransform: 'none',
-                borderRadius: 2,
-                fontSize: { xs: '0.75rem', sm: '0.8125rem' },
-              }}
-            >
-              Delete
-            </Button>
-          )}
-        </Stack>
-
-        {/* Edit & Task ID */}
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Tooltip title="Edit Task">
-            <IconButton
-              size="small"
-              onClick={() => onEdit?.(task)}
-              sx={{
-                '&:hover': { backgroundColor: 'primary.light', color: 'white' },
-              }}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+        {/* Time Left */}
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          <AccessTimeIcon sx={{ fontSize: 16, color: timeInfo.urgent ? 'warning.main' : 'text.secondary' }} />
           <Typography
             variant="caption"
             sx={{
-              color: 'text.disabled',
-              fontSize: '0.65rem',
-              fontFamily: 'monospace',
-              display: { xs: 'none', sm: 'block' },
+              fontWeight: 500,
+              color: timeInfo.overdue ? 'error.main' : timeInfo.urgent ? 'warning.main' : 'text.secondary',
             }}
           >
-            #{task.task_id?.slice(-6) || 'N/A'}
+            {timeInfo.text}
           </Typography>
         </Stack>
-      </Box>
-    </Paper>
+
+        {/* Assignee */}
+        <Tooltip title={`Assigned to: ${assigneeName}`}>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Avatar sx={{ width: 20, height: 20, fontSize: '0.65rem' }}>
+              {assigneeName?.[0]?.toUpperCase()}
+            </Avatar>
+            <Typography variant="caption" sx={{ maxWidth: 100, noWrap: true }}>
+              {assigneeName}
+            </Typography>
+          </Stack>
+        </Tooltip>
+      </Stack>
+    </Stack>
+  );
+
+  return (
+    <>
+      <ItemCard
+        compact={compact || isMobile}
+        onClick={handleCardClick}
+        color={effectiveColor}
+        icon={CardIcon}
+        title={task.title}
+        subtitle={
+          compact || isMobile
+            ? `${timeInfo.text} • ${assigneeName}`
+            : undefined
+        }
+        status={compact || isMobile ? null : StatusChipElement}
+        actions={compact || isMobile ? CompactActions : FullActions}
+      >
+        {!(compact || isMobile) && FullContent}
+      </ItemCard>
+
+      <TaskDetailDialog
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        task={task}
+        onEdit={onEdit}
+        onAction={onAction}
+        onDelete={onDelete}
+        getAssigneeName={getAssigneeName}
+      />
+    </>
   );
 }
 
