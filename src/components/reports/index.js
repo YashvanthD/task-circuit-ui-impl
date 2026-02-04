@@ -11,3 +11,6 @@ export { default as ReportSummary } from './ReportSummary';
 export { default as ReportFilters } from './ReportFilters';
 export { default as ReportChart } from './ReportChart';
 
+// Widget Components
+export * from './widgets';
+

@@ -57,6 +57,7 @@ export { default as fishApi } from './fish';
 export { default as samplingApi } from './sampling';
 export { default as companyApi } from './company';
 export { default as notificationsApi } from './notifications';
+export { default as reportsApi } from './reports';
 
 // ============================================================================
 // Named exports from API modules
@@ -69,4 +70,5 @@ export * from './fish';
 export * from './sampling';
 export * from './company';
 export * from './notifications';
+export * from './reports';
 

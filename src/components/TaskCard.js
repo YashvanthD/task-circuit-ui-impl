@@ -99,6 +99,14 @@ function resolveUserName(userKey) {
 }
 
 /**
+ * Resolve task due date from various possible fields
+ */
+function resolveTaskDueDate(task) {
+  if (!task) return null;
+  return task.due_date || task.dueDate || task.end_date || task.endDate || task.endTime;
+}
+
+/**
  * Get time remaining until due date
  */
 function getTimeLeft(endDate) {
@@ -137,7 +145,7 @@ function getTimeLeft(endDate) {
 function isTaskOverdue(task) {
   if (task.status === 'completed') return false;
 
-  const endDate = task.end_date || task.endDate || task.endTime;
+  const endDate = resolveTaskDueDate(task);
   if (!endDate) return false;
 
   try {
@@ -223,7 +231,8 @@ function TaskDetailDialog({
   const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG[3];
   const isCompleted = task.status === 'completed';
   const overdue = isTaskOverdue(task);
-  const timeInfo = getTimeLeft(task.end_date || task.endDate);
+  const effectiveDueDate = resolveTaskDueDate(task);
+  const timeInfo = getTimeLeft(effectiveDueDate);
 
   // Resolve assignee name - use helper or resolve from cache
   const assigneeKey = getAssigneeKey(task);
@@ -335,7 +344,7 @@ function TaskDetailDialog({
                   Due Date
                 </Typography>
                 <Typography variant="body1" fontWeight={500} color={overdue ? 'error.main' : 'text.primary'}>
-                  {formatFullDate(task.end_date)}
+                  {formatFullDate(effectiveDueDate)}
                 </Typography>
               </Box>
             </Stack>
@@ -472,7 +481,7 @@ export default function TaskCard({
   const effectiveColor = overdue && !isCompleted ? theme.palette.error.main : themeColor;
 
   // Handle different date field names
-  const endDate = task.end_date || task.endDate || task.endTime;
+  const endDate = resolveTaskDueDate(task);
   const timeInfo = getTimeLeft(endDate);
 
   // Resolve assignee name
@@ -596,7 +605,7 @@ export default function TaskCard({
           <Stack direction="row" spacing={0.5} alignItems="center">
             <CalendarTodayIcon sx={{ fontSize: 16, color: overdue ? 'error.main' : 'text.secondary' }} />
             <Typography variant="caption" sx={{ fontWeight: 500, color: overdue ? 'error.main' : 'text.secondary' }}>
-              {formatDate(task.end_date)}
+              {formatDate(endDate)}
             </Typography>
           </Stack>
         </Tooltip>

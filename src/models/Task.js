@@ -33,7 +33,7 @@ export class Task extends BaseModel {
     this.priority = this._normalizePriority(data.priority);
 
     // Dates
-    this.due_date = data.due_date || data.dueDate || null;
+    this.due_date = data.due_date || data.dueDate || data.end_date || data.endDate || data.endTime || null;
     this.task_date = data.task_date || data.taskDate || null;
     this.created_at = data.created_at || data.createdAt || null;
     this.updated_at = data.updated_at || data.updatedAt || null;
@@ -88,7 +88,14 @@ export class Task extends BaseModel {
    */
   isOverdue() {
     if (!this.due_date || this.status === 'completed') return false;
-    return new Date(this.due_date) < new Date();
+    try {
+      // Handle "empty string" or invalid dates
+      const due = new Date(this.due_date.replace(' ', 'T'));
+      if (isNaN(due.getTime())) return false;
+      return due < new Date();
+    } catch {
+      return false;
+    }
   }
 
   /**

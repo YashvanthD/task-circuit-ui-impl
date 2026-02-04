@@ -1,198 +1,592 @@
 /**
  * ReportsPage
- * Generate and view reports.
- * Uses modular components for clean separation.
+ * Dynamic, configurable reports dashboard with real API data.
+ * Supports adding/removing widgets, charts, tables with DataTable integration.
  *
  * @module pages/user/ReportsPage
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Paper,
   Box,
   Grid,
+  Button,
+  IconButton,
+  Tooltip,
+  Drawer,
+  Typography,
+  Stack,
+  Divider,
+  FormControlLabel,
+  Switch,
+  Chip,
+  Alert,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import SettingsIcon from '@mui/icons-material/Settings';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import RestoreIcon from '@mui/icons-material/Restore';
 
 // Components
+import { PageHeader, StatsGrid } from '../../components/common';
 import {
-  PageHeader,
-  StatsGrid,
-} from '../../components/common';
-import {
-  ReportList,
-  ReportSummary,
   ReportFilters,
-  ReportChart,
+  ChartWidget,
+  TableWidget,
+  SummaryWidget,
+  AddWidgetDialog,
+  WidgetConfigDialog,
 } from '../../components/reports';
 
 // Contexts
 import { useGlobalAlert } from '../../contexts/AlertContext';
+import {
+  ReportProvider,
+  useReportContext,
+  WIDGET_TYPES,
+  DATA_SOURCES,
+} from '../../contexts/ReportContext';
 
-// Utils
-import { getReportPeriodLabel } from '../../utils/helpers/reports';
+// API
+import reportsApi, { aggregateByDate, aggregateByCategory, calculateSummary } from '../../api/reports';
 
-// Constants
-import { REPORT_TYPES, REPORT_CATEGORIES } from '../../constants';
+// ============================================================================
+// Report Dashboard Content Component
+// ============================================================================
 
-export default function ReportsPage() {
-  // Global alert hook - can be used for manual alerts if needed
-  const { showInfo, showSuccess } = useGlobalAlert();
+function ReportsDashboard() {
+  const { showInfo, showSuccess, showError } = useGlobalAlert();
+  const {
+    widgets,
+    visibleWidgets,
+    addWidget,
+    removeWidget,
+    updateWidget,
+    toggleWidgetVisibility,
+    resetWidgets,
+    filters,
+    updateFilter,
+    resetFilters,
+    filterVisibility,
+    toggleFilterVisibility,
+    dataCache,
+    loadingState,
+    setDataForSource,
+    setLoadingForSource,
+    clearDataCache,
+  } = useReportContext();
 
-  // State - will be used when API is connected
-  const [loading] = useState(false);
+  // Local state
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [selectedWidget, setSelectedWidget] = useState(null);
+  const [showFilters, setShowFilters] = useState(true);
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Filters
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // ============================================================================
+  // Data Fetching
+  // ============================================================================
 
+  const fetchDataForSource = useCallback(async (source) => {
+    setLoadingForSource(source, true);
+    try {
+      const params = {};
+      if (filters.startDate) params.start_date = filters.startDate;
+      if (filters.endDate) params.end_date = filters.endDate;
+      if (filters.pondId) params.pond_id = filters.pondId;
 
-  // Mock data for demonstration
-  const mockReports = useMemo(() => [
-    {
-      id: '1',
-      title: 'Monthly Production Report',
-      type: REPORT_TYPES.MONTHLY,
-      category: REPORT_CATEGORIES.PRODUCTION,
-      date: new Date().toISOString(),
-      summary: 'Total production increased by 15% compared to last month.',
-    },
-    {
-      id: '2',
-      title: 'Weekly Financial Summary',
-      type: REPORT_TYPES.WEEKLY,
-      category: REPORT_CATEGORIES.FINANCIAL,
-      date: new Date().toISOString(),
-      summary: 'Revenue targets met. Expenses under budget.',
-    },
-    {
-      id: '3',
-      title: 'Quarterly Inventory Report',
-      type: REPORT_TYPES.QUARTERLY,
-      category: REPORT_CATEGORIES.INVENTORY,
-      date: new Date().toISOString(),
-      summary: 'Stock levels optimal. No critical shortages.',
-    },
-    {
-      id: '4',
-      title: 'Daily Operations Log',
-      type: REPORT_TYPES.DAILY,
-      category: REPORT_CATEGORIES.OPERATIONS,
-      date: new Date().toISOString(),
-      summary: 'All operations running smoothly.',
-    },
-  ], []);
+      let data = [];
+      switch (source) {
+        case DATA_SOURCES.SAMPLINGS:
+          data = await reportsApi.fetchSamplings(params);
+          break;
+        case DATA_SOURCES.HARVESTS:
+          data = await reportsApi.fetchHarvests(params);
+          break;
+        case DATA_SOURCES.FEEDINGS:
+          data = await reportsApi.fetchFeedings(params);
+          break;
+        case DATA_SOURCES.MORTALITIES:
+          data = await reportsApi.fetchMortalities(params);
+          break;
+        case DATA_SOURCES.EXPENSES:
+          data = await reportsApi.fetchExpenses(params);
+          break;
+        case DATA_SOURCES.PURCHASES:
+          data = await reportsApi.fetchPurchases(params);
+          break;
+        case DATA_SOURCES.TRANSFERS:
+          data = await reportsApi.fetchTransfers(params);
+          break;
+        case DATA_SOURCES.TREATMENTS:
+          data = await reportsApi.fetchTreatments(params);
+          break;
+        case DATA_SOURCES.MAINTENANCE:
+          data = await reportsApi.fetchMaintenance(params);
+          break;
+        default:
+          console.warn(`Unknown data source: ${source}`);
+      }
 
-  // Sample summary for demonstration
-  const mockSummary = useMemo(() => ({
-    total: 125000,
-    count: 45,
-    average: 2777.78,
-    min: 500,
-    max: 15000,
-    growth: { value: 12500, percentage: 11.1, trend: 'up' },
-  }), []);
+      // Ensure data is an array
+      const dataArray = Array.isArray(data) ? data : data?.data || data?.items || [];
+      setDataForSource(source, dataArray);
+    } catch (err) {
+      console.error(`Error fetching ${source}:`, err);
+      setDataForSource(source, []);
+    } finally {
+      setLoadingForSource(source, false);
+    }
+  }, [filters, setDataForSource, setLoadingForSource]);
 
-  // Chart data for demonstration
-  const chartData = useMemo(() => [
-    { label: 'Jan', value: 12000, color: '#4caf50' },
-    { label: 'Feb', value: 15000, color: '#2196f3' },
-    { label: 'Mar', value: 11000, color: '#ff9800' },
-    { label: 'Apr', value: 18000, color: '#9c27b0' },
-    { label: 'May', value: 22000, color: '#4caf50' },
-    { label: 'Jun', value: 19000, color: '#2196f3' },
-  ], []);
+  const fetchAllData = useCallback(async () => {
+    setGlobalLoading(true);
+    setError(null);
 
-  // Quick stats
-  const stats = useMemo(() => [
-    { label: 'Total Reports', value: mockReports.length, color: 'primary.main' },
-    { label: 'Production', value: 12, color: 'success.main' },
-    { label: 'Financial', value: 8, color: 'info.main' },
-    { label: 'Operations', value: 15, color: 'warning.main' },
-    { label: 'This Month', value: 4, color: 'secondary.main' },
-  ], [mockReports.length]);
+    // Get unique data sources from visible widgets
+    const dataSources = [...new Set(
+      visibleWidgets
+        .filter(w => w.dataSource)
+        .map(w => w.dataSource)
+    )];
 
+    try {
+      await Promise.all(dataSources.map(source => fetchDataForSource(source)));
+      showSuccess('Data refreshed successfully');
+    } catch (err) {
+      setError('Failed to fetch some data');
+      showError('Failed to refresh data');
+    } finally {
+      setGlobalLoading(false);
+    }
+  }, [visibleWidgets, fetchDataForSource, showSuccess, showError]);
+
+  // Fetch data on mount and filter changes
+  useEffect(() => {
+    fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.startDate, filters.endDate, filters.pondId]);
+
+  // ============================================================================
+  // Widget Data Processing
+  // ============================================================================
+
+  const getWidgetData = useCallback((widget) => {
+    if (!widget.dataSource) return [];
+    const rawData = dataCache[widget.dataSource] || [];
+
+    if (!Array.isArray(rawData) || rawData.length === 0) return [];
+
+    // Process data based on widget type
+    switch (widget.type) {
+      case WIDGET_TYPES.LINE_CHART:
+        return aggregateByDate(rawData, 'created_at', widget.config?.valueField, 'count');
+
+      case WIDGET_TYPES.BAR_CHART:
+        return aggregateByCategory(rawData, widget.config?.xKey || 'pond_name', widget.config?.valueField);
+
+      case WIDGET_TYPES.TABLE:
+        return rawData;
+
+      case WIDGET_TYPES.SUMMARY:
+        return rawData;
+
+      default:
+        return rawData;
+    }
+  }, [dataCache]);
+
+  const getWidgetSummary = useCallback((widget) => {
+    if (!widget.dataSource) return {};
+    const rawData = dataCache[widget.dataSource] || [];
+    return calculateSummary(rawData, widget.config?.valueField);
+  }, [dataCache]);
+
+  // ============================================================================
+  // Stats Calculation
+  // ============================================================================
+
+  const stats = useMemo(() => {
+    const samplings = dataCache[DATA_SOURCES.SAMPLINGS] || [];
+    const harvests = dataCache[DATA_SOURCES.HARVESTS] || [];
+    const expenses = dataCache[DATA_SOURCES.EXPENSES] || [];
+    const mortalities = dataCache[DATA_SOURCES.MORTALITIES] || [];
+
+    return [
+      { label: 'Total Widgets', value: visibleWidgets.length, color: 'primary.main' },
+      { label: 'Samplings', value: samplings.length, color: 'success.main' },
+      { label: 'Harvests', value: harvests.length, color: 'info.main' },
+      { label: 'Expenses', value: expenses.length, color: 'warning.main' },
+      { label: 'Mortalities', value: mortalities.length, color: 'error.main' },
+    ];
+  }, [visibleWidgets.length, dataCache]);
+
+  // ============================================================================
   // Handlers
-  const handleGenerateReport = useCallback(() => {
-    showInfo('Report generation feature coming soon!');
-  }, [showInfo]);
+  // ============================================================================
 
-  const handleExport = useCallback(() => {
-    showInfo('Export feature coming soon!');
-  }, [showInfo]);
+  const handleAddWidget = useCallback((widgetConfig) => {
+    const widgetId = addWidget(widgetConfig);
+    showSuccess('Widget added successfully');
+    // Fetch data for the new widget's source
+    if (widgetConfig.dataSource) {
+      fetchDataForSource(widgetConfig.dataSource);
+    }
+    return widgetId;
+  }, [addWidget, showSuccess, fetchDataForSource]);
 
-  const handleViewReport = useCallback((report) => {
-    showInfo(`Viewing: ${report.title}`);
-  }, [showInfo]);
+  const handleRemoveWidget = useCallback((widgetId) => {
+    removeWidget(widgetId);
+    showInfo('Widget removed');
+  }, [removeWidget, showInfo]);
 
-  const handleDownloadReport = useCallback((report) => {
-    showSuccess(`Downloading: ${report.title}`);
-  }, [showSuccess]);
+  const handleEditWidget = useCallback((widget) => {
+    setSelectedWidget(widget);
+    setShowConfigDialog(true);
+  }, []);
+
+  const handleSaveWidgetConfig = useCallback((updatedWidget) => {
+    updateWidget(updatedWidget.id, updatedWidget);
+    showSuccess('Widget updated');
+    if (updatedWidget.dataSource) {
+      fetchDataForSource(updatedWidget.dataSource);
+    }
+  }, [updateWidget, showSuccess, fetchDataForSource]);
+
+  const handleResetDashboard = useCallback(() => {
+    resetWidgets();
+    resetFilters();
+    clearDataCache();
+    showInfo('Dashboard reset to defaults');
+    setTimeout(() => fetchAllData(), 100);
+  }, [resetWidgets, resetFilters, clearDataCache, showInfo, fetchAllData]);
+
+  // ============================================================================
+  // Render Widget
+  // ============================================================================
+
+  const renderWidget = useCallback((widget) => {
+    const data = getWidgetData(widget);
+    const isLoading = loadingState[widget.dataSource] || false;
+
+    const commonProps = {
+      key: widget.id,
+      title: widget.title,
+      subtitle: widget.subtitle,
+      loading: isLoading,
+      onRemove: () => handleRemoveWidget(widget.id),
+      onEdit: () => handleEditWidget(widget),
+      onRefresh: () => widget.dataSource && fetchDataForSource(widget.dataSource),
+      onHide: () => toggleWidgetVisibility(widget.id),
+    };
+
+    switch (widget.type) {
+      case WIDGET_TYPES.LINE_CHART:
+        return (
+          <Grid item xs={12} md={widget.size?.cols || 6} key={widget.id}>
+            <ChartWidget
+              {...commonProps}
+              type="line"
+              data={data}
+              config={widget.config}
+            />
+          </Grid>
+        );
+
+      case WIDGET_TYPES.BAR_CHART:
+        return (
+          <Grid item xs={12} md={widget.size?.cols || 6} key={widget.id}>
+            <ChartWidget
+              {...commonProps}
+              type="bar"
+              data={data}
+              config={widget.config}
+            />
+          </Grid>
+        );
+
+      case WIDGET_TYPES.TABLE:
+        return (
+          <Grid item xs={12} md={widget.size?.cols || 12} key={widget.id}>
+            <TableWidget
+              {...commonProps}
+              data={data}
+              columns={widget.config?.columns}
+              config={widget.config}
+            />
+          </Grid>
+        );
+
+      case WIDGET_TYPES.SUMMARY:
+        return (
+          <Grid item xs={12} md={widget.size?.cols || 6} key={widget.id}>
+            <SummaryWidget
+              {...commonProps}
+              summary={getWidgetSummary(widget)}
+              config={widget.config}
+            />
+          </Grid>
+        );
+
+      case WIDGET_TYPES.STAT_CARD:
+        // Stats are now rendered in a separate container above
+        return null;
+
+      default:
+        return null;
+    }
+  }, [getWidgetData, getWidgetSummary, loadingState, handleRemoveWidget, handleEditWidget, fetchDataForSource, toggleWidgetVisibility, stats]);
+
+  // ============================================================================
+  // Render
+  // ============================================================================
 
   return (
-    <Paper sx={{ p: 4, maxWidth: 1200, margin: '24px auto' }}>
+    <Paper sx={{ p: 4, maxWidth: 1400, margin: '24px auto' }}>
       {/* Header */}
-      <PageHeader
-        title="Reports"
-        subtitle="Generate, view, and download reports for your operations."
-      />
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <PageHeader
+          title="Reports Dashboard"
+          subtitle="Configure and view your reports with dynamic widgets"
+        />
+        <Stack direction="row" spacing={1}>
+          <Tooltip title="Add Widget">
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setShowAddDialog(true)}
+            >
+              Add Widget
+            </Button>
+          </Tooltip>
+          <Tooltip title="Toggle Filters">
+            <IconButton onClick={() => setShowFilters(!showFilters)}>
+              <FilterListIcon color={showFilters ? 'primary' : 'inherit'} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Refresh All Data">
+            <IconButton onClick={fetchAllData} disabled={globalLoading}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Dashboard Settings">
+            <IconButton onClick={() => setShowSettingsDrawer(true)}>
+              <SettingsIcon />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Box>
 
-      {/* Stats */}
-      <StatsGrid stats={stats} columns={5} />
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       {/* Filters */}
-      <ReportFilters
-        typeFilter={typeFilter}
-        onTypeChange={setTypeFilter}
-        categoryFilter={categoryFilter}
-        onCategoryChange={setCategoryFilter}
-        startDate={startDate}
-        onStartDateChange={setStartDate}
-        endDate={endDate}
-        onEndDateChange={setEndDate}
-        onGenerate={handleGenerateReport}
-        onExport={handleExport}
-      />
+      {showFilters && (
+        <Box sx={{ mb: 3 }}>
+          <ReportFilters
+            typeFilter={filters.reportType}
+            onTypeChange={(val) => updateFilter('reportType', val)}
+            categoryFilter={filters.category}
+            onCategoryChange={(val) => updateFilter('category', val)}
+            startDate={filters.startDate}
+            onStartDateChange={(val) => updateFilter('startDate', val)}
+            endDate={filters.endDate}
+            onEndDateChange={(val) => updateFilter('endDate', val)}
+            onGenerate={() => fetchAllData()}
+            onExport={() => showInfo('Export feature coming soon!')}
+          />
+        </Box>
+      )}
 
-      {/* Summary */}
-      <ReportSummary
-        summary={mockSummary}
-        title="Financial Summary"
-        period={getReportPeriodLabel(REPORT_TYPES.MONTHLY)}
-      />
+      {/* Active Filters Chips */}
+      {(filters.startDate || filters.endDate || filters.reportType !== 'all') && (
+        <Box sx={{ mb: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          {filters.startDate && (
+            <Chip
+              label={`From: ${filters.startDate}`}
+              onDelete={() => updateFilter('startDate', '')}
+              size="small"
+            />
+          )}
+          {filters.endDate && (
+            <Chip
+              label={`To: ${filters.endDate}`}
+              onDelete={() => updateFilter('endDate', '')}
+              size="small"
+            />
+          )}
+          {filters.reportType !== 'all' && (
+            <Chip
+              label={`Type: ${filters.reportType}`}
+              onDelete={() => updateFilter('reportType', 'all')}
+              size="small"
+            />
+          )}
+          <Chip
+            label="Clear All"
+            onClick={resetFilters}
+            size="small"
+            variant="outlined"
+          />
+        </Box>
+      )}
 
-      {/* Chart */}
-      <Box sx={{ mb: 3 }}>
+      {/* Quick Stats Section - Separate Container */}
+      {visibleWidgets.some(w => w.type === WIDGET_TYPES.STAT_CARD) && (
+        <Paper
+          elevation={1}
+          sx={{
+            p: 3,
+            mb: 3,
+            bgcolor: 'background.default',
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            Quick Overview
+          </Typography>
+          <StatsGrid stats={stats} columns={5} />
+        </Paper>
+      )}
+
+      {/* Widgets Grid - Other Widgets */}
+      <Box>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+          Report Widgets
+        </Typography>
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <ReportChart
-              data={chartData}
-              title="Monthly Revenue Trend"
-              height={200}
-            />
+          {visibleWidgets.filter(w => w.type !== WIDGET_TYPES.STAT_CARD).length > 0 ? (
+            visibleWidgets
+              .filter(w => w.type !== WIDGET_TYPES.STAT_CARD)
+              .map(renderWidget)
+          ) : (
+            <Grid item xs={12}>
+            <Box
+              sx={{
+                textAlign: 'center',
+                py: 8,
+                bgcolor: 'background.default',
+                borderRadius: 2,
+                border: '2px dashed',
+                borderColor: 'divider',
+              }}
+            >
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                No widgets configured
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setShowAddDialog(true)}
+              >
+                Add Your First Widget
+              </Button>
+            </Box>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <ReportChart
-              data={[
-                { label: 'Production', value: 45, color: '#4caf50' },
-                { label: 'Financial', value: 30, color: '#2196f3' },
-                { label: 'Operations', value: 25, color: '#ff9800' },
-              ]}
-              title="Reports by Category"
-              height={200}
-            />
-          </Grid>
+        )}
         </Grid>
       </Box>
 
-      {/* Report List */}
-      <ReportList
-        reports={mockReports}
-        loading={loading}
-        onView={handleViewReport}
-        onDownload={handleDownloadReport}
+      {/* Add Widget Dialog */}
+      <AddWidgetDialog
+        open={showAddDialog}
+        onClose={() => setShowAddDialog(false)}
+        onAdd={handleAddWidget}
       />
+
+      {/* Widget Config Dialog */}
+      <WidgetConfigDialog
+        open={showConfigDialog}
+        onClose={() => {
+          setShowConfigDialog(false);
+          setSelectedWidget(null);
+        }}
+        widget={selectedWidget}
+        onSave={handleSaveWidgetConfig}
+      />
+
+      {/* Settings Drawer */}
+      <Drawer
+        anchor="right"
+        open={showSettingsDrawer}
+        onClose={() => setShowSettingsDrawer(false)}
+        slotProps={{ paper: { sx: { width: 320 } } }}
+      >
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 3 }}>
+            Dashboard Settings
+          </Typography>
+
+          <Divider sx={{ mb: 2 }} />
+          <Typography variant="subtitle2" sx={{ mb: 2 }}>
+            Widget Visibility
+          </Typography>
+          <Stack spacing={1}>
+            {widgets.map(widget => (
+              <FormControlLabel
+                key={widget.id}
+                control={
+                  <Switch
+                    checked={widget.visible}
+                    onChange={() => toggleWidgetVisibility(widget.id)}
+                  />
+                }
+                label={widget.title}
+              />
+            ))}
+          </Stack>
+
+          <Divider sx={{ my: 3 }} />
+          <Typography variant="subtitle2" sx={{ mb: 2 }}>
+            Filter Visibility
+          </Typography>
+          <Stack spacing={1}>
+            {Object.entries(filterVisibility).map(([key, filter]) => (
+              <FormControlLabel
+                key={key}
+                control={
+                  <Switch
+                    checked={filter.visible}
+                    onChange={() => toggleFilterVisibility(key)}
+                  />
+                }
+                label={filter.label}
+              />
+            ))}
+          </Stack>
+
+          <Divider sx={{ my: 3 }} />
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<RestoreIcon />}
+            onClick={handleResetDashboard}
+            fullWidth
+          >
+            Reset to Defaults
+          </Button>
+        </Box>
+      </Drawer>
     </Paper>
+  );
+}
+
+// ============================================================================
+// Main Export with Provider
+// ============================================================================
+
+export default function ReportsPage() {
+  return (
+    <ReportProvider>
+      <ReportsDashboard />
+    </ReportProvider>
   );
 }

@@ -17,6 +17,17 @@ export class BaseModel {
   }
 
   /**
+   * Convert array of data to list of model instances
+   * @param {Array} list - List of data objects
+   * @returns {Array<BaseModel>}
+   */
+  static toList(list) {
+    if (!Array.isArray(list)) return [];
+    // 'this' refers to the class constructor when called as static method
+    return list.map(item => new this(item));
+  }
+
+  /**
    * Initialize model fields - override in subclasses
    * @private
    */

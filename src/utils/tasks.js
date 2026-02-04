@@ -214,3 +214,39 @@ export async function getCompletedTasks() {
   if (!tasks) return [];
   return tasks.filter(t => t.status === 'completed');
 }
+
+/**
+ * Get next status in workflow
+ * @param {string} currentStatus
+ * @returns {string}
+ */
+export function getNextStatus(currentStatus) {
+  switch (currentStatus) {
+    case 'pending': return 'inprogress';
+    case 'inprogress': return 'completed';
+    default: return currentStatus;
+  }
+}
+
+/**
+ * Compute task statistics from list of tasks
+ * @param {Array} tasks
+ * @returns {Object} { total, completed, inprogress, pending, overdue }
+ */
+export function computeTaskStats(tasks) {
+  if (!Array.isArray(tasks)) return { total: 0, completed: 0, inprogress: 0, pending: 0, overdue: 0 };
+
+  return tasks.reduce((acc, t) => {
+    // Ideally use model method, fallback if raw object
+    const isOverdue = t.isOverdue ? t.isOverdue() : false;
+
+    if (t.status === 'completed') acc.completed++;
+    else if (t.status === 'inprogress') acc.inprogress++;
+    else acc.pending++;
+
+    if (isOverdue) acc.overdue++;
+
+    acc.total++;
+    return acc;
+  }, { total: 0, completed: 0, inprogress: 0, pending: 0, overdue: 0 });
+}

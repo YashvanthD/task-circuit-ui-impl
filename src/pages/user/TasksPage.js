@@ -1,24 +1,41 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Paper, Typography, Button,
-  TextField, MenuItem, Select, InputLabel, FormControl, Stack, Chip, Grid, Box,
-  CircularProgress, InputAdornment, useMediaQuery, useTheme, Dialog,
+  Stack, Chip, Grid, Box,
+  CircularProgress, useMediaQuery, useTheme, Dialog,
 } from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import WarningIcon from '@mui/icons-material/Warning';
 
 // Hooks
 import { useDialog, useConfirmDialog } from '../../hooks';
 
 // Common components
 import { ConfirmDialog } from '../../components';
+import { FilterBar, StatsGrid } from '../../components/common';
 import { TaskForm } from '../../components/tasks';
 import TaskCard from '../../components/TaskCard';
 
 // Utils
 import { getUserInfo } from '../../utils/user';
-import { fetchAllTasks, saveTask, deleteTask, saveTasks, getTasks, updateTask } from '../../utils/tasks';
-import { getDefaultEndDate } from '../../utils';
+import {
+  fetchAllTasks,
+  saveTask,
+  deleteTask,
+  saveTasks,
+  getTasks,
+  updateTask,
+  getNextStatus,
+  computeTaskStats,
+} from '../../utils/tasks';
+import {getDefaultEndDate, isTaskOverdue} from '../../utils';
 import { getUsersSync, getUsers } from '../../utils/cache/usersCache';
+
+// Models
+import { Task } from '../../models/Task';
 
 // ============================================================================
 // Constants
@@ -39,6 +56,7 @@ const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
   { value: 'inprogress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },
+  { value: 'overdue', label: 'Overdue' },
 ];
 
 // ============================================================================
@@ -46,29 +64,10 @@ const STATUS_OPTIONS = [
 // ============================================================================
 
 function resolveTaskId(task) {
+  // Model instance or raw object
   if (!task) return undefined;
-  const rawId = task.taskId || task.task_id || task.id || task._id;
-  return rawId != null ? String(rawId) : undefined;
+  return task.task_id || task.taskId || task.id || task._id;
 }
-
-function getNextStatus(currentStatus) {
-  switch (currentStatus) {
-    case 'pending': return 'inprogress';
-    case 'inprogress': return 'completed';
-    default: return currentStatus;
-  }
-}
-
-function computeTaskStats(tasks) {
-  return tasks.reduce((acc, t) => {
-    if (t.status === 'completed') acc.completed++;
-    else if (t.status === 'inprogress') acc.inprogress++;
-    else acc.pending++;
-    acc.total++;
-    return acc;
-  }, { total: 0, completed: 0, inprogress: 0, pending: 0 });
-}
-
 
 // ============================================================================
 // Main Component
@@ -108,10 +107,62 @@ export default function TasksPage() {
   // Computed values
   const stats = useMemo(() => computeTaskStats(tasks), [tasks]);
 
+  const taskStats = useMemo(() => [
+    {
+      label: 'Total Tasks',
+      value: stats.total,
+      icon: <AssignmentIcon />,
+      color: 'primary.main',
+      onClick: () => setFilterStatus('all'),
+      variant: filterStatus === 'all' ? 'elevation' : 'outlined',
+    },
+    {
+      label: 'Completed',
+      value: stats.completed,
+      icon: <CheckCircleIcon />,
+      color: 'success.main',
+      onClick: () => setFilterStatus('completed'),
+      variant: filterStatus === 'completed' ? 'elevation' : 'outlined',
+    },
+    {
+      label: 'In Progress',
+      value: stats.inprogress,
+      icon: <AutorenewIcon />,
+      color: 'info.main',
+      onClick: () => setFilterStatus('inprogress'),
+      variant: filterStatus === 'inprogress' ? 'elevation' : 'outlined',
+    },
+    {
+      label: 'Pending',
+      value: stats.pending,
+      icon: <ScheduleIcon />,
+      color: 'warning.main', // Changed to warning for visibility
+      onClick: () => setFilterStatus('pending'),
+      variant: filterStatus === 'pending' ? 'elevation' : 'outlined',
+    },
+    {
+      label: 'Overdue',
+      value: stats.overdue,
+      icon: <WarningIcon />,
+      color: 'error.main',
+      onClick: () => setFilterStatus('overdue'),
+      variant: filterStatus === 'overdue' ? 'elevation' : 'outlined',
+    },
+  ], [stats, filterStatus]);
+
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {
       // Status filter
-      if (filterStatus !== 'all' && t.status !== filterStatus) return false;
+      if (filterStatus !== 'all') {
+        if (filterStatus === 'overdue') {
+           // Use model method
+           if (t.isOverdue && !t.isOverdue()) return false;
+           // Fallback for raw objects if not model (safety)
+           if (!t.isOverdue && !isTaskOverdue(t)) return false;
+        } else if (t.status !== filterStatus) {
+           return false;
+        }
+      }
 
       // Search filter
       if (searchTerm) {
@@ -145,7 +196,13 @@ export default function TasksPage() {
     try {
       const data = force ? await fetchAllTasks() : await getTasks();
       console.log('[TasksPage] Loaded tasks:', data?.length || 0);
-      setTasks(data || []);
+
+      // Use Model tocentralize data logic
+      const modelList = Task.toList(data || []);
+      setTasks(modelList);
+
+      // Cache the raw data if needed, or simple skip caching if centralized state management handles it
+      // saveTasks still expects raw array usually, or toJSON()
       if (data) await saveTasks(data);
     } catch (err) {
       console.error('[TasksPage] Load error:', err);
@@ -296,83 +353,26 @@ export default function TasksPage() {
         </Button>
       </Stack>
 
-      {/* Stats Row - Scrollable on mobile */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          mb: 2,
-          overflowX: 'auto',
-          pb: 1,
-          '&::-webkit-scrollbar': { height: 4 },
-          '&::-webkit-scrollbar-thumb': { bgcolor: 'divider', borderRadius: 2 },
-        }}
-      >
-        <Chip
-          label={`Total: ${stats.total}`}
-          color="primary"
-          size="small"
-          sx={{ flexShrink: 0 }}
-        />
-        <Chip
-          label={`✅ ${stats.completed}`}
-          color="success"
-          size="small"
-          sx={{ flexShrink: 0 }}
-        />
-        <Chip
-          label={`🔄 ${stats.inprogress}`}
-          color="info"
-          size="small"
-          sx={{ flexShrink: 0 }}
-        />
-        <Chip
-          label={`⏳ ${stats.pending}`}
-          color="default"
-          size="small"
-          sx={{ flexShrink: 0 }}
-        />
-      </Box>
+      {/* Stats Grid */}
+      <StatsGrid stats={taskStats} columns={4} />
 
-      {/* Filters Row - Stack on mobile */}
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        sx={{ mb: 3 }}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-      >
-        {/* Search */}
-        <TextField
-          label="Search tasks..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          size="small"
-          sx={{ flex: { xs: 'auto', sm: 1 }, maxWidth: { sm: 400 } }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: 'text.secondary' }} />
-              </InputAdornment>
-            ),
-          }}
-        />
-
-        {/* Status Filter */}
-        <FormControl size="small" variant="outlined" sx={{ minWidth: { xs: '100%', sm: 140 } }}>
-          <InputLabel>Filter Status</InputLabel>
-          <Select
-            value={filterStatus}
-            label="Filter Status"
-            variant="outlined"
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <MenuItem value="all">All Tasks</MenuItem>
-            {STATUS_OPTIONS.map(opt => (
-              <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Stack>
+      {/* Filter Bar */}
+      <FilterBar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search tasks..."
+        filters={[
+          {
+            name: 'status',
+            label: 'Filter Status',
+            value: filterStatus,
+            options: STATUS_OPTIONS,
+            onChange: (val) => setFilterStatus(val),
+            allLabel: 'All Tasks',
+          }
+        ]}
+        onRefresh={() => loadTasks(true)}
+      />
 
       {/* Error */}
       {error && (

@@ -35,3 +35,14 @@ export {
   useThemeMode,
   default as ThemeContext,
 } from './ThemeContext';
+
+export {
+  ReportProvider,
+  useReportContext,
+  WIDGET_TYPES,
+  DATA_SOURCES,
+  DEFAULT_WIDGETS,
+  FILTER_CONFIGS,
+  default as ReportContext,
+} from './ReportContext';
+
