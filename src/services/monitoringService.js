@@ -37,11 +37,15 @@ export async function fetchMonitoringDashboardData() {
     // 3. Enrich ponds with stock and task data
     // Remove redundant variable declaration and just return the mapped result naturally
     return ponds.map(pond => {
-      // Find current stock for this pond
-      const currentStock = allStocks.find(s =>
-        (pond.current_stock_id && s.stock_id === pond.current_stock_id) ||
-        (s.pond_id === pond.pond_id && s.status === 'active')
+      // Find all active stocks for this pond
+      const pondStocks = allStocks.filter(s =>
+        s.pond_id === pond.pond_id && s.status === 'active'
       );
+
+      // Keep backward compatibility for 'currentStock' (use first one or explicit ID)
+      const currentStock = pondStocks.find(s =>
+        pond.current_stock_id && s.stock_id === pond.current_stock_id
+      ) || pondStocks[0];
 
       // Filter tasks related to this pond
       const pondTasks = pendingTasks.filter(t => t.pond_id === pond.pond_id || t.metadata?.pond_id === pond.pond_id);
@@ -58,6 +62,7 @@ export async function fetchMonitoringDashboardData() {
       return {
         ...pond,
         stock: currentStock || null,
+        all_stocks: pondStocks, // Add all active stocks
         analytics,
         tasks: pondTasks.map(t => ({
           id: t.task_id || t.id,
@@ -133,9 +138,9 @@ export async function saveDailyLog(pondId, logData) {
 export async function fetchPondHistory(pondId) {
   try {
     const [samplingsRes, feedingsRes, waterQualityRes] = await Promise.all([
-      apiFetch(`${API_FISH.SAMPLINGS}?pond_id=${pondId}&limit=20`),
-      apiFetch(`${API_FISH.FEEDINGS}?pond_id=${pondId}&limit=20`),
-      apiFetch(`/api/fish/ponds/${pondId}/water-quality?limit=20`)
+      apiFetch(`${API_FISH.SAMPLINGS}?pond_id=${pondId}&limit=50`),
+      apiFetch(`${API_FISH.FEEDINGS}?pond_id=${pondId}&limit=50`),
+      apiFetch(`/api/fish/ponds/${pondId}/water-quality?limit=50`)
     ]);
 
     const [samplings, feedings, wqHistory] = await Promise.all([

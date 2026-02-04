@@ -115,7 +115,7 @@ export default function PondMonitorCard({
       {/* Stock Summary */}
       <StockSummary
         stock={currentStock}
-        stocks={allStocks} // Pass all stocks
+        stocks={pond.all_stocks || allStocks} // Support getting it from pond.all_stocks too
         analytics={analytics} // Pass analytics
         onClick={(e) => {
           e.stopPropagation();

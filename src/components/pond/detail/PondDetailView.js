@@ -1,8 +1,8 @@
 /**
  * PondDetailView - Detailed monitoring view for a specific pond
  */
-import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Grid, Paper, Stack, Button, CircularProgress } from '@mui/material';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Box, Typography, Grid, Paper, Stack, Button, CircularProgress, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import {
   MetricCard,
   ChartContainer,
@@ -22,6 +22,7 @@ export default function PondDetailView({
     feedings: [],
     waterQuality: []
   });
+  const [dateFilter, setDateFilter] = useState('ALL');
 
   const loadHistory = useCallback(async () => {
     if (!pond?.pond_id) return;
@@ -42,10 +43,14 @@ export default function PondDetailView({
     }
   }, [loadHistory, pond?.pond_id]);
 
-  if (!pond) return null;
+  const handleFilterChange = (event, newFilter) => {
+    if (newFilter !== null) {
+      setDateFilter(newFilter);
+    }
+  };
 
   // Use real analytics from enriched pond model or default to empty
-  const analytics = pond.analytics || {
+  const analytics = pond?.analytics || {
     days: 0,
     biomass: 0,
     currentAvgWeight: 0,
@@ -54,10 +59,83 @@ export default function PondDetailView({
   };
 
   // Prepare chart data from history
-  const growthData = history.samplings.map(s => ({
-    name: new Date(s.sample_date || s.sampling_date).toLocaleDateString([], { month: 'short', day: 'numeric' }),
-    weight: s.avg_weight_g || s.avg_weight || 0
-  })).reverse(); // Oldest first
+  const activeStocks = pond?.all_stocks || (pond?.stock ? [pond.stock] : []);
+
+  // Group samplings by date
+  const samplingsByDate = {};
+
+  history.samplings.forEach(s => {
+    const dateStr = new Date(s.sample_date || s.sampling_date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    const timestamp = new Date(s.sample_date || s.sampling_date).getTime();
+
+    if (!samplingsByDate[dateStr]) {
+      samplingsByDate[dateStr] = { name: dateStr, timestamp };
+    }
+
+    // Use stock_id to differentiate lines if available
+    // If no stock_id but we have only one active stock, assume it belongs to it
+    let stockKey = 'weight';
+    if (s.stock_id) {
+        stockKey = `weight_${s.stock_id}`;
+    } else if (activeStocks.length === 1) {
+        stockKey = `weight_${activeStocks[0].stock_id || activeStocks[0].id}`;
+    } else if (activeStocks.length > 1) {
+        // Multiple stocks but no ID on sampling?
+        // We can't safely assign it, but we should show it.
+        // Assign to a generic 'unknown' line if disjoint
+        stockKey = `weight_unknown`;
+    }
+
+    // Use the value for this stock on this date
+    samplingsByDate[dateStr][stockKey] = s.avg_weight_g || s.avg_weight || 0;
+  });
+
+  const fullGrowthData = Object.values(samplingsByDate)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  // Filter data based on dateFilter
+  const growthData = useMemo(() => {
+    if (dateFilter === 'ALL') return fullGrowthData;
+
+    const now = new Date();
+    let cutoffDate = new Date();
+
+    if (dateFilter === '1M') cutoffDate.setMonth(now.getMonth() - 1);
+    if (dateFilter === '3M') cutoffDate.setMonth(now.getMonth() - 3);
+    if (dateFilter === '6M') cutoffDate.setMonth(now.getMonth() - 6);
+
+    return fullGrowthData.filter(d => d.timestamp >= cutoffDate.getTime());
+  }, [fullGrowthData, dateFilter]);
+
+  if (!pond) return null;
+
+  // Generate chart lines based on active stocks or present data
+  let growthLines = [];
+
+  if (activeStocks.length > 0) {
+    growthLines = activeStocks.map((stock, index) => ({
+      key: `weight_${stock.stock_id || stock.id}`,
+      name: stock.species_name || stock.name || `Stock ${index + 1}`,
+      color: ['#2196f3', '#4caf50', '#ff9800', '#e91e63'][index % 4],
+      connectNulls: true // Ensure dots are connected even if data is sparse
+    }));
+  }
+
+  // Check for unknown stock data points (check full data to see if line needed)
+  if (fullGrowthData.some(d => d.weight_unknown)) {
+    growthLines.push({
+      key: 'weight_unknown',
+      name: 'Unassigned Stock',
+      color: '#9e9e9e',
+      strokeDasharray: '5 5',
+      connectNulls: true
+    });
+  }
+
+  // Fallback if no stocks could be mapped but we have generic 'weight' data
+  if (growthLines.length === 0 || (!fullGrowthData.some(d => Object.keys(d).some(k => k.startsWith('weight_'))) && fullGrowthData.some(d => d.weight))) {
+    growthLines = [{ key: 'weight', name: 'Avg. Weight (g)', color: '#2196f3', connectNulls: true }];
+  }
 
   const wqData = history.waterQuality.map(w => ({
     name: new Date(w.created_at || w.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -117,18 +195,35 @@ export default function PondDetailView({
 
           {/* Charts */}
           <Stack spacing={3}>
-            {growthData.length > 0 ? (
-              <ChartContainer title="Growth Progress" subtitle="Average weight over time (g)">
+            <ChartContainer
+              title="Growth Progress"
+              subtitle="Average weight over time (g)"
+              actions={
+                <ToggleButtonGroup
+                  value={dateFilter}
+                  exclusive
+                  onChange={handleFilterChange}
+                  size="small"
+                  aria-label="date range"
+                >
+                  <ToggleButton value="1M">1M</ToggleButton>
+                  <ToggleButton value="3M">3M</ToggleButton>
+                  <ToggleButton value="6M">6M</ToggleButton>
+                  <ToggleButton value="ALL">All</ToggleButton>
+                </ToggleButtonGroup>
+              }
+            >
+              {growthData.length > 0 ? (
                 <LineChart
                   data={growthData}
-                  lines={[{ key: 'weight', name: 'Avg. Weight (g)', color: '#2196f3' }]}
+                  lines={growthLines}
                 />
-              </ChartContainer>
-            ) : (
-              <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover' }}>
-                <Typography color="text.secondary">No sampling history for growth tracking</Typography>
-              </Paper>
-            )}
+              ) : (
+                <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography color="text.secondary">No sampling data for selected period</Typography>
+                </Paper>
+              )}
+            </ChartContainer>
 
             {wqData.length > 0 ? (
               <ChartContainer title="Water Quality Trends" subtitle="Temperature and Dissolved Oxygen">
