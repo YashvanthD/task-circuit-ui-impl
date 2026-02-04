@@ -41,46 +41,51 @@ export class Pond extends BaseModel {
     };
   }
 
-  /**
-   * Initialize pond fields
-   * @private
-   */
-  _init(data) {
-    this.pond_id = data.pond_id || data.pondId || data.id || '';
-    this.farm_id = data.farm_id || data.farmId ||'';
-    this.account_key = data.account_key || data.accountKey || '';
-    this.name = data.name || '';
-    this.pond_type = data.pond_type || data.pondType || 'earthen';
-    this.area_sqm = data.area_sqm || data.areaSqm || null;
-    this.depth_m = data.depth_m || data.depthM || null;
-    this.capacity_liters = data.capacity_liters || data.capacityLiters || this._calculateCapacity();
-
-    // Water quality (handle both snake_case and camelCase)
-    const wq = data.water_quality || data.waterQuality || {};
-    this.water_quality = {
-      ph: wq.ph || null,
-      temperature: wq.temperature || null,
-      dissolved_oxygen: wq.dissolved_oxygen || wq.dissolvedOxygen || null,
-      ammonia: wq.ammonia || null,
-      nitrite: wq.nitrite || null,
-      turbidity: wq.turbidity || null,
-      last_checked: wq.last_checked || wq.lastChecked || null
+  static get schema() {
+    return {
+      pond_id: { type: 'string', aliases: ['pondId', 'id'] },
+      farm_id: { type: 'string', aliases: ['farmId'] },
+      account_key: { type: 'string', aliases: ['accountKey'] },
+      name: { type: 'string', default: '' },
+      pond_type: { type: 'string', aliases: ['pondType'], default: 'earthen' },
+      area_sqm: { type: 'number', aliases: ['areaSqm'] },
+      depth_m: { type: 'number', aliases: ['depthM'] },
+      capacity_liters: { type: 'number', aliases: ['capacityLiters'] },
+      water_quality: {
+        type: 'object',
+        aliases: ['waterQuality'],
+        default: {},
+        parse: (val) => {
+          const wq = val || {};
+          return {
+            ph: wq.ph || null,
+            temperature: wq.temperature || null,
+            dissolved_oxygen: wq.dissolved_oxygen || wq.dissolvedOxygen || null,
+            ammonia: wq.ammonia || null,
+            nitrite: wq.nitrite || null,
+            turbidity: wq.turbidity || null,
+            last_checked: wq.last_checked || wq.lastChecked || null
+          };
+        }
+      },
+      status: { type: 'string', default: 'empty' },
+      current_stock_id: { type: 'string', aliases: ['currentStockId'] },
+      water_source: { type: 'string', aliases: ['waterSource'] },
+      aeration_system: { type: 'boolean', aliases: ['aerationSystem'], default: false },
+      filtration_system: { type: 'boolean', aliases: ['filtrationSystem'], default: false },
+      description: { type: 'string', default: '' },
+      is_active: { type: 'boolean', aliases: ['isActive'], default: true },
+      metadata: { type: 'object', default: {} },
+      created_by: { type: 'string', aliases: ['createdBy'] },
+      created_at: { type: 'string', aliases: ['createdAt'] },
+      updated_at: { type: 'string', aliases: ['updatedAt'] },
     };
+  }
 
-    this.status = data.status || 'empty';
-    this.current_stock_id = data.current_stock_id || data.currentStockId || null;
-    this.water_source = data.water_source || data.waterSource || '';
-    this.aeration_system = data.aeration_system !== undefined ? data.aeration_system :
-                          data.aerationSystem !== undefined ? data.aerationSystem : false;
-    this.filtration_system = data.filtration_system !== undefined ? data.filtration_system :
-                            data.filtrationSystem !== undefined ? data.filtrationSystem : false;
-    this.description = data.description || '';
-    this.is_active = data.is_active !== undefined ? data.is_active :
-                    data.isActive !== undefined ? data.isActive : true;
-    this.metadata = data.metadata || {};
-    this.created_by = data.created_by || data.createdBy || '';
-    this.created_at = data.created_at || data.createdAt || '';
-    this.updated_at = data.updated_at || data.updatedAt || '';
+  _postInit(data) {
+    if (this.capacity_liters == null) {
+      this.capacity_liters = this._calculateCapacity();
+    }
   }
 
   /**

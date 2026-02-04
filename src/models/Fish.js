@@ -30,72 +30,84 @@ export class Fish extends BaseModel {
     };
   }
 
-  /**
-   * Initialize fish fields
-   * @private
-   */
-  _init(data) {
-    // Handle both old fish_id and new species_id (snake_case and camelCase)
-    this.fish_id = data.species_id || data.speciesId || data.fish_id || data.fishId || data.id || '';
-    this.species_id = data.species_id || data.speciesId || data.fish_id || data.fishId || data.id || '';
-    this.account_key = data.account_key || data.accountKey || '';
+  static get schema() {
+    return {
+      // IDs
+      fish_id: { type: 'string', aliases: ['species_id', 'speciesId', 'fishId', 'id', '_id'] },
+      species_id: { type: 'string', aliases: ['fish_id', 'fishId', 'id'] },
+      account_key: { type: 'string', aliases: ['accountKey'] },
 
-    // Names (snake_case and camelCase)
-    this.common_name = data.common_name || data.commonName || data.name || '';
-    this.scientific_name = data.scientific_name || data.scientificName || '';
-    this.local_name = data.local_name || data.localName || '';
-    this.category = data.category || '';
-    this.species_name = this.common_name || this.scientific_name || this.local_name;
+      // Names
+      common_name: {
+        type: 'string',
+        required: true,
+        errorMessage: 'Common name is required',
+        aliases: ['commonName', 'name'],
+        default: ''
+      },
+      scientific_name: { type: 'string', aliases: ['scientificName'], default: '' },
+      local_name: { type: 'string', aliases: ['localName'], default: '' },
+      category: { type: 'string', default: '' },
 
-    // Quantities and measurements (snake_case and camelCase)
-    this.count = data.count || data.total_count || data.totalCount || 0;
-    this.average_weight = data.average_weight || data.averageWeight || data.avg_weight || data.avgWeight || 0;
-    this.min_weight = data.min_weight || data.minWeight || 0;
-    this.max_weight = data.max_weight || data.maxWeight || 0;
+      // Quantities
+      count: {
+        type: 'number',
+        aliases: ['total_count', 'totalCount'],
+        default: 0,
+        validate: (val) => val === undefined || val === null || val >= 0,
+        errorMessage: 'Count must be a positive number'
+      },
+      average_weight: {
+        type: 'number',
+        aliases: ['averageWeight', 'avg_weight', 'avgWeight'],
+        default: 0,
+        validate: (val) => val === undefined || val === null || val >= 0,
+        errorMessage: 'Average weight must be positive'
+      },
+      min_weight: { type: 'number', aliases: ['minWeight'], default: 0 },
+      max_weight: { type: 'number', aliases: ['maxWeight'], default: 0 },
 
-    // Location
-    this.ponds = data.ponds || [];
+      // Location
+      ponds: { type: 'array', default: [] },
 
-    // Dates (snake_case and camelCase)
-    this.capture_date = data.capture_date || data.captureDate || '';
-    this.stock_date = data.stock_date || data.stockDate || '';
+      // Dates
+      capture_date: { type: 'string', aliases: ['captureDate'], default: '' },
+      stock_date: { type: 'string', aliases: ['stockDate'], default: '' },
 
-    // Status and source
-    this.status = data.status || 'active';
-    this.source = data.source || '';
-    this.notes = data.notes || '';
+      // Status & Source
+      status: { type: 'string', default: 'active' },
+      source: { type: 'string', default: '' },
+      notes: { type: 'string', default: '' },
 
-    // Pricing (snake_case and camelCase)
-    this.price_per_kg = data.price_per_kg || data.pricePerKg || 0;
+      // Pricing
+      price_per_kg: { type: 'number', aliases: ['pricePerKg'], default: 0 },
 
-    // Custom fields (snake_case and camelCase)
-    this.custom_fields = data.custom_fields || data.customFields || {};
-
-    // Metadata (snake_case and camelCase)
-    this.is_active = data.is_active !== undefined ? data.is_active :
-                     data.isActive !== undefined ? data.isActive : true;
-    this.metadata = data.metadata || {};
-    this.created_by = data.created_by || data.createdBy || '';
-    this.created_at = data.created_at || data.createdAt || '';
-    this.updated_at = data.updated_at || data.updatedAt || '';
+      // Meta
+      custom_fields: { type: 'object', aliases: ['customFields'], default: {} },
+      is_active: { type: 'boolean', aliases: ['isActive'], default: true },
+      metadata: { type: 'object', default: {} },
+      created_by: { type: 'string', aliases: ['createdBy'], default: '' },
+      created_at: { type: 'string', aliases: ['createdAt'], default: '' },
+      updated_at: { type: 'string', aliases: ['updatedAt'], default: '' },
+    };
   }
 
   /**
-   * Validate fish data
+   * Post-init hook to derive species_name
+   */
+  _postInit() {
+    this.species_name = this.common_name || this.scientific_name || this.local_name;
+    // ensure IDs are synced
+    if (!this.fish_id && this.species_id) this.fish_id = this.species_id;
+    if (!this.species_id && this.fish_id) this.species_id = this.fish_id;
+  }
+
+  /**
+   * Validate - handled by schema now, but keeping custom override if needed
    * @private
    */
   _validate() {
-    if (!this.common_name || this.common_name.trim() === '') {
-      this._addError('common_name', 'Common name is required');
-    }
-
-    if (this.count !== null && this.count < 0) {
-      this._addError('count', 'Count must be a positive number');
-    }
-
-    if (this.average_weight !== null && this.average_weight < 0) {
-      this._addError('average_weight', 'Average weight must be positive');
-    }
+    super._validate();
   }
 
   /**
@@ -104,10 +116,15 @@ export class Fish extends BaseModel {
    */
   toAPIPayload() {
     const payload = {
+      name: this.common_name, // Backend requires 'name'
       common_name: this.common_name,
       scientific_name: this.scientific_name || undefined,
       local_name: this.local_name || undefined
     };
+
+    if (this.category) {
+      payload.category = this.category;
+    }
 
     if (this.count) {
       payload.count = Number(this.count);

@@ -17,45 +17,49 @@ export class Task extends BaseModel {
     super(data);
   }
 
-  _init(data) {
-    // Primary fields
-    this.task_id = data.task_id || data.taskId || data.id || data._id || null;
-    this.title = data.title || '';
-    this.description = data.description || '';
+  static get schema() {
+    return {
+      task_id: { type: 'string', aliases: ['taskId', 'id', '_id'] },
+      title: {
+        type: 'string',
+        required: true,
+        default: '',
+        validate: (val) => val && val.trim() !== '' && val.length <= 200,
+        errorMessage: 'Title is required and must be < 200 chars'
+      },
+      description: { type: 'string', default: '' },
+      assigned_to: { type: 'string', aliases: ['assignedTo'] },
+      assigned_by: { type: 'string', aliases: ['assignedBy'] },
+      created_by: { type: 'string', aliases: ['createdBy'] },
+      status: {
+        type: 'string',
+        default: 'pending',
+        validate: (val) => ['pending', 'inprogress', 'completed', 'cancelled'].includes(val),
+        errorMessage: 'Invalid status'
+      },
+      priority: {
+        type: 'string',
+        parse: (val) => Task.normalizePriority(val)
+      },
+      due_date: { type: 'string', aliases: ['dueDate', 'end_date', 'endDate', 'endTime'] },
+      task_date: { type: 'string', aliases: ['taskDate'] },
+      created_at: { type: 'string', aliases: ['createdAt'] },
+      updated_at: { type: 'string', aliases: ['updatedAt'] },
+      completed_at: { type: 'string', aliases: ['completedAt'] },
+      completed_by: { type: 'string', aliases: ['completedBy'] },
 
-    // Assignment
-    this.assigned_to = data.assigned_to || data.assignedTo || null;
-    this.assigned_by = data.assigned_by || data.assignedBy || null;
-    this.created_by = data.created_by || data.createdBy || null;
+      entity_type: { type: 'string', aliases: ['entityType'] },
+      entity_id: { type: 'string', aliases: ['entityId'] },
+      entity_name: { type: 'string', aliases: ['entityName'] },
 
-    // Status & Priority
-    this.status = data.status || 'pending';
-    this.priority = this._normalizePriority(data.priority);
-
-    // Dates
-    this.due_date = data.due_date || data.dueDate || data.end_date || data.endDate || data.endTime || null;
-    this.task_date = data.task_date || data.taskDate || null;
-    this.created_at = data.created_at || data.createdAt || null;
-    this.updated_at = data.updated_at || data.updatedAt || null;
-    this.completed_at = data.completed_at || data.completedAt || null;
-    this.completed_by = data.completed_by || data.completedBy || null;
-
-    // Entity relationship
-    this.entity_type = data.entity_type || data.entityType || null;
-    this.entity_id = data.entity_id || data.entityId || null;
-    this.entity_name = data.entity_name || data.entityName || null;
-
-    // Type & category
-    this.task_type = data.task_type || data.taskType || null;
-    this.account_key = data.account_key || data.accountKey || null;
-
-    // Metadata
-    this.metadata = data.metadata || {};
-    this.notes = data.notes || '';
+      task_type: { type: 'string', aliases: ['taskType'] },
+      account_key: { type: 'string', aliases: ['accountKey'] },
+      metadata: { type: 'object', default: {} },
+      notes: { type: 'string', default: '' },
+    };
   }
 
-  _normalizePriority(priority) {
-    // Handle both numeric (1-5) and string (low/normal/high) formats
+  static normalizePriority(priority) {
     if (typeof priority === 'number') {
       if (priority <= 2) return 'low';
       if (priority >= 4) return 'high';
@@ -70,16 +74,12 @@ export class Task extends BaseModel {
     return 'normal';
   }
 
+  // Backward compatibility wrapper
+  _normalizePriority(p) { return Task.normalizePriority(p); }
+
   _validate() {
-    if (!this.title || this.title.trim() === '') {
-      this._addError('title', 'Title is required');
-    }
-    if (this.title && this.title.length > 200) {
-      this._addError('title', 'Title must be less than 200 characters');
-    }
-    if (!['pending', 'inprogress', 'completed', 'cancelled'].includes(this.status)) {
-      this._addError('status', 'Invalid status');
-    }
+    super._validate();
+    // Additional complex validation if needed
   }
 
   /**

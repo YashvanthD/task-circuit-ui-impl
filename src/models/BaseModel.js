@@ -14,6 +14,53 @@ export class BaseModel {
     this._raw = data;
     this._errors = [];
     this._init(data);
+
+    // Return a Proxy to allow flexible access (camelCase <-> snake_case)
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        // 1. Return if property exists on target
+        if (prop in target) {
+          return Reflect.get(target, prop, receiver);
+        }
+
+        // 2. Try converting camelCase to snake_case (e.g. accountKey -> account_key)
+        if (typeof prop === 'string' && !prop.startsWith('_')) {
+          const snake = prop.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+          if (snake in target) {
+            return Reflect.get(target, snake, receiver);
+          }
+        }
+
+        return undefined;
+      },
+
+      set(target, prop, value, receiver) {
+        // 1. Set if property exists on target
+        if (prop in target) {
+          return Reflect.set(target, prop, value, receiver);
+        }
+
+        // 2. Try converting camelCase to snake_case and set that instead
+        if (typeof prop === 'string' && !prop.startsWith('_')) {
+          const snake = prop.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+          if (snake in target) {
+            return Reflect.set(target, snake, value, receiver);
+          }
+        }
+
+        // 3. Default set behavior
+        return Reflect.set(target, prop, value, receiver);
+      }
+    });
+  }
+
+  /**
+   * Convert to camelCase for frontend use
+   * @returns {Object}
+   */
+  toCamelCase() {
+    const obj = this.toJSON();
+    return this._convertKeys(obj, this._toCamelCase);
   }
 
   /**
@@ -32,7 +79,74 @@ export class BaseModel {
    * @private
    */
   _init(data) {
-    // Override in subclass
+    const schema = this.constructor.schema;
+    if (schema) {
+      this._initFromSchema(data, schema);
+    }
+    this._postInit(data);
+  }
+
+  /**
+   * Post-initialization hook
+   * @param {Object} data
+   */
+  _postInit(data) {
+    // Override in subclass for custom logic after schema init
+  }
+
+  /**
+   * Initialize from static schema definition
+   * @param {Object} data - Raw data
+   * @param {Object} schema - Schema definition
+   */
+  _initFromSchema(data, schema) {
+    for (const [key, config] of Object.entries(schema)) {
+      // 1. Resolve value from aliases
+      let value = data[key];
+      if (value === undefined && config.aliases) {
+        for (const alias of config.aliases) {
+          if (data[alias] !== undefined) {
+            value = data[alias];
+            break;
+          }
+        }
+      }
+
+      // 2. Apply defaults
+      if (value === undefined || value === null) {
+        if (config.default !== undefined) {
+          value = typeof config.default === 'function' ? config.default(data) : config.default;
+        }
+      }
+
+      // 3. Type Coercion / Parsing
+      if (value !== undefined && value !== null) {
+        if (config.parse) {
+          value = config.parse(value, data);
+        } else {
+          switch (config.type) {
+            case 'boolean':
+              value = Boolean(value);
+              break;
+            case 'number':
+              value = Number(value);
+              break;
+            case 'string':
+              value = String(value);
+              break;
+            case 'date':
+              value = value instanceof Date ? value : new Date(value);
+              break;
+            default:
+              // 'array', 'object', 'any' preserve value
+              break;
+          }
+        }
+      }
+
+      // 4. Assign
+      this[key] = value;
+    }
   }
 
   /**
@@ -58,7 +172,32 @@ export class BaseModel {
    * @private
    */
   _validate() {
-    // Override in subclass
+    const schema = this.constructor.schema;
+    if (schema) {
+      this._validateFromSchema(schema);
+    }
+  }
+
+  /**
+   * Validate based on schema
+   * @param {Object} schema
+   */
+  _validateFromSchema(schema) {
+    for (const [key, config] of Object.entries(schema)) {
+      const value = this[key];
+
+      // Required check
+      if (config.required) {
+        if (value === undefined || value === null || value === '') {
+          this._addError(key, config.errorMessage || `${this._toCamelCase(key)} is required`);
+        }
+      }
+
+      // Custom validator
+      if (config.validate && !config.validate(value, this)) {
+        this._addError(key, config.errorMessage || `Invalid value for ${this._toCamelCase(key)}`);
+      }
+    }
   }
 
   /**

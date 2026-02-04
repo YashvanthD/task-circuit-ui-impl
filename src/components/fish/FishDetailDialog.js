@@ -43,7 +43,10 @@ function getFishStatusConfig(status) {
     sold: { label: 'Sold', color: '#6a1b9a', bg: '#f3e5f5', icon: '💰' },
     default: { label: 'Unknown', color: '#9e9e9e', bg: '#fafafa', icon: '❓' },
   };
-  return configs[status?.toLowerCase()] || configs.default;
+
+  // Safely handle non-string status values
+  const safeStatus = (typeof status === 'string' ? status : String(status || '')).toLowerCase();
+  return configs[safeStatus] || configs.default;
 }
 
 // ============================================================================

@@ -50,7 +50,10 @@ import {
 } from '../../contexts/ReportContext';
 
 // API
-import reportsApi, { aggregateByDate, aggregateByCategory, calculateSummary } from '../../api/reports';
+import reportsApi from '../../api/reports';
+
+// Utils
+import { processWidgetData, processWidgetSummary } from '../../utils/reportProcessing';
 
 // ============================================================================
 // Report Dashboard Content Component
@@ -178,32 +181,13 @@ function ReportsDashboard() {
   const getWidgetData = useCallback((widget) => {
     if (!widget.dataSource) return [];
     const rawData = dataCache[widget.dataSource] || [];
-
-    if (!Array.isArray(rawData) || rawData.length === 0) return [];
-
-    // Process data based on widget type
-    switch (widget.type) {
-      case WIDGET_TYPES.LINE_CHART:
-        return aggregateByDate(rawData, 'created_at', widget.config?.valueField, 'count');
-
-      case WIDGET_TYPES.BAR_CHART:
-        return aggregateByCategory(rawData, widget.config?.xKey || 'pond_name', widget.config?.valueField);
-
-      case WIDGET_TYPES.TABLE:
-        return rawData;
-
-      case WIDGET_TYPES.SUMMARY:
-        return rawData;
-
-      default:
-        return rawData;
-    }
+    return processWidgetData(widget, rawData);
   }, [dataCache]);
 
   const getWidgetSummary = useCallback((widget) => {
     if (!widget.dataSource) return {};
     const rawData = dataCache[widget.dataSource] || [];
-    return calculateSummary(rawData, widget.config?.valueField);
+    return processWidgetSummary(widget, rawData);
   }, [dataCache]);
 
   // ============================================================================

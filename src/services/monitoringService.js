@@ -144,10 +144,24 @@ export async function fetchPondHistory(pondId) {
       waterQualityRes.json()
     ]);
 
+    // Helper to safely extract array from various response formats
+    const getArray = (data, keys = []) => {
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.data)) return data.data;
+
+      for (const key of keys) {
+        if (Array.isArray(data[key])) return data[key];
+        if (data.data && Array.isArray(data.data[key])) return data.data[key];
+      }
+
+      return [];
+    };
+
     return {
-      samplings: samplings.data?.samplings || samplings.samplings || [],
-      feedings: feedings.data?.feedings || feedings.feedings || [],
-      waterQuality: wqHistory.data || wqHistory || []
+      samplings: getArray(samplings, ['samplings']),
+      feedings: getArray(feedings, ['feedings']),
+      waterQuality: getArray(wqHistory, ['water_quality', 'waterQuality', 'history', 'measurements'])
     };
   } catch (error) {
     console.error('[monitoringService] Failed to fetch pond history:', error);

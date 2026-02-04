@@ -26,36 +26,49 @@ export class Farm extends BaseModel {
     };
   }
 
-  /**
-   * Initialize farm fields
-   * @private
-   */
-  _init(data) {
-    this.farm_id = data.farm_id || data.farmId || data.id ||  '';
-    this.account_key = data.account_key || '';
-    this.name = data.name || '';
-
-    // Location
-    this.location = {
-      address: data.location?.address || data.address || '',
-      city: data.location?.city || data.city || '',
-      state: data.location?.state || data.state || '',
-      country: data.location?.country || data.country || 'India',
-      pincode: data.location?.pincode || data.pincode || '',
-      coordinates: {
-        lat: data.location?.coordinates?.lat || data.latitude || null,
-        lng: data.location?.coordinates?.lng || data.longitude || null
-      }
+  static get schema() {
+    return {
+      farm_id: { type: 'string', aliases: ['farmId', 'id'] },
+      account_key: { type: 'string', aliases: ['accountKey'] },
+      name: {
+        type: 'string',
+        required: true,
+        errorMessage: 'Farm name is required',
+        default: ''
+      },
+      location: {
+        type: 'object',
+        default: {},
+        parse: (val, data) => {
+          const loc = val || {};
+          const coords = loc.coordinates || {};
+          return {
+            address: loc.address || data.address || '',
+            city: loc.city || data.city || '',
+            state: loc.state || data.state || '',
+            country: loc.country || data.country || 'India',
+            pincode: loc.pincode || data.pincode || '',
+            coordinates: {
+              lat: coords.lat !== undefined ? coords.lat : (data.latitude || null),
+              lng: coords.lng !== undefined ? coords.lng : (data.longitude || null)
+            }
+          };
+        }
+      },
+      area_acres: {
+        type: 'number',
+        aliases: ['areaAcres'],
+        validate: (val) => val === undefined || val === null || val >= 0,
+        errorMessage: 'Area must be a positive number'
+      },
+      water_source: { type: 'string', aliases: ['waterSource'], default: '' },
+      pond_count: { type: 'number', aliases: ['pondCount'], default: 0 },
+      is_active: { type: 'boolean', aliases: ['isActive'], default: true },
+      metadata: { type: 'object', default: {} },
+      created_by: { type: 'string', aliases: ['createdBy'], default: '' },
+      created_at: { type: 'string', aliases: ['createdAt'], default: '' },
+      updated_at: { type: 'string', aliases: ['updatedAt'], default: '' },
     };
-
-    this.area_acres = data.area_acres || null;
-    this.water_source = data.water_source || '';
-    this.pond_count = data.pond_count || 0;
-    this.is_active = data.is_active !== undefined ? data.is_active : true;
-    this.metadata = data.metadata || {};
-    this.created_by = data.created_by || '';
-    this.created_at = data.created_at || '';
-    this.updated_at = data.updated_at || '';
   }
 
   /**
@@ -63,29 +76,24 @@ export class Farm extends BaseModel {
    * @private
    */
   _validate() {
-    if (!this.name || this.name.trim() === '') {
-      this._addError('name', 'Farm name is required');
-    }
-
-    if (this.area_acres !== null && this.area_acres < 0) {
-      this._addError('area_acres', 'Area must be a positive number');
-    }
+    super._validate();
 
     // Validate coordinates if provided
-    if (this.location.coordinates.lat !== null) {
+    if (this.location?.coordinates?.lat !== null) {
       const lat = parseFloat(this.location.coordinates.lat);
       if (isNaN(lat) || lat < -90 || lat > 90) {
         this._addError('latitude', 'Latitude must be between -90 and 90');
       }
     }
 
-    if (this.location.coordinates.lng !== null) {
+    if (this.location?.coordinates?.lng !== null) {
       const lng = parseFloat(this.location.coordinates.lng);
       if (isNaN(lng) || lng < -180 || lng > 180) {
         this._addError('longitude', 'Longitude must be between -180 and 180');
       }
     }
   }
+
 
   /**
    * Convert to API payload format

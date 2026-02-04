@@ -17,46 +17,39 @@ export class User extends BaseModel {
     super(data);
   }
 
-  _init(data) {
-    // Primary fields
-    this.user_key = data.user_key || data.userKey || data.id || null;
-    this.username = data.username || data.user_name || null;
-    this.email = data.email || null;
-    this.display_name = data.display_name || data.displayName || data.name || null;
-    this.mobile = data.mobile || data.phone || null;
-    this.account_key = data.account_key || data.accountKey || null;
-
-    // Role & permissions
-    this.role = data.role || 'user';
-    this.roles = data.roles || (data.role ? [data.role] : ['user']);
-    this.permissions = data.permissions || [];
-
-    // Status
-    this.active = data.active !== false;
-    this.is_verified = data.is_verified || data.isVerified || false;
-
-    // Profile
-    this.profile_photo = data.profile_photo || data.profilePhoto || data.avatar_url || data.avatar || null;
-    this.profile = data.profile || {};
-
-    // Timestamps
-    this.created_at = data.created_at || data.createdAt || null;
-    this.updated_at = data.updated_at || data.updatedAt || null;
-    this.last_login_at = data.last_login_at || data.lastLoginAt || null;
-
-    // Metadata
-    this.metadata = data.metadata || {};
+  static get schema() {
+    return {
+      user_key: { type: 'string', required: true, aliases: ['userKey', 'id'] },
+      username: { type: 'string', aliases: ['user_name'] },
+      email: {
+        type: 'string',
+        validate: (val, model) => !val || model._isValidEmail(val),
+        errorMessage: 'Invalid email format'
+      },
+      display_name: { type: 'string', aliases: ['displayName', 'name'] },
+      mobile: { type: 'string', aliases: ['phone'] },
+      account_key: { type: 'string', aliases: ['accountKey'] },
+      role: { type: 'string', default: 'user' },
+      roles: {
+        type: 'array',
+        default: (data) => data.roles || (data.role ? [data.role] : ['user'])
+      },
+      permissions: { type: 'array', default: [] },
+      active: { type: 'boolean', default: true },
+      is_verified: { type: 'boolean', default: false, aliases: ['isVerified'] },
+      profile_photo: { type: 'string', aliases: ['profilePhoto', 'avatar_url', 'avatar'] },
+      profile: { type: 'object', default: {} },
+      created_at: { type: 'string', aliases: ['createdAt'] },
+      updated_at: { type: 'string', aliases: ['updatedAt'] },
+      last_login_at: { type: 'string', aliases: ['lastLoginAt'] },
+      metadata: { type: 'object', default: {} },
+    };
   }
 
   _validate() {
-    if (!this.user_key) {
-      this._addError('user_key', 'User key is required');
-    }
+    super._validate();
     if (!this.email && !this.username) {
       this._addError('email', 'Email or username is required');
-    }
-    if (this.email && !this._isValidEmail(this.email)) {
-      this._addError('email', 'Invalid email format');
     }
   }
 
