@@ -41,10 +41,11 @@ export default function StockDetailView({
   onEditStock,
   onAddSampling,
   onTerminateStock,
-  onEditSampling, // Added onEditSampling prop
+  onEditSampling,
+  samplings: initialSamplings,
 }) {
   const [loading, setLoading] = useState(false);
-  const [samplings, setSamplings] = useState([]);
+  const [samplings, setSamplings] = useState(initialSamplings || []);
   const [analyzedStats, setAnalyzedStats] = useState(null);
   // Add displayedSamplings count to manage load more
   const [displayCount, setDisplayCount] = useState(10);
@@ -53,15 +54,23 @@ export default function StockDetailView({
     if (!stock?.stock_id) return;
     setLoading(true);
     try {
-      // Fetch samplings for this stock
-      // Increased limit to 500 to fetch more history initially
+      // Fetch samplings for this stock - force API to get full history
       const data = await samplingUtil.getSamplings({
         stockId: stock.stock_id,
-        limit: 500, 
-        sort: 'sample_date:desc'
+        limit: 500,
+        sort: 'sample_date:desc',
+        forceApi: true
       });
 
       const history = Array.isArray(data) ? data : (data.samplings || []);
+
+      // Ensure strictly sorted by date descending (newest first)
+      history.sort((a, b) => {
+        const dateA = new Date(a.sample_date || a.sampling_date);
+        const dateB = new Date(b.sample_date || b.sampling_date);
+        return dateB - dateA;
+      });
+
       setSamplings(history);
 
       // Refresh stock analytics based on latest data
@@ -77,10 +86,13 @@ export default function StockDetailView({
     }
   }, [stock]);
 
-  // Load samplings on mount
+  // Load samplings on mount or when stock changes
   useEffect(() => {
+    if (initialSamplings) {
+      setSamplings(initialSamplings);
+    }
     loadHistory();
-  }, [loadHistory]);
+  }, [loadHistory, initialSamplings]);
 
   if (!stock) return null;
 
@@ -235,6 +247,7 @@ export default function StockDetailView({
                   <TableHead>
                     <TableRow>
                       <TableCell>Date</TableCell>
+                      <TableCell>Pond</TableCell>
                       <TableCell align="right">Count</TableCell>
                       <TableCell align="right">Avg Weight</TableCell>
                       <TableCell align="right">Growth</TableCell>
@@ -255,6 +268,7 @@ export default function StockDetailView({
                       return (
                         <TableRow key={sampling.sampling_id || index} hover>
                           <TableCell sx={{ minWidth: 120 }}>{formatDate(sampling.sample_date || sampling.sampling_date)}</TableCell>
+                          <TableCell>{sampling.pond_name || pond?.name || stock.pond_name || '-'}</TableCell>
                           <TableCell align="right">{formatCount(sampling.sample_count || sampling.sample_size)}</TableCell>
                           <TableCell align="right" sx={{ fontWeight: 500 }}>{formatWeight(avgWeight)}</TableCell>
                           <TableCell align="right">

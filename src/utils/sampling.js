@@ -155,27 +155,23 @@ export async function getSamplings({ stockId = null, pondId = null, fishId = nul
 
   let items = [];
 
-  if (res && Array.isArray(res.samplings)) {
-    items = res.samplings;
-  }
-  else if (res && res.success && res.data) {
-    if (Array.isArray(res.data.samplings)) {
+  // Robust response parsing to handle various API structures
+  if (Array.isArray(res)) {
+    items = res;
+  } else if (res && typeof res === 'object') {
+    if (Array.isArray(res.samplings)) {
+      items = res.samplings;
+    } else if (res.data && Array.isArray(res.data.samplings)) {
       items = res.data.samplings;
     } else if (Array.isArray(res.data)) {
       items = res.data;
+    } else if (res.data && Array.isArray(res.data.records)) {
+      items = res.data.records;
+    } else if (Array.isArray(res.records)) {
+      items = res.records;
+    } else if (Array.isArray(res.items)) {
+      items = res.items;
     }
-  }
-  // Direct array
-  else if (Array.isArray(res)) {
-    items = res;
-  }
-  // Other possible structures
-  else if (res && res.data && Array.isArray(res.data.records)) {
-    items = res.data.records;
-  } else if (res && Array.isArray(res.items)) {
-    items = res.items;
-  } else if (res && res.records && Array.isArray(res.records)) {
-    items = res.records;
   }
 
   try {

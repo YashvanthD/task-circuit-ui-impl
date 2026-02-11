@@ -44,14 +44,21 @@ function getRefreshToken() {
   }
 }
 
-function setAccessToken(token) {
+function setAccessToken(token, expiresIn) {
   localStorage.setItem('access_token', token);
   localStorage.setItem('accessToken', token); // Keep both for compatibility
+
+  // Store expiry time if provided
+  if (expiresIn) {
+    const expiryTime = Date.now() + expiresIn * 1000;
+    localStorage.setItem('access_token_expiry', expiryTime.toString());
+    localStorage.setItem('accessTokenExpiry', expiryTime.toString());
+  }
 
   // Also update userSession
   try {
     const { userSession } = require('../utils/auth/userSession');
-    userSession.updateAccessToken(token);
+    userSession.updateAccessToken(token, expiresIn);
   } catch (e) { /* userSession not ready */ }
 }
 
@@ -205,11 +212,14 @@ async function handleTokenRefresh() {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const json = await res.json();
+        // Support nested data structure: { data: { access_token: ... } } or direct { access_token: ... }
+        const responseData = json.data || json;
         // Support both snake_case and camelCase from backend
-        const accessToken = data.access_token || data.accessToken;
+        const accessToken = responseData.access_token || responseData.accessToken;
+        const expiresIn = responseData.expires_in || responseData.expiresIn;
         if (accessToken) {
-          setAccessToken(accessToken);
+          setAccessToken(accessToken, expiresIn);
           return true;
         }
       }

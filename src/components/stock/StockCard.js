@@ -20,7 +20,7 @@ import {
 } from '@mui/icons-material';
 import { BaseCard, StatusChip, ActionButton, DataTable } from '../common';
 import { formatWeight, formatCount, formatGrowth, formatDate } from '../../utils/formatters';
-import {getPondName} from "../../utils/cache";
+import {getPondName} from "../../utils/cache/pondsCache";
 
 /**
  * StockCard - Comprehensive stock display with sampling history
@@ -70,6 +70,12 @@ export default function StockCard({
       sortable: true,
       sortKey: 'sample_date',
       render: (sampling) => formatDate(sampling.sample_date || sampling.sampling_date),
+    },
+    {
+      id: 'pond',
+      label: 'Pond',
+      align: 'left',
+      render: (sampling) => sampling.pond_name || (sampling.pond_id ? getPondName(sampling.pond_id) : '-'),
     },
     {
       id: 'samples',

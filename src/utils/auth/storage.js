@@ -317,14 +317,18 @@ export async function refreshAccessToken() {
       body: JSON.stringify({ type: 'refresh_token', token: refreshToken, expires_in: 3600 })
     });
 
-    const data = await res.json();
-    if (res.ok && data.access_token && data.expires_in) {
+    const json = await res.json();
+    // Support nested data structure: { data: { access_token: ... } } or direct { access_token: ... }
+    const data = json.data || json;
+    const accessToken = data.access_token || data.accessToken;
+    const expiresIn = data.expires_in || data.expiresIn;
+    if (res.ok && accessToken && expiresIn) {
       // saveAccessToken already syncs with userSession
-      saveAccessToken(data.access_token, data.expires_in);
+      saveAccessToken(accessToken, expiresIn);
       debugLog('Access token refreshed successfully');
       return true;
     }
-    debugLog('Token refresh response invalid', data);
+    debugLog('Token refresh response invalid', json);
     return false;
   } catch (err) {
     debugLog('Token refresh failed', err);

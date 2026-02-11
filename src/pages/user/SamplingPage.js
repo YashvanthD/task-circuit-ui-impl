@@ -368,7 +368,9 @@ export default function SamplingPage() {
                   <TableCell>
                     {userNames[sampling.recorded_by] || sampling.recorded_by || ''}
                   </TableCell>
-                  <TableCell>{sampling.pond_id || ''}</TableCell>
+                  <TableCell>
+                    {ponds.find(p => String(p.pond_id) === String(sampling.pond_id || sampling.pond))?.name || sampling.pond_name || sampling.pond_id || '-'}
+                  </TableCell>
                   <TableCell align="right">
                     {sampling.sample_count || 0}
                   </TableCell>

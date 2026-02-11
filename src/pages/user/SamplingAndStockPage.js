@@ -17,7 +17,7 @@ import {
   useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 // Components
 import {
@@ -44,6 +44,7 @@ import { Stock, Sampling } from '../../models';
 export default function SamplingAndStockPage() {
   const theme = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // State - Stocks
@@ -389,11 +390,15 @@ export default function SamplingAndStockPage() {
 
   // Handlers - View
   const handleViewDetails = (stock) => {
+    // Update URL to reflect the selected stock (allows deep linking and bookmarking)
+    navigate(`?stock=${stock.stock_id}`, { replace: true });
     setSelectedStock(stock);
     setViewMode('detail');
   };
 
   const handleBackToList = () => {
+    // Clear URL query params when going back to list
+    navigate(location.pathname, { replace: true });
     setViewMode('list');
     setSelectedStock(null);
   };
@@ -504,7 +509,7 @@ export default function SamplingAndStockPage() {
           onTerminateStock={handleTerminateStock}
           onBack={handleBackToList}
           // Fix: Ensure we pass pond info correctly if available in stock or find it
-          pond={ponds.find(p => p.pond_id === selectedStock.pond_id) || { name: selectedStock.pond_name || selectedStock.pond_id }}
+          pond={ponds.find(p => String(p.pond_id) === String(selectedStock.pond_id)) || { name: selectedStock.pond_name || selectedStock.pond_id }}
           isMobile={isMobile}
         />
       ) : filteredStocks.length === 0 ? (
