@@ -9,6 +9,61 @@ import { BaseModel } from './BaseModel';
 
 export class Sampling extends BaseModel {
   /**
+   * Schema definition for Sampling
+   */
+  static get schema() {
+    return {
+      sampling_id: { type: 'string', aliases: ['samplingId', 'id'] },
+      pond_id: { type: 'string', required: true, aliases: ['pondId', 'pond'] },
+      stock_id: { type: 'string', aliases: ['stockId'] },
+      species: { type: 'string', aliases: ['fish', 'speciesCode', 'species_code'] },
+
+      // Date
+      sample_date: { type: 'string', required: true, aliases: ['sampling_date', 'samplingDate', 'date'] },
+
+      // Quantities
+      sample_count: { type: 'number', aliases: ['sample_size', 'sampleSize', 'sampleCount', 'count'], default: 0 },
+      total_count: { type: 'number', aliases: ['totalCount'], default: 0 },
+
+      // Weights
+      avg_weight_g: {
+        type: 'number',
+        aliases: ['avg_weight', 'avgWeight'],
+        parse: (val, data) => {
+          if (val !== undefined && val !== null) return Number(val);
+          // Check for averageWeight (in kg)
+          if (data.averageWeight !== undefined && data.averageWeight !== null) {
+            return Number(data.averageWeight) * 1000;
+          }
+          return 0;
+        }
+      },
+      min_weight_g: { type: 'number', aliases: ['minWeightG'] },
+      max_weight_g: { type: 'number', aliases: ['maxWeightG'] },
+      total_weight_g: { type: 'number', aliases: ['totalWeightG'] },
+
+      // Growth metrics
+      previous_avg_weight_g: { type: 'number', aliases: ['previousAvgWeightG'] },
+      weight_gain_g: { type: 'number', aliases: ['weightGainG'] },
+      growth_rate_g_per_day: { type: 'number', aliases: ['growthRateGPerDay'] },
+      days_since_last_sampling: { type: 'number', aliases: ['daysSinceLastSampling'] },
+
+      // Financials
+      cost: { type: 'number', aliases: ['cost_amount', 'costAmount', 'fish_cost', 'fishCost'], default: 0 },
+      cost_enabled: { type: 'boolean', aliases: ['costEnabled'], default: true },
+      total_amount: { type: 'number', aliases: ['totalAmount', 'amount'], default: 0 },
+
+      // Meta
+      notes: { type: 'string', aliases: ['note'] },
+      recorded_by: { type: 'string', aliases: ['recordedBy', 'recorded_by_userKey', 'recordedByUserKey'] },
+
+      // Audit
+      created_at: { type: 'string', aliases: ['createdAt'] },
+      updated_at: { type: 'string', aliases: ['updatedAt'] }
+    };
+  }
+
+  /**
    * Default form values for creating a new sampling record
    */
   static getDefaultFormData() {
@@ -28,80 +83,15 @@ export class Sampling extends BaseModel {
   }
 
   /**
-   * Initialize sampling fields
-   * @private
+   * Post-initialization hook
    */
-  _init(data) {
-    this.sampling_id = data.sampling_id || data.samplingId || data.id || '';
-    this.pond_id = data.pond_id || data.pondId || data.pond || '';
-    this.stock_id = data.stock_id || data.stockId || '';
-
-    this.species = data.species || data.fish || data.speciesCode || data.species_code || null;
-
-    this.sample_date = data.sample_date || data.sampling_date || data.samplingDate || data.date || '';
-    this.sampling_date = data.sample_date || data.sampling_date || data.samplingDate || data.date || '';
-
-    this.sample_count = data.sample_count || data.sample_size || data.sampleSize || data.count || 0;
-    this.sample_size = data.sample_count || data.sample_size || data.sampleSize || data.count || 0;
-    this.total_count = data.total_count || data.totalCount || 0;
-
-    this.avg_weight = data.avg_weight_g || data.avg_weight || this._parseWeight(data);
-    this.avg_weight_g = data.avg_weight_g || data.avg_weight || this._parseWeight(data);
-    this.min_weight_g = data.min_weight_g || data.minWeightG || null;
-    this.max_weight_g = data.max_weight_g || data.maxWeightG || null;
-    this.total_weight_g = data.total_weight_g || data.totalWeightG || null;
-
-    this.previous_avg_weight_g = data.previous_avg_weight_g || data.previousAvgWeightG || null;
-    this.weight_gain_g = data.weight_gain_g || data.weightGainG || null;
-    this.growth_rate_g_per_day = data.growth_rate_g_per_day || data.growthRateGPerDay || null;
-    this.days_since_last_sampling = data.days_since_last_sampling || data.daysSinceLastSampling || null;
-
-    this.cost = data.cost || data.cost_amount || data.costAmount || data.fish_cost || data.fishCost || 0;
-    this.cost_enabled = data.cost_enabled ?? data.costEnabled ?? true;
-    this.total_amount = data.total_amount || data.totalAmount || data.amount || 0;
-
-    this.notes = data.notes || data.note || '';
-    this.recorded_by = data.recorded_by || data.recordedBy || data.recorded_by_userKey || data.recordedByUserKey || '';
-
-    this.created_at = data.created_at || data.createdAt || '';
-    this.updated_at = data.updated_at || data.updatedAt || '';
+  _postInit(data) {
+     // Backward compatibility for aliased properties accessed directly
+     if (!this.sampling_date) this.sampling_date = this.sample_date;
+     if (!this.sample_size) this.sample_size = this.sample_count;
+     if (!this.avg_weight) this.avg_weight = this.avg_weight_g;
   }
 
-  /**
-   * Parse weight from various formats
-   * @private
-   */
-  _parseWeight(data) {
-    // Check for averageWeight (in kg)
-    if (data.averageWeight !== undefined && data.averageWeight !== null) {
-      return Number(data.averageWeight) * 1000; // Convert kg to grams
-    }
-
-    // Check for avg_weight (assume in grams)
-    if (data.avg_weight !== undefined && data.avg_weight !== null) {
-      return Number(data.avg_weight);
-    }
-
-    return 0;
-  }
-
-  /**
-   * Validate sampling data
-   * @private
-   */
-  _validate() {
-    if (!this.pond_id) {
-      this._addError('pond_id', 'Pond is required');
-    }
-
-    if (!this.sample_date) {
-      this._addError('sample_date', 'Sample date is required');
-    }
-
-    if (this.sample_count < 0) {
-      this._addError('sample_count', 'Sample count must be positive');
-    }
-  }
 
   /**
    * Convert to API payload format

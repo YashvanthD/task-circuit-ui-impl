@@ -9,6 +9,56 @@ import { BaseModel } from './BaseModel';
 
 export class Stock extends BaseModel {
   /**
+   * Schema definition for Stock
+   */
+  static get schema() {
+    return {
+      stock_id: { type: 'string', aliases: ['stockId', 'id'] },
+      pond_id: { type: 'string', required: true, aliases: ['pondId'] },
+      farm_id: { type: 'string', aliases: ['farmId'] },
+      species_id: { type: 'string', required: true, aliases: ['speciesId'] },
+      account_key: { type: 'string', aliases: ['accountKey'] },
+
+      // Names
+      species_name: { type: 'string', aliases: ['speciesName'] },
+      pond_name: { type: 'string', aliases: ['pondName'] },
+
+      // Quantities
+      initial_count: {
+        type: 'number',
+        required: true,
+        aliases: ['initialCount', 'quantity'],
+        validate: (val) => val > 0,
+        errorMessage: 'Initial count must be greater than 0'
+      },
+      current_count: { type: 'number', aliases: ['currentCount'] },
+      initial_avg_weight_g: { type: 'number', aliases: ['initialAvgWeightG', 'avg_weight_g', 'avgWeightG'] },
+
+      // Dates
+      stocking_date: { type: 'string', required: true, aliases: ['stockingDate'] },
+      termination_date: { type: 'string', aliases: ['terminationDate'] },
+
+      // Source
+      source: { type: 'string' },
+      source_contact: { type: 'string', aliases: ['sourceContact'] },
+
+      // Cost
+      cost_per_unit: { type: 'number', aliases: ['costPerUnit'] },
+      total_cost: { type: 'number', aliases: ['totalCost'] },
+
+      // Meta
+      batch_number: { type: 'string', aliases: ['batchNumber'] },
+      notes: { type: 'string' },
+      status: { type: 'string', default: 'active' },
+
+      // Audit
+      created_at: { type: 'string', aliases: ['createdAt'] },
+      updated_at: { type: 'string', aliases: ['updatedAt'] },
+      created_by: { type: 'string', aliases: ['createdBy'] }
+    };
+  }
+
+  /**
    * Default form values for creating a new stock
    */
   static getDefaultFormData() {
@@ -28,78 +78,27 @@ export class Stock extends BaseModel {
   }
 
   /**
-   * Initialize stock fields
-   * @private
+   * Post-initialization hook for complex fields
+   * @param {Object} data
    */
-  _init(data) {
-    // IDs (handle both snake_case and camelCase)
-    this.stock_id = data.stock_id || data.stockId || data.id || '';
-    this.pond_id = data.pond_id || data.pondId || '';
-    this.farm_id = data.farm_id || data.farmId || '';
-    this.species_id = data.species_id || data.speciesId || '';
-    this.account_key = data.account_key || data.accountKey || '';
+  _postInit(data) {
+    // defaults for current_count if missing
+    if (this.current_count === undefined || this.current_count === null) {
+      this.current_count = this.initial_count;
+    }
 
-    // Species name (if included in response) - handle both snake_case and camelCase
-    this.species_name = data.species_name || data.speciesName ||
-                       data.species?.common_name || data.species?.commonName ||
-                       data.species?.name || '';
+    // Try to resolve species name from nested objects if not set
+    if (!this.species_name && data.species) {
+      this.species_name = data.species.common_name || data.species.commonName || data.species.name || '';
+    }
 
-    // Pond name (if included in response)
-    this.pond_name = data.pond_name || data.pondName ||
-                    data.pond?.name || '';
-
-    // Quantities (handle both snake_case and camelCase)
-    this.initial_count = data.initial_count || data.initialCount || data.quantity || 0;
-    this.current_count = data.current_count || data.currentCount || this.initial_count;
-    this.initial_avg_weight_g = data.initial_avg_weight_g || data.initialAvgWeightG || data.avg_weight_g || data.avgWeightG || 0;
-
-    // Dates (handle both snake_case and camelCase)
-    this.stocking_date = data.stocking_date || data.stockingDate || '';
-    this.termination_date = data.termination_date || data.terminationDate || null;
-
-    // Source
-    this.source = data.source || '';
-    this.source_contact = data.source_contact || data.sourceContact || '';
-
-    // Cost (handle both snake_case and camelCase)
-    this.cost_per_unit = data.cost_per_unit || data.costPerUnit || 0;
-    this.total_cost = data.total_cost || data.totalCost || 0;
-
-    // Batch and metadata (handle both snake_case and camelCase)
-    this.batch_number = data.batch_number || data.batchNumber || '';
-    this.notes = data.notes || '';
-    this.status = data.status || 'active';
-
-    // Species name (if included in response)
-    this.species_name = data.species_name || data.speciesName || '';
-
-    // Timestamps (handle both snake_case and camelCase)
-    this.created_at = data.created_at || data.createdAt || '';
-    this.updated_at = data.updated_at || data.updatedAt || '';
-    this.created_by = data.created_by || data.createdBy || '';
+    // Try to resolve pond name from nested objects if not set
+    if (!this.pond_name && data.pond) {
+      this.pond_name = data.pond.name || '';
+    }
   }
 
-  /**
-   * Validate stock data
-   * @private
-   */
-  _validate() {
-    if (!this.pond_id) {
-      this._addError('pond_id', 'Pond is required');
-    }
-
-    if (!this.species_id) {
-      this._addError('species_id', 'Species is required');
-    }
-
-    if (!this.initial_count || this.initial_count <= 0) {
-      this._addError('initial_count', 'Initial count must be greater than 0');
-    }
-
-    if (!this.stocking_date) {
-      this._addError('stocking_date', 'Stocking date is required');
-    }
-  }
+  // _init and _validate are removed in favor of Schema and BaseModel logic
 
   /**
    * Convert to API payload format

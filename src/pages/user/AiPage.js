@@ -1,70 +1,134 @@
+/**
+ * AiPage
+ * ChatGPT-like assistant interface using common chat components.
+ * Supports text, voice input (SpeechRecognition), and file attachments.
+ *
+ * @module pages/user/AiPage
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Paper,
-  Typography,
-  TextField,
-  IconButton,
   Button,
-  Avatar,
-  CircularProgress,
+  IconButton,
   Tooltip,
+  CircularProgress,
+  TextField,
+  Avatar,
+  Stack,
+  Chip
 } from '@mui/material';
-import SendIcon from '@mui/icons-material/Send';
-import ClearIcon from '@mui/icons-material/ClearAll';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
-import MicIcon from '@mui/icons-material/Mic';
-import MicOffIcon from '@mui/icons-material/MicOff';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
-import ImageIcon from '@mui/icons-material/Image';
-import AudiotrackIcon from '@mui/icons-material/Audiotrack';
+import {
+  Send as SendIcon,
+  AttachFile as AttachFileIcon,
+  Mic as MicIcon,
+  MicOff as MicOffIcon,
+  ClearAll as ClearIcon,
+  SmartToy as SmartToyIcon,
+  Audiotrack as AudiotrackIcon
+} from '@mui/icons-material';
 
-// ChatGPT-like UI with microphone (Web Speech API) transcription and media attachment support.
-// This front-end uses the browser's SpeechRecognition (when available) to transcribe microphone input
-// and lets users attach images/audio files. Replace mockAssistantResponse with a real backend call.
+// Common Components
+import { PageHeader } from '../../components/common';
 
-function formatTime(ts) {
-  const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+// Chat Components
+import { MessageList } from '../../components/chat'; // Using MessageList for consistent display
+import { getCurrentUserKey, getCurrentUserInfo } from '../../api/chat';
+import { aiStore, AI_EVENTS } from '../../utils/ai/store';
+
+// ============================================================================
+// AI Helper Functions
+// ============================================================================
 
 function mockAssistantResponse(userText, attachments) {
-  // Build a friendly mock reply referencing attached types if present.
-  let reply = `You said: "${userText}"`;
+  let reply = `I received: "${userText}"`;
   if (attachments && attachments.length) {
     const types = attachments.map(a => a.type).join(', ');
-    reply += `\n\n(Received attachments: ${types})`;
+    reply += `\nAnd ${attachments.length} attachment(s): ${types}`;
   }
-  reply += `\n\n[This is a simulated ChatGPT-style response — replace with a real model call]`;
+  reply += `\n\nThis is a simulated response. In a real implementation, this would connect to your AI backend.`;
   return reply;
 }
 
+
+// ============================================================================
+// Styles
+// ============================================================================
+
+const AI_PARTICIPANT = {
+  user_key: 'ai-assistant',
+  name: 'AI Assistant',
+  avatar_url: null, // Could add a robot icon url here if available
+  is_online: true
+};
+
+// ============================================================================
+// Component
+// ============================================================================
+
 export default function AiPage() {
-  const [messages, setMessages] = useState([
-    { id: 1, role: 'assistant', text: 'Hi — I am your ChatGPT-like assistant. Ask me anything!', ts: Date.now() },
-  ]);
+  const currentUserKey = getCurrentUserKey();
+  const currentUser = getCurrentUserInfo();
+
+  // Chat State (Synced with AI Store)
+  const [messages, setMessages] = useState([]);
+
+  // Load messages on mount and subscribe
+  useEffect(() => {
+    // Transform store messages to format required by MessageList
+    const mapMessages = (msgs) => msgs.map(m => ({
+        ...m,
+        // Ensure sender_key is set correctly for differentiation
+        sender_key: m.role === 'assistant' ? 'ai-assistant' : currentUserKey,
+        // Ensure we have a valid timestamp if missing
+        created_at: m.created_at || new Date().toISOString()
+    }));
+
+    const updateHandler = (msgs) => {
+        setMessages(mapMessages(msgs));
+    };
+
+    // No-op handlers to satisfy listener requirement if we needed to listen to these events separately
+    // But since we rely on UPDATED, we actually don't need to listen to MESSAGE_ADDED or CLEARED here
+    // unless UPDATED is not emitted for those.
+    // Checking store.js implementation:
+    // MESSAGE_ADDED emits message, then UPDATED.
+    // CLEARED emits cleared, then UPDATED.
+    // So UPDATED covers everything. We can remove the extra listeners.
+
+    aiStore.on(AI_EVENTS.UPDATED, updateHandler);
+
+    // Initial load
+    updateHandler(aiStore.getMessages());
+
+    return () => {
+        aiStore.off(AI_EVENTS.UPDATED, updateHandler);
+    };
+  }, [currentUserKey]);
+
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [attachments, setAttachments] = useState([]); // {id, file, url, type}
-  const messagesEndRef = useRef(null);
+
+  // Refs
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
-  const committedRef = useRef(''); // store committed text before recording
+  const committedRef = useRef('');
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages, isSending, attachments]);
+  // Participants list for MessageList to resolve names
+  const participants = [
+    { ...currentUser, user_key: currentUserKey },
+    AI_PARTICIPANT
+  ];
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  // Initialize SpeechRecognition if available
+  // Initialize SpeechRecognition
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
+
     const rec = new SpeechRecognition();
     rec.lang = 'en-US';
     rec.interimResults = true;
@@ -78,11 +142,11 @@ export default function AiPage() {
         if (res.isFinal) finalTranscript += res[0].transcript;
         else interim += res[0].transcript;
       }
-      // show interim + final in input (but do not commit final until stop)
+
       const base = committedRef.current || '';
       const candidate = (base || '') + (finalTranscript || interim || '');
       setInput(candidate);
-      // if finalTranscript exists, update committed base so next interim appends after it
+
       if (finalTranscript) {
         committedRef.current = (base || '') + finalTranscript;
       }
@@ -94,7 +158,6 @@ export default function AiPage() {
     };
 
     rec.onend = () => {
-      // When recognition ends, clear committedRef (keep input as final)
       committedRef.current = '';
       setIsRecording(false);
     };
@@ -105,84 +168,81 @@ export default function AiPage() {
       try {
         recognitionRef.current && recognitionRef.current.stop();
       } catch (e) {}
-      recognitionRef.current = null;
     };
   }, []);
 
-  const startRecording = () => {
+  // Recording Handlers
+  const toggleRecording = () => {
     const rec = recognitionRef.current;
     if (!rec) return alert('Speech recognition not supported in this browser.');
-    try {
-      // store committed base
+
+    if (isRecording) {
+      rec.stop();
+    } else {
       committedRef.current = (typeof input === 'string') ? input : '';
       setIsRecording(true);
       rec.start();
-    } catch (e) {
-      console.warn('startRecording failed', e);
-      setIsRecording(false);
     }
   };
 
-  const stopRecording = () => {
-    const rec = recognitionRef.current;
-    if (!rec) return;
-    try {
-      rec.stop();
-    } catch (e) {
-      // ignore
-    }
-    // rec.onend will setIsRecording(false)
-  };
-
-  const handleAttachClick = () => {
-    fileInputRef.current?.click();
-  };
+  // Attachment Handlers
+  const handleAttachClick = () => fileInputRef.current?.click();
 
   const handleFilesSelected = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
+
     const newItems = files.map(f => {
       const type = f.type.startsWith('image/') ? 'image' : (f.type.startsWith('audio/') ? 'audio' : 'file');
       return { id: Date.now() + Math.random(), file: f, url: URL.createObjectURL(f), type };
     });
+
     setAttachments(prev => [...prev, ...newItems]);
-    // clear the input so same file can be selected again
-    e.target.value = null;
+    e.target.value = null; // Reset input
   };
 
   const removeAttachment = (id) => {
     setAttachments(prev => {
       const toRemove = prev.find(a => a.id === id);
-      if (toRemove) {
-        try { URL.revokeObjectURL(toRemove.url); } catch (e) {}
+      if (toRemove && toRemove.url) {
+        URL.revokeObjectURL(toRemove.url);
       }
       return prev.filter(a => a.id !== id);
     });
   };
 
+  // Send Handler
   const handleSend = async () => {
     const text = (input || '').trim();
     if (!text && attachments.length === 0) return;
 
-    // copy attachments to message so later clearing attachments state doesn't remove them
+    // Use AI Store to persist the message
     const attachmentsCopy = attachments.map(a => ({ ...a }));
-    const userMsg = { id: Date.now() + Math.random(), role: 'user', text, ts: Date.now(), attachments: attachmentsCopy };
-    setMessages(prev => [...prev, userMsg]);
+
+    // Append attachment info to text if present
+    let displayContent = text;
+    if (attachmentsCopy.length > 0) {
+       displayContent += '\n\n' + attachmentsCopy.map(a => `[Attachment: ${a.file.name}]`).join('\n');
+    }
+
+    aiStore.addUserMessage(displayContent, attachmentsCopy);
+
     setInput('');
     setAttachments([]);
 
-    // assistant typing
+    // AI Response with typing simulation
     setIsSending(true);
-    const typingId = 'typing-' + Date.now();
-    setMessages(prev => [...prev, { id: typingId, role: 'assistant', text: '...', ts: Date.now() }]);
 
     try {
-      // simulate async call
-      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 1000));
-      const assistantText = mockAssistantResponse(text, attachmentsCopy);
-      setMessages(prev => prev.map(m => (m.id === typingId ? { id: Date.now() + Math.random(), role: 'assistant', text: assistantText, ts: Date.now() } : m)));
-    } catch (e) {
-      setMessages(prev => prev.map(m => (m.id === typingId ? { id: Date.now() + Math.random(), role: 'assistant', text: 'Sorry, an error occurred.', ts: Date.now() } : m)));
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 800));
+
+      const responseText = mockAssistantResponse(text, attachmentsCopy);
+
+      // Store AI response
+      aiStore.addAssistantMessage(responseText);
+
+    } catch (err) {
+      console.error('AI Error:', err);
     } finally {
       setIsSending(false);
     }
@@ -195,105 +255,153 @@ export default function AiPage() {
     }
   };
 
-  const handleClear = () => {
-    // release object URLs
-    attachments.forEach(a => { try { URL.revokeObjectURL(a.url); } catch (e) {} });
-    setAttachments([]);
-    setMessages([{ id: Date.now(), role: 'assistant', text: 'Hi — conversation cleared. Ask me anything!', ts: Date.now() }]);
-    setInput('');
+  const handleClearChat = () => {
+    if (window.confirm('Clear conversation history?')) {
+      aiStore.clear();
+    }
   };
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1100, margin: '32px auto' }}>
-      <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, mb: 2 }} elevation={2}>
-        <SmartToyIcon color="primary" />
-        <Typography variant="h5" sx={{ flex: 1 }}>Chat with AI (ChatGPT UI)</Typography>
+    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, margin: '0 auto', height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
 
-        <input ref={fileInputRef} onChange={handleFilesSelected} style={{ display: 'none' }} type="file" accept="image/*,audio/*" multiple />
+      {/* Header */}
+      <PageHeader
+        title="AI Assistant"
+        subtitle="Chat with your intelligent assistant | Voice & Attachments supported"
+        icon={<SmartToyIcon fontSize="large" color="primary" />}
+        actions={
+           <Button
+             variant="outlined"
+             color="inherit"
+             startIcon={<ClearIcon />}
+             onClick={handleClearChat}
+             size="small"
+           >
+             Clear Chat
+           </Button>
+        }
+      />
 
-        <Tooltip title={isRecording ? 'Stop recording' : 'Record voice (transcribed)'}>
-          <IconButton onClick={() => (isRecording ? stopRecording() : startRecording())} color={isRecording ? 'error' : 'primary'} aria-label="toggle-recording">
-            {isRecording ? <MicOffIcon /> : <MicIcon />}
-          </IconButton>
-        </Tooltip>
+      {/* Main Chat Area */}
+      <Paper
+        elevation={0}
+        variant="outlined"
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          bgcolor: 'background.default',
+          borderRadius: 2,
+          mb: 2
+        }}
+      >
+        <MessageList
+          messages={messages}
+          participants={participants}
+          currentUserId={currentUserKey}
+          typingUsers={isSending ? [AI_PARTICIPANT] : []}
+          onReply={() => {}} // Could implement reply logic
+          onReaction={() => {}}
+        />
 
-        <Tooltip title="Attach image or audio">
-          <IconButton onClick={handleAttachClick} aria-label="attach-media">
-            <AttachFileIcon />
-          </IconButton>
-        </Tooltip>
-
-        <Button startIcon={<ClearIcon />} onClick={handleClear} size="small" sx={{ ml: 1 }}>Clear</Button>
+        {/* Helper text for attachments if they exist functionality but not visible in MessageList */}
+        {/* We rely on the text representation `[Attachment: name]` added in handleSend for now */}
       </Paper>
 
-      <Paper sx={{ height: '70vh', display: 'flex', flexDirection: 'column', p: 2 }} elevation={1}>
-        <Box sx={{ overflowY: 'auto', flex: 1, pr: 1 }}>
-          {messages.map((m) => (
-            <Box key={m.id} sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'flex-end', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              {m.role === 'assistant' && (
-                <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}><SmartToyIcon /></Avatar>
-              )}
+      {/* Input Area - Custom implementation mimicking ChatInput but with AI features */}
+      <Paper
+        elevation={3}
+        sx={{
+          p: 2,
+          borderRadius: 3,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          onChange={handleFilesSelected}
+          style={{ display: 'none' }}
+          type="file"
+          accept="image/*,audio/*"
+          multiple
+        />
 
-              <Box sx={{ maxWidth: '78%', display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                <Paper sx={{ p: 1.2, bgcolor: m.role === 'user' ? 'primary.main' : 'grey.100', color: m.role === 'user' ? 'common.white' : 'text.primary', borderRadius: 2 }}>
-                  <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{m.text}</Typography>
+        {/* Attachments Preview */}
+        {attachments.length > 0 && (
+          <Stack direction="row" spacing={1} sx={{ mb: 1, overflowX: 'auto', py: 0.5 }}>
+            {attachments.map(att => (
+               <Chip
+                 key={att.id}
+                 label={att.file.name}
+                 onDelete={() => removeAttachment(att.id)}
+                 avatar={
+                   att.type === 'image' ? <Avatar src={att.url} /> :
+                   att.type === 'audio' ? <Avatar><AudiotrackIcon /></Avatar> :
+                   <Avatar><AttachFileIcon /></Avatar>
+                 }
+                 variant="outlined"
+               />
+            ))}
+          </Stack>
+        )}
 
-                  {/* attachments preview if any */}
-                  {m.attachments && m.attachments.length > 0 && (
-                    <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      {m.attachments.map(att => (
-                        <Box key={att.id} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                          {att.type === 'image' && <img src={att.url} alt={att.file?.name || 'image'} style={{ maxWidth: 240, borderRadius: 6 }} />}
-                          {att.type === 'audio' && (
-                            <audio controls src={att.url} style={{ maxWidth: 300 }} />
-                          )}
-                          {att.type === 'file' && <Typography variant="body2">{att.file?.name}</Typography>}
-                        </Box>
-                      ))}
-                    </Box>
-                  )}
+        <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
+          <Tooltip title="Attach File">
+            <IconButton onClick={handleAttachClick} size="small" color={attachments.length > 0 ? 'primary' : 'default'}>
+              <AttachFileIcon />
+            </IconButton>
+          </Tooltip>
 
-                </Paper>
-                <Typography variant="caption" sx={{ mt: 0.5, color: 'text.secondary' }}>{formatTime(m.ts)}</Typography>
-              </Box>
+          <Tooltip title={isRecording ? "Stop Recording" : "Voice Input"}>
+            <IconButton
+              onClick={toggleRecording}
+              color={isRecording ? 'error' : 'default'}
+              size="small"
+              sx={{
+                animation: isRecording ? 'pulse 1.5s infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%': { boxShadow: '0 0 0 0 rgba(244, 67, 54, 0.4)' },
+                  '70%': { boxShadow: '0 0 0 10px rgba(244, 67, 54, 0)' },
+                  '100%': { boxShadow: '0 0 0 0 rgba(244, 67, 54, 0)' }
+                }
+              }}
+            >
+              {isRecording ? <MicOffIcon /> : <MicIcon />}
+            </IconButton>
+          </Tooltip>
 
-              {m.role === 'user' && (
-                <Avatar sx={{ bgcolor: 'secondary.main', width: 36, height: 36 }}>{/* user's initial */}</Avatar>
-              )}
-            </Box>
-          ))}
-          <div ref={messagesEndRef} />
-        </Box>
-
-        <Box sx={{ mt: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
           <TextField
             inputRef={inputRef}
+            fullWidth
+            multiline
+            maxRows={4}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message and press Enter to send (or use the mic)"
-            multiline
-            minRows={1}
-            maxRows={6}
-            fullWidth
+            placeholder={isRecording ? "Listening..." : "Ask me anything..."}
             variant="outlined"
-            aria-label="chat-input"
+            size="small"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 4,
+                bgcolor: 'action.hover',
+                '& fieldset': { borderColor: 'transparent' },
+                '&:hover fieldset': { borderColor: 'primary.light' },
+                '&.Mui-focused fieldset': { borderColor: 'primary.main' },
+              }
+            }}
           />
 
-          {/* show small previews for attachments ready to send */}
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', ml: 1 }}>
-            {attachments.map(att => (
-              <Box key={att.id} sx={{ display: 'flex', gap: 0.5, alignItems: 'center', bgcolor: 'grey.100', p: 0.5, borderRadius: 1 }}>
-                {att.type === 'image' && <ImageIcon fontSize="small" />}
-                {att.type === 'audio' && <AudiotrackIcon fontSize="small" />}
-                <Typography variant="caption" sx={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{att.file?.name}</Typography>
-                <IconButton size="small" onClick={() => removeAttachment(att.id)} aria-label="remove-attachment"><ClearIcon fontSize="small" /></IconButton>
-              </Box>
-            ))}
-          </Box>
-
-          <IconButton color="primary" onClick={handleSend} disabled={isSending} aria-label="send">
-            {isSending ? <CircularProgress size={22} /> : <SendIcon />}
+          <IconButton
+            onClick={handleSend}
+            disabled={(!input.trim() && attachments.length === 0) || isSending}
+            color="primary"
+            sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground' } }}
+          >
+             {isSending ? <CircularProgress size={24} color="inherit" /> : <SendIcon />}
           </IconButton>
         </Box>
       </Paper>

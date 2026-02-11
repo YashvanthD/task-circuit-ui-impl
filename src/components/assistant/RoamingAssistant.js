@@ -35,7 +35,8 @@ import {
 } from './constants';
 
 // Config
-import { BASE_APP_PATH_USER_CHAT } from '../../config';
+import { BASE_APP_PATH_USER_AI } from '../../config';
+import { aiStore, AI_EVENTS } from '../../utils/ai/store';
 
 /**
  * RoamingAssistant - Main assistant component
@@ -73,14 +74,36 @@ export default function RoamingAssistant() {
   const [pinnedBottomRight, setPinnedBottomRight] = useState(true); // Default to bottom-right position
   const [humanLike, setHumanLike] = useState(true);
   const [isInteracting, setIsInteracting] = useState(false);
-  const [showConversation, setShowConversation] = useState(false);
+  // Optional conversation display
+  const [showConversation] = useState(false);
 
   // Popup state
   const [popup, setPopup] = useState({ visible: false, text: '' });
   const popupTimerRef = useRef(null);
 
-  // Messages state
-  const [messages, setMessages] = useState([]);
+  // Messages state (synced with aiStore)
+  const [messages, setMessages] = useState(aiStore.getMessages());
+
+  // Subscribe to AI Store
+  useEffect(() => {
+    const updateHandler = (msgs) => {
+        // Convert to format expected by AssistantConversation { role, text, timestamp }
+        const formatted = msgs.map(m => ({
+            role: m.sender_key === 'ai-assistant' ? 'assistant' : 'user',
+            text: m.content,
+            timestamp: new Date(m.created_at).getTime()
+        }));
+        setMessages(formatted);
+    };
+
+    aiStore.on(AI_EVENTS.UPDATED, updateHandler);
+    // Initial load
+    updateHandler(aiStore.getMessages());
+
+    return () => {
+        aiStore.off(AI_EVENTS.UPDATED, updateHandler);
+    };
+  }, []);
 
   // Hand state
   const [handStyle, setHandStyle] = useState(null);
@@ -97,12 +120,11 @@ export default function RoamingAssistant() {
     position,
     isDragging,
     handleDragStart,
-    moveTo,
     moveToElement,
     randomRoam,
   } = useAssistantPosition();
 
-  const { speak, stop: stopSpeaking, isSpeaking } = useSpeechSynthesis({
+  const { speak, isSpeaking } = useSpeechSynthesis({
     enabled: speechEnabled,
   });
 
@@ -114,9 +136,17 @@ export default function RoamingAssistant() {
   } = useSpeechRecognition({
     onResult: (text) => {
       showPopup(text);
-      addMessage('user', text);
+      // Add to shared store
+      aiStore.addUserMessage(text);
+
       if (speechEnabled) {
         speak('Heard: ' + text);
+        // Simulate response for now
+        setTimeout(() => {
+             const reply = "I heard you. I'm just a roaming UI for now, visit the AI page for more.";
+             aiStore.addAssistantMessage(reply);
+             if (speechEnabled) speak(reply);
+        }, 1000);
       }
     },
     onInterim: (text) => {
@@ -128,7 +158,6 @@ export default function RoamingAssistant() {
   });
 
   const {
-    targets,
     currentTarget,
     currentIndex,
     totalTargets,
@@ -172,13 +201,6 @@ export default function RoamingAssistant() {
     }, POPUP_DURATION);
   }, []);
 
-  // Add message to conversation
-  const addMessage = useCallback((role, text) => {
-    setMessages((prev) => [
-      ...prev,
-      { role, text, timestamp: Date.now() },
-    ]);
-  }, []);
 
   // Remove message from conversation
   const removeMessage = useCallback((index) => {
@@ -337,7 +359,7 @@ export default function RoamingAssistant() {
   }, [nextTarget, currentIndex, totalTargets, showPopup]);
 
   const handleOpenChat = useCallback(() => {
-    navigate(BASE_APP_PATH_USER_CHAT);
+    navigate(BASE_APP_PATH_USER_AI);
   }, [navigate]);
 
   const handleClose = useCallback(() => {

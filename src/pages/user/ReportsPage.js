@@ -136,7 +136,34 @@ function ReportsDashboard() {
       }
 
       // Ensure data is an array
-      const dataArray = Array.isArray(data) ? data : data?.data || data?.items || [];
+      let dataArray = [];
+
+      // Robust response parsing
+      if (Array.isArray(data)) {
+        dataArray = data;
+      } else if (data && typeof data === 'object') {
+        // Try various locations where the array might be
+        if (Array.isArray(data[source])) {
+          dataArray = data[source];
+        } else if (data.data && Array.isArray(data.data[source])) {
+          dataArray = data.data[source];
+        } else if (Array.isArray(data.data)) {
+          dataArray = data.data;
+        } else if (data.data && Array.isArray(data.data.records)) {
+            dataArray = data.data.records;
+        } else if (data.data && Array.isArray(data.data.items)) {
+            dataArray = data.data.items;
+        } else if (Array.isArray(data.records)) {
+          dataArray = data.records;
+        } else if (Array.isArray(data.items)) {
+          dataArray = data.items;
+        } else if (data.success && data.data && typeof data.data === 'object') {
+           // Should we try to guess the key?
+           // If source is 'samplings', maybe key is 'samplings'
+           // We covered this in data.data[source]
+        }
+      }
+
       setDataForSource(source, dataArray);
     } catch (err) {
       console.error(`Error fetching ${source}:`, err);
@@ -323,7 +350,7 @@ function ReportsDashboard() {
       default:
         return null;
     }
-  }, [getWidgetData, getWidgetSummary, loadingState, handleRemoveWidget, handleEditWidget, fetchDataForSource, toggleWidgetVisibility, stats]);
+  }, [getWidgetData, getWidgetSummary, loadingState, handleRemoveWidget, handleEditWidget, fetchDataForSource, toggleWidgetVisibility]);
 
   // ============================================================================
   // Render
@@ -423,61 +450,68 @@ function ReportsDashboard() {
         </Box>
       )}
 
-      {/* Quick Stats Section - Separate Container */}
-      {visibleWidgets.some(w => w.type === WIDGET_TYPES.STAT_CARD) && (
-        <Paper
-          elevation={1}
-          sx={{
-            p: 3,
-            mb: 3,
-            bgcolor: 'background.default',
-            borderRadius: 2,
-          }}
-        >
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Quick Overview
-          </Typography>
-          <StatsGrid stats={stats} columns={5} />
-        </Paper>
-      )}
-
-      {/* Widgets Grid - Other Widgets */}
-      <Box>
-        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-          Report Widgets
-        </Typography>
-        <Grid container spacing={3}>
-          {visibleWidgets.filter(w => w.type !== WIDGET_TYPES.STAT_CARD).length > 0 ? (
-            visibleWidgets
-              .filter(w => w.type !== WIDGET_TYPES.STAT_CARD)
-              .map(renderWidget)
-          ) : (
-            <Grid item xs={12}>
-            <Box
+      {/* Content Layout */}
+      <Stack spacing={4}>
+        {/* Quick Stats Section */}
+        {visibleWidgets.some(w => w.type === WIDGET_TYPES.STAT_CARD) && (
+          <Box>
+            <Paper
+              elevation={0}
+              variant="outlined"
               sx={{
-                textAlign: 'center',
-                py: 8,
-                bgcolor: 'background.default',
+                p: 3,
+                bgcolor: 'background.paper',
                 borderRadius: 2,
-                border: '2px dashed',
-                borderColor: 'divider',
+                border: '1px solid',
+                borderColor: 'divider'
               }}
             >
-              <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                No widgets configured
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Quick Overview
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => setShowAddDialog(true)}
-              >
-                Add Your First Widget
-              </Button>
-            </Box>
-          </Grid>
+              <StatsGrid stats={stats} columns={5} />
+            </Paper>
+          </Box>
         )}
-        </Grid>
-      </Box>
+
+        {/* Widgets Grid - Other Widgets */}
+        <Box>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            Report Widgets
+          </Typography>
+          <Grid container spacing={3}>
+            {visibleWidgets.filter(w => w.type !== WIDGET_TYPES.STAT_CARD).length > 0 ? (
+              visibleWidgets
+                .filter(w => w.type !== WIDGET_TYPES.STAT_CARD)
+                .map(renderWidget)
+            ) : (
+                <Grid item xs={12}>
+                  <Box
+                    sx={{
+                      textAlign: 'center',
+                      py: 8,
+                      bgcolor: 'background.default',
+                      borderRadius: 2,
+                      border: '2px dashed',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                      No widgets configured
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<AddIcon />}
+                      onClick={() => setShowAddDialog(true)}
+                    >
+                      Add Your First Widget
+                    </Button>
+                  </Box>
+                </Grid>
+            )}
+          </Grid>
+        </Box>
+      </Stack>
 
       {/* Add Widget Dialog */}
       <AddWidgetDialog
