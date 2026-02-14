@@ -79,13 +79,23 @@ export function getUserRoles(u) {
 }
 
 /**
+ * Check if user has owner role.
+ * @param {object} u - User data
+ * @returns {boolean}
+ */
+export function is_owner(u) {
+  const roles = getUserRoles(u);
+  return roles.some(r => r.includes('owner'));
+}
+
+/**
  * Check if user has admin role.
  * @param {object} u - User data
  * @returns {boolean}
  */
 export function is_admin(u) {
   const roles = getUserRoles(u);
-  return roles.some(r => r.includes('admin'));
+  return roles.some(r => r.includes('admin') || r.includes('owner'));
 }
 
 /**
@@ -95,7 +105,7 @@ export function is_admin(u) {
  */
 export function is_manager(u) {
   const roles = getUserRoles(u);
-  return roles.some(r => r.includes('manager') || r.includes('admin'));
+  return roles.some(r => r.includes('manager') || r.includes('admin') || r.includes('owner'));
 }
 
 /**
@@ -155,3 +165,62 @@ export function normalizeUser(u) {
   };
 }
 
+/**
+ * Check if user has specific permission.
+ * Handles explicit Allow/Deny and role-based defaults.
+ *
+ * @param {object} userOrPermissions - User object (with permissions) or permissions object
+ * @param {string} resource - Resource name (e.g., 'user', 'expense')
+ * @param {string} action - Action name (e.g., 'create', 'delete', 'view', 'approve')
+ * @returns {boolean}
+ */
+export function checkAccess(userOrPermissions, resource, action) {
+  if (!userOrPermissions) return false;
+
+  const user = extractUser(userOrPermissions);
+  // If we have a full user object, check admin/owner overriding roles first
+  if (user) {
+    if (is_admin(user) || is_owner(user)) return true;
+  }
+
+  // Extract permissions object
+  // It could be directly passed, or nested in user/data
+  let perms = userOrPermissions;
+  if (userOrPermissions.permissions) {
+    perms = userOrPermissions.permissions;
+  } else if (user && user.permissions) {
+    perms = user.permissions;
+  } else if (userOrPermissions.data) {
+    // metadata wrapper
+    perms = userOrPermissions.data;
+  }
+
+  if (!perms) return false;
+
+  // Check explicit Deny (Permissions override roles)
+  // Structure: permissions[resource][action] = "Deny"
+  if (perms[resource] && perms[resource][action] === 'Deny') {
+    return false;
+  }
+
+  // Check 'denied' object structure
+  if (perms.denied && perms.denied[resource]) {
+    const deniedRes = perms.denied[resource];
+    if (deniedRes === true || deniedRes === 'All') return false;
+    if (typeof deniedRes === 'object' && deniedRes[action]) return false;
+  }
+
+  // Check explicit Allow
+  if (perms[resource] && perms[resource][action] === 'Allow') {
+    return true;
+  }
+
+  // If we are checking for 'view' access and user is 'manager', they generally have access
+  // unless explicitly denied above.
+  if (user && is_manager(user) && action === 'view') {
+    return true;
+  }
+
+  // Default deny if no role matches and no explicit allow
+  return false;
+}

@@ -101,15 +101,6 @@ export async function getMe() {
   });
 }
 
-/**
- * Get user permissions
- */
-export async function getPermissions() {
-  return apiFetch(API_AUTH.PERMISSIONS, {
-    method: 'GET',
-    headers: getAuthHeaders({ contentType: null }),
-  });
-}
 
 const authApi = {
   login,
@@ -118,7 +109,6 @@ const authApi = {
   refreshToken,
   signup,
   getMe,
-  getPermissions,
   getAuthHeaders,
 };
 

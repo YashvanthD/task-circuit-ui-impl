@@ -3,8 +3,8 @@
  * Updated to handle new species API structure
  */
 export function parseFish(f = {}) {
-  // Handle both old fish_id and new species_id
-  const id = f.species_id || f.id || f.fish_id || f._id || '';
+  // Handle both old fish_id and new species_id, and also camelCase versions
+  const id = f.species_id || f.speciesId || f.id || f.fish_id || f.fishId || f._id || '';
   const common_name = f.common_name || f.name || f.commonName || '';
   const scientific_name = f.scientific_name || f.scientificName || '';
   const local_name = f.local_name || f.localName || '';
@@ -13,12 +13,12 @@ export function parseFish(f = {}) {
   const stock_date = f.stock_date || f.stockDate || '';
   const vessel_name = f.vessel_name || f.vessel || f.vesselName || '';
   const specimen_photo = f.specimen_photo || f.photo || f.image || null;
-  const count = Number(f.count || f.quantity || f.total_count || 0) || 0;
-  const ponds = Array.isArray(f.ponds) ? f.ponds : (f.pond_list || []);
-  const avg_weight = Number(f.avg_weight || f.average_weight || f.avgWeight || 0) || 0;
+  const count = Number(f.count || f.quantity || f.total_count || f.totalCount || 0) || 0;
+  const ponds = Array.isArray(f.ponds) ? f.ponds : (f.pond_list || f.pondList || []);
+  const avg_weight = Number(f.avg_weight || f.average_weight || f.avgWeight || f.averageWeight || 0) || 0;
   const min_weight = Number(f.min_weight || f.minWeight || 0) || 0;
   const max_weight = Number(f.max_weight || f.maxWeight || 0) || 0;
-  const unit_price = Number(f.unit_price || f.price || f.price_per_kg || 0) || 0;
+  const unit_price = Number(f.unit_price || f.price || f.price_per_kg || f.pricePerKg || 0) || 0;
   const status = f.status || 'active';
   const source = f.source || '';
   const notes = f.notes || '';
@@ -60,4 +60,3 @@ export function parseFishList(raw) {
   if (raw.data && Array.isArray(raw.data)) return raw.data.map(parseFish);
   return [];
 }
-

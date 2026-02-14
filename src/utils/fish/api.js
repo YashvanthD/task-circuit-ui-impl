@@ -7,6 +7,7 @@
 
 import { fishApi } from '../../api';
 import { parseFishList, parseFish } from '../parseFish';
+import { parseStockList, parseStock } from '../parseStock';
 import { saveFishCache, clearFishCache as clearCache, updateFishInCache, removeFishFromCache } from './cache';
 
 /**
@@ -75,6 +76,18 @@ function extractFishList(data) {
   if (Array.isArray(data.fish)) return data.fish;
   if (data.data && Array.isArray(data.data)) return data.data;
   if (data.data && Array.isArray(data.data.fish)) return data.data.fish;
+  return [];
+}
+
+/**
+ * Extract stock list from API response.
+ */
+function extractStockList(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.stocks)) return data.stocks;
+  if (data.data && Array.isArray(data.data.stocks)) return data.data.stocks;
+  if (data.data && Array.isArray(data.data)) return data.data;
   return [];
 }
 
@@ -198,7 +211,55 @@ export function clearFishCache() {
   clearCache();
 }
 
-export default {
+// ============================================================================
+// Stock API Functions
+// ============================================================================
+
+/**
+ * Get all fish stocks from API.
+ * @param {object} opts - Options (params)
+ * @returns {Promise<{source: string, data: Array}>}
+ */
+export async function getStockList(opts = {}) {
+  try {
+    const res = await fishApi.listStocks(opts.params);
+    const data = await parseResponse(res);
+    const stockList = parseStockList(extractStockList(data));
+    return { source: 'api', data: stockList };
+  } catch (err) {
+    console.error('Failed to fetch stock list', err);
+    throw err;
+  }
+}
+
+/**
+ * Create new stock.
+ */
+export async function createStock(data) {
+  const res = await fishApi.createStock(data);
+  const parsed = await parseResponse(res);
+  return parseStock(parsed.data || parsed);
+}
+
+/**
+ * Update stock.
+ */
+export async function updateStock(stockId, data) {
+  const res = await fishApi.updateStock(stockId, data);
+  const parsed = await parseResponse(res);
+  return parseStock(parsed.data || parsed);
+}
+
+/**
+ * Terminate stock.
+ */
+export async function terminateStock(stockId, data) {
+  const res = await fishApi.terminateStock(stockId, data);
+  const parsed = await parseResponse(res);
+  return parseStock(parsed.data || parsed);
+}
+
+const apiUtils = {
   getFishList,
   fetchFishById,
   createFish,
@@ -206,5 +267,11 @@ export default {
   removeFish,
   clearFishCache,
   fishEvents,
+  getStockList,
+  createStock,
+  updateStock,
+  terminateStock,
 };
+
+export default apiUtils;
 

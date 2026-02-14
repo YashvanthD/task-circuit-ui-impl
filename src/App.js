@@ -24,7 +24,7 @@ import { ThemeContextProvider } from './contexts';
 import { SignupForm } from './components/users/forms';
 import { RegisterCompanyForm } from './components/common/forms';
 import { ErrorBoundary, GlobalAlertProvider } from './components/common';
-import FishPage from './pages/user/FishPage';
+import FishPage from './pages/fish/FishPage';
 import SamplingPage from './pages/user/SamplingPage';
 import WaterTestPage from './pages/user/WaterTestPage';
 import TransformPage from './pages/user/TransformPage';

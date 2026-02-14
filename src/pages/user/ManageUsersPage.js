@@ -22,9 +22,9 @@ import Unauthorized from '../../components/error/Unauthorized';
 // Utils
 import userUtil from '../../utils/user';
 import { filterUsers, resolveUserId } from '../../utils/helpers/users';
-import { is_admin } from '../../utils/auth/permissions';
-import { loadUserFromLocalStorage, getAccessToken } from '../../utils/auth/storage';
+import { is_admin, checkAccess } from '../../utils/auth/permissions';
 import { showSuccessAlert, showErrorAlert } from '../../utils/alertManager';
+import { userSession } from '../../utils/auth/userSession';
 
 // Constants
 import { INITIAL_USER_FORM } from '../../constants';
@@ -248,32 +248,26 @@ export default function ManageUsersPage() {
       try {
         // Quick: prefer explicit is_admin flag stored at login
         const rawFlag = localStorage.getItem('is_admin');
-        if (rawFlag !== null) {
+        if (rawFlag !== null && JSON.parse(rawFlag) === true) {
           if (!mounted) return;
-          setIsAdmin(JSON.parse(rawFlag) === true);
+          setIsAdmin(true);
           return;
         }
 
-        // Next: prefer stored user in localStorage (fast, no network)
-        const stored = loadUserFromLocalStorage();
-        if (stored) {
-          if (!mounted) return;
-          setIsAdmin(!!is_admin(stored));
-          return;
+        // Try getting permissions from current user session
+        let perms = userSession.permissions;
+        if (!perms) {
+            perms = await userSession.loadPermissions();
         }
 
-        // If there's no access token, don't call the API
-        const token = getAccessToken();
-        if (!token) {
-          if (!mounted) return;
-          setIsAdmin(false);
-          return;
-        }
+        const cu = userSession.user || await userUtil.getCurrentUser();
 
-        // Last resort: call API to fetch current user
-        const cu = await userUtil.getCurrentUser();
+        // Check access using new function: Admin OR explicit permission to view users
+        const access = is_admin(cu) || checkAccess(perms || cu, 'user', 'view');
+
         if (!mounted) return;
-        setIsAdmin(!!is_admin(cu));
+        setIsAdmin(access);
+
       } catch (e) {
         if (!mounted) return;
         setIsAdmin(false);

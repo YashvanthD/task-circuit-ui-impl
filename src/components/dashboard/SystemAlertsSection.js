@@ -51,8 +51,8 @@ import SystemAlertDetailDialog from './SystemAlertDetailDialog';
 // ============================================================================
 
 export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = false, taskAlerts = [], onTaskAlertClick }) {
-  // Local state synced with cache - use function to get initial state
-  const [alerts, setAlerts] = useState(() => getAlertsSync() || []);
+  // Local state synced with singleton cache
+  const [alerts, setAlerts] = useState(() => getAlertsSync());
   const [loading, setLoading] = useState(() => isAlertsLoading());
   const [error, setError] = useState(() => getAlertsError());
 
@@ -63,24 +63,27 @@ export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = fal
   // Get current user (userSession.user is a getter property)
   const currentUser = userSession.user;
 
-  // Subscribe to cache changes
+  // Subscribe to singleton cache changes (single source of truth)
   useEffect(() => {
-    const unsubUpdated = onAlertsChange('updated', (data) => {
-      setAlerts(Array.isArray(data) ? [...data] : []);
+    // Single handler for all changes - cache is already deduplicated
+    const unsubChange = onAlertsChange('change', (data) => {
+      // Cache returns deduplicated array, just use it directly
+      setAlerts(Array.isArray(data) ? data : []);
     });
 
     const unsubNew = onAlertsChange('new', () => {
-      setAlerts([...getAlertsSync()]);
+      // On new alert, get fresh list from singleton
+      setAlerts(getAlertsSync());
     });
 
-    const unsubLoading = onAlertsChange('loading', (val) => setLoading(val));
-    const unsubError = onAlertsChange('error', (err) => setError(err));
+    const unsubLoading = onAlertsChange('loading', setLoading);
+    const unsubError = onAlertsChange('error', setError);
 
-    // Initial load
+    // Initial load from cache
     getAlerts();
 
     return () => {
-      unsubUpdated();
+      unsubChange();
       unsubNew();
       unsubLoading();
       unsubError();
@@ -155,8 +158,9 @@ export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = fal
     handleRefresh();
   }, [handleRefresh]);
 
-  // Filter out resolved alerts and sort: unacknowledged first, then by severity
-  const activeAlerts = alerts.filter((a) => !a.resolved);
+  // Alerts from cache are already filtered (non-resolved)
+  // The singleton cache uses Map to prevent duplicates
+  const activeAlerts = alerts;
 
   // Normalize task alerts to have consistent structure with system alerts
   const normalizedTaskAlerts = showTaskAlerts
@@ -319,8 +323,8 @@ export default function SystemAlertsSection({ maxItems = 5, showTaskAlerts = fal
           </Box>
         ) : (
           <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-            {sortedAlerts.map((alert) => (
-              <Grid item xs={12} sm={6} md={4} key={alert.alert_id || alert.id || alert.task_id}>
+            {sortedAlerts.map((alert, index) => (
+              <Grid item xs={12} sm={6} md={4} key={`alert-${alert.alert_id || alert.id || alert.task_id || index}`}>
                 <AlertCard
                   alert={alert}
                   onClick={() => handleAlertClick(alert, alert._isTaskAlert)}

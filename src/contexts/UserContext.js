@@ -76,6 +76,11 @@ export function UserProvider({ children }) {
     userSession.updateSettings(settings);
   }, []);
 
+  // Refresh permissions
+  const refreshPermissions = useCallback(async () => {
+    return userSession.loadPermissions();
+  }, []);
+
   // Update profile
   const updateProfile = useCallback((profileData) => {
     userSession.updateProfile(profileData);
@@ -110,6 +115,7 @@ export function UserProvider({ children }) {
     login,
     logout,
     updateSettings,
+    refreshPermissions,
     updateProfile,
 
     // Utilities
@@ -197,8 +203,9 @@ export function useUserSettings() {
  * @returns {object} Permissions data and role checkers
  */
 export function useUserPermissions() {
-  const { permissions, roles, isAdmin, isManager, hasRole, hasAnyRole } = useUser();
-  return { permissions, roles, isAdmin, isManager, hasRole, hasAnyRole };
+  const { permissions, roles, isAdmin, isManager, hasRole, hasAnyRole, refreshPermissions } = useUser();
+
+  return { permissions, roles, isAdmin, isManager, hasRole, hasAnyRole, refreshPermissions };
 }
 
 // ============================================================================

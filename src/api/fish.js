@@ -49,8 +49,8 @@ export async function getFish(fishId) {
 export async function createFish(data) {
   return apiFetch(API_FISH.SPECIES_CREATE, {
     method: 'POST',
-    headers: getAuthHeaders(),
     body: JSON.stringify(data),
+    headers: getAuthHeaders(),
   });
 }
 
@@ -60,8 +60,8 @@ export async function createFish(data) {
 export async function updateFish(fishId, data) {
   return apiFetch(API_FISH.SPECIES_UPDATE(fishId), {
     method: 'PUT',
-    headers: getAuthHeaders(),
     body: JSON.stringify(data),
+    headers: getAuthHeaders(),
   });
 }
 
@@ -71,12 +71,67 @@ export async function updateFish(fishId, data) {
 export async function deleteFish(fishId) {
   return apiFetch(API_FISH.SPECIES_DELETE(fishId), {
     method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+}
+
+// ============================================================================
+// Stock Operations
+// ============================================================================
+
+/**
+ * List all fish stocks
+ */
+export async function listStocks(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return apiFetch(`${API_FISH.STOCKS}${qs ? '?' + qs : ''}`, {
+    method: 'GET',
     headers: getAuthHeaders({ contentType: null }),
   });
 }
 
-// Note: Analytics and Fields endpoints are not available in the new species API
-// Removed: getAnalytics() and getFields()
+/**
+ * Get stock by ID
+ */
+export async function getStock(stockId) {
+  return apiFetch(API_FISH.STOCK_DETAIL(stockId), {
+    method: 'GET',
+    headers: getAuthHeaders({ contentType: null }),
+  });
+}
+
+/**
+ * Create new stock
+ */
+export async function createStock(data) {
+  return apiFetch(API_FISH.STOCKS_CREATE, {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: getAuthHeaders(),
+  });
+}
+
+/**
+ * Update stock
+ */
+export async function updateStock(stockId, data) {
+  return apiFetch(API_FISH.STOCK_UPDATE(stockId), {
+    method: 'PUT',
+    body: JSON.stringify(data),
+    headers: getAuthHeaders(),
+  });
+}
+
+/**
+ * Terminate stock
+ */
+export async function terminateStock(stockId, data) {
+  return apiFetch(API_FISH.STOCK_TERMINATE(stockId), {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: getAuthHeaders(),
+  });
+}
 
 const fishApi = {
   listFish,
@@ -86,6 +141,11 @@ const fishApi = {
   addFish: createFish,  // Alias for backward compatibility
   updateFish,
   deleteFish,
+  listStocks,
+  getStock,
+  createStock,
+  updateStock,
+  terminateStock,
 };
 
 export default fishApi;

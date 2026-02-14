@@ -7,6 +7,9 @@
  * @module utils/auth/userSession
  */
 
+import { getPermissions } from '../../api/user';
+import { clearPermissionTemplate } from './permissionService';
+
 // ============================================================================
 // Storage Keys
 // ============================================================================
@@ -55,6 +58,7 @@ class SessionEventEmitter {
 // ============================================================================
 // UserSession Singleton Class
 // ============================================================================
+
 class UserSession {
   static instance = null;
 
@@ -64,7 +68,6 @@ class UserSession {
     }
 
     this._events = new SessionEventEmitter();
-    this._initialized = false;
 
     // Token data
     this._accessToken = null;
@@ -119,7 +122,6 @@ class UserSession {
         this._isManager = sessionData.isManager || false;
       }
 
-      this._initialized = true;
       console.debug('[UserSession] Loaded from storage', {
         hasUser: !!this._user,
         hasToken: !!this._accessToken,
@@ -138,20 +140,6 @@ class UserSession {
     }
   }
 
-  /**
-   * Flexible field getter - handles both camelCase and snake_case
-   * Prioritizes snake_case as backend now uses snake_case
-   * @param {object} obj - Object to extract from
-   * @param {string} snakeKey - snake_case key name (prioritized)
-   * @param {string} camelKey - camelCase key name (fallback)
-   * @param {any} defaultValue - default value if not found
-   * @returns {any}
-   */
-  _getField(obj, snakeKey, camelKey = null, defaultValue = null) {
-    if (!obj) return defaultValue;
-    // Prioritize snake_case, fallback to camelCase for backward compatibility
-    return obj[snakeKey] ?? (camelKey ? obj[camelKey] : defaultValue) ?? defaultValue;
-  }
 
   _saveToStorage() {
     try {
@@ -166,11 +154,23 @@ class UserSession {
         localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, this._tokenExpiry.toString());
       }
 
-      // Save session data
+      // Save session data - minimalistic for security
+      // We only store essential info for hydration. Permissions are better fetched fresh or kept in memory.
       const sessionData = {
-        user: this._user,
+        user: {
+            // Only store non-sensitive identification info for basic UI hydration
+            user_key: this._user?.user_key,
+            username: this._user?.username,
+            display_name: this._user?.display_name,
+            email: this._user?.email,
+            profile_photo: this._user?.profile_photo,
+            roles: this._user?.roles, // Roles are generally okay, but granular permissions are sensitive
+            account_key: this._user?.account_key
+        },
         settings: this._settings,
-        permissions: this._permissions,
+        // Permissions are NOT stored in localStorage for security.
+        // They should be re-fetched on session init or kept in memory.
+        permissions: null,
         account: this._account,
         isAdmin: this._isAdmin,
         isManager: this._isManager,
@@ -269,6 +269,41 @@ class UserSession {
     });
   }
 
+  /**
+   * Load permissions from API and cache them.
+   */
+  async loadPermissions() {
+    try {
+      const res = await getPermissions();
+      let data;
+      if (res.json) {
+         data = await res.json();
+      } else {
+         data = res;
+      }
+
+      const permissionsData = data.data || data;
+      this._permissions = permissionsData;
+
+      // Update role if present in permissions data (as seen in user example output)
+      if (permissionsData.role && this._user) {
+          this._user.role = permissionsData.role;
+          this._isAdmin = this._checkAdmin();
+          this._isManager = this._checkManager();
+      }
+
+      // Do NOT save permissions to storage, only memory
+      // this._saveToStorage();
+
+      this._events.emit('permissionsUpdated', this._permissions);
+      console.log('[UserSession] Permissions loaded (Memory Only):', this._permissions);
+      return this._permissions;
+    } catch (e) {
+      console.error('[UserSession] Failed to load permissions:', e);
+      return null;
+    }
+  }
+
   _extractUser(data) {
     // Handle various response shapes - handle both snake_case and camelCase
     const user = data.user || data.userInfo || data;
@@ -334,6 +369,19 @@ class UserSession {
     ) || this._isAdmin; // Admins are also managers
   }
 
+  _checkAdmin() {
+    const role = this._user?.role?.toLowerCase() || '';
+    const roles = this._user?.roles?.map(r => String(r).toLowerCase()) || [];
+    return role === 'admin' || role === 'owner' || roles.includes('admin') || roles.includes('owner');
+  }
+
+  _checkManager() {
+    if (this._checkAdmin()) return true;
+    const role = this._user?.role?.toLowerCase() || '';
+    const roles = this._user?.roles?.map(r => String(r).toLowerCase()) || [];
+    return role === 'manager' || roles.includes('manager');
+  }
+
   _parseJwt(token) {
     try {
       const base64Url = token.split('.')[1];
@@ -363,6 +411,9 @@ class UserSession {
     this._account = null;
     this._isAdmin = false;
     this._isManager = false;
+
+    // Clear permission template from memory
+    clearPermissionTemplate();
 
     // Clear storage
     localStorage.removeItem(STORAGE_KEYS.SESSION);
@@ -410,10 +461,6 @@ class UserSession {
     return this._tokenExpiry;
   }
 
-  get isTokenExpired() {
-    if (!this._tokenExpiry) return true;
-    return Date.now() >= this._tokenExpiry;
-  }
 
   get isTokenExpiringSoon() {
     if (!this._tokenExpiry) return true;

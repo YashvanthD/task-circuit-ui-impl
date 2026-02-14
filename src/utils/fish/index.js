@@ -27,6 +27,10 @@ export {
   modifyFish,
   removeFish,
   fishEvents,
+  getStockList,
+  createStock,
+  updateStock,
+  terminateStock,
 } from './api';
 
 // Aliases for backward compatibility
@@ -52,6 +56,11 @@ const fishUtil = {
   modifyFish: apiUtils.modifyFish,
   removeFish: apiUtils.removeFish,
   fishEvents: apiUtils.fishEvents,
+  // Stock API
+  getStockList: apiUtils.getStockList,
+  createStock: apiUtils.createStock,
+  updateStock: apiUtils.updateStock,
+  terminateStock: apiUtils.terminateStock,
 };
 
 // Expose for debugging

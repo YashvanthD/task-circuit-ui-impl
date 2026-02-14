@@ -52,6 +52,16 @@ export async function getUser(userId) {
 }
 
 /**
+ * Get current user permissions
+ */
+export async function getPermissions() {
+  return apiFetch(API_USER.PERMISSIONS, {
+    method: 'GET',
+    headers: getAuthHeaders({ contentType: null }),
+  });
+}
+
+/**
  * Create new user
  */
 export async function createUser(data) {
@@ -153,7 +163,7 @@ const userApi = {
   updateSettings,
   updateNotificationSettings,
   uploadProfilePicture,
+  getPermissions,
 };
 
 export default userApi;
-
